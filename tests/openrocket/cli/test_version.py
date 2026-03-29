@@ -1,5 +1,6 @@
 import pytest
 
+from unittest.mock import patch
 from typer.testing import CliRunner
 from rocketsmith.openrocket.cli import app
 
@@ -9,11 +10,15 @@ def runner():
     return CliRunner(env={"NO_COLOR": "1"})
 
 
-def test_version_not_found(runner, tmp_path):
+def test_version_not_found(runner):
     """Exits with code 1 and prints a warning when JAR is not found."""
-    result = runner.invoke(app, ["version", "--openrocket-path", str(tmp_path)])
+    with patch(
+        "rocketsmith.openrocket.cli.version.get_openrocket_path",
+        side_effect=FileNotFoundError("OpenRocket JAR not found."),
+    ):
+        result = runner.invoke(app, ["version"])
     assert result.exit_code == 1
-    assert "not found" in result.stdout.lower() or "⚠️" in result.stdout
+    assert "⚠️" in result.stdout
 
 
 def test_version_with_explicit_jar(runner, tmp_path):

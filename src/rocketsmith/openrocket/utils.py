@@ -22,6 +22,11 @@ _SEARCH_PATHS = {
         Path("/opt/openrocket"),
     ],
     "win32": [
+        # install4j bundled installer (winget / direct download) - OpenRocket 23+
+        Path("C:/Program Files/OpenRocket/app/jar"),
+        Path("C:/Program Files (x86)/OpenRocket/app/jar"),
+        Path.home() / "AppData/Local/OpenRocket/app/jar",
+        # Legacy locations
         Path("C:/Program Files/OpenRocket"),
         Path("C:/Program Files (x86)/OpenRocket"),
         Path.home() / "AppData/Local/OpenRocket",
