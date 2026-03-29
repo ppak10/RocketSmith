@@ -1,6 +1,6 @@
 [![pytest](https://github.com/ppak10/RocketSmith/actions/workflows/pytest.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/pytest.yml)
 
-# RocketSmith <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/rocket.svg" width="32" height="32" />
+# <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.iconify.design/lucide/rocket.svg?color=white&width=32&height=32"><img src="https://api.iconify.design/lucide/rocket.svg?color=black&width=32&height=32" width="32" height="32" /></picture> RocketSmith
 
 Let agents design, simulate, and build your rocket.
 
