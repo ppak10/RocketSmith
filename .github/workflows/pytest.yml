@@ -1,0 +1,46 @@
+name: pytest
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    - name: Set up UV
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install project dependencies
+      run: uv sync --locked --all-extras --dev
+
+    - name: Install rocketsmith package locally
+      run: uv pip install -e .
+
+    - name: Run tests
+      run: uv run pytest tests --cov=rocketsmith --cov-report xml --junitxml=junitxml -o junit_family=legacy
+      env:
+        NO_COLOR: 1
+        TERM: dumb
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
