@@ -50,7 +50,12 @@ def test_install_windows(runner):
         result = runner.invoke(app, ["install"])
         assert result.exit_code == 0
         mock_run.assert_called_once_with(
-            ["winget", "install", "--exact", "--id", "OpenRocket.OpenRocket"],
+            [
+                "winget", "install",
+                "--exact", "--id", "OpenRocket.OpenRocket",
+                "--accept-source-agreements",
+                "--accept-package-agreements",
+            ],
             check=True,
         )
 
