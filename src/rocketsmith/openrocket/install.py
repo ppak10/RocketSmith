@@ -1,3 +1,4 @@
+import re
 import shutil
 import subprocess
 import sys
@@ -7,6 +8,8 @@ import json
 from pathlib import Path
 from rich import print as rprint
 from rich.progress import Progress, SpinnerColumn, DownloadColumn, TransferSpeedColumn, BarColumn, TextColumn
+
+from rocketsmith.openrocket.utils import get_openrocket_path
 
 
 _GITHUB_RELEASES_API = "https://api.github.com/repos/openrocket/openrocket/releases/latest"
@@ -64,9 +67,6 @@ def _download_jar(url: str, dest: Path) -> None:
 
 def install() -> None:
     """Install OpenRocket using the appropriate method for the current platform."""
-    import re
-    from rocketsmith.openrocket.utils import get_openrocket_path
-
     try:
         jar = get_openrocket_path()
         match = re.search(r"OpenRocket-?([\d.]+)\.jar", jar.name, re.IGNORECASE)

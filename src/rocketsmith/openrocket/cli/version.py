@@ -5,6 +5,8 @@ from pathlib import Path
 from rich import print as rprint
 from typing_extensions import Annotated
 
+from rocketsmith.openrocket.utils import get_openrocket_path
+
 
 def register_openrocket_version(app: typer.Typer):
     @app.command(name="version")
@@ -18,8 +20,6 @@ def register_openrocket_version(app: typer.Typer):
         ] = None,
     ) -> None:
         """Show the installed version of OpenRocket."""
-        from rocketsmith.openrocket.utils import get_openrocket_path
-
         try:
             jar = get_openrocket_path(openrocket_path)
         except FileNotFoundError as e:
