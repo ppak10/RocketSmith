@@ -3,46 +3,28 @@ import shutil
 import subprocess
 import sys
 import urllib.request
-import json
 
 from pathlib import Path
 from rich import print as rprint
 from rich.progress import Progress, SpinnerColumn, DownloadColumn, TransferSpeedColumn, BarColumn, TextColumn
 
-from rocketsmith.openrocket.utils import get_openrocket_path
+from rocketsmith.openrocket.utils import get_openrocket_jvm, get_openrocket_path
 
 
-_GITHUB_RELEASES_API = "https://api.github.com/repos/openrocket/openrocket/releases/latest"
+# orhelper 0.1.x is compatible with OpenRocket 23.09 only (net.sf.openrocket package).
+# OpenRocket 24+ reorganized Java packages to info.openrocket and is not supported.
+OPENROCKET_VERSION = "23.09"
+_JAR_URL = (
+    f"https://github.com/openrocket/openrocket/releases/download/"
+    f"release-{OPENROCKET_VERSION}/OpenRocket-{OPENROCKET_VERSION}.jar"
+)
 
 
-def _get_latest_jar_asset() -> tuple[str, str]:
-    """
-    Fetch the latest OpenRocket release from GitHub and return (version, download_url)
-    for the JAR asset.
-    """
-    rprint("[blue]Fetching latest OpenRocket release info from GitHub...[/blue]")
-
-    req = urllib.request.Request(
-        _GITHUB_RELEASES_API,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "rocketsmith"},
-    )
-
-    with urllib.request.urlopen(req) as response:
-        data = json.loads(response.read())
-
-    version = data["tag_name"].lstrip("release-").lstrip("v")
-
-    jar_asset = next(
-        (a for a in data["assets"] if a["name"].endswith(".jar")),
-        None,
-    )
-
-    if jar_asset is None:
-        raise RuntimeError(
-            f"No JAR asset found in OpenRocket release {data['tag_name']}."
-        )
-
-    return version, jar_asset["browser_download_url"]
+def _get_install_dir() -> Path:
+    """Return the platform-appropriate directory for the downloaded JAR."""
+    if sys.platform == "win32":
+        return Path.home() / "AppData" / "Local" / "OpenRocket"
+    return Path.home() / ".local" / "share" / "openrocket"
 
 
 def _download_jar(url: str, dest: Path) -> None:
@@ -66,7 +48,12 @@ def _download_jar(url: str, dest: Path) -> None:
 
 
 def install() -> None:
-    """Install OpenRocket using the appropriate method for the current platform."""
+    """Install OpenRocket 23.09 JAR and a Java runtime for the current platform."""
+    # Ensure a JRE is available — use a dummy path so get_openrocket_jvm falls
+    # through to the system JVM search without needing the JAR to exist yet.
+    if get_openrocket_jvm(Path("/nonexistent")) is None:
+        _install_java()
+
     try:
         jar = get_openrocket_path()
         match = re.search(r"OpenRocket-?([\d.]+)\.jar", jar.name, re.IGNORECASE)
@@ -76,56 +63,53 @@ def install() -> None:
     except FileNotFoundError:
         pass
 
+    _install_jar()
+
+
+def _install_jar() -> None:
+    dest = _get_install_dir() / f"OpenRocket-{OPENROCKET_VERSION}.jar"
+    rprint(f"[blue]Downloading OpenRocket {OPENROCKET_VERSION}...[/blue]")
+    _download_jar(_JAR_URL, dest)
+    rprint(f"✅ OpenRocket [bold]{OPENROCKET_VERSION}[/bold] installed at: [cyan]{dest}[/cyan]")
+
+
+def _install_java() -> None:
+    """Install a Java runtime using the appropriate method for the current platform."""
     match sys.platform:
         case "darwin":
-            _install_macos()
+            if shutil.which("brew") is None:
+                raise RuntimeError(
+                    "Homebrew not found. Install it from https://brew.sh then retry, "
+                    "or install a Java runtime manually."
+                )
+            rprint("[blue]Installing Java runtime via Homebrew (openjdk)...[/blue]")
+            subprocess.run(["brew", "install", "openjdk"], check=True)
+            rprint("✅ Java runtime installed.")
         case "linux":
-            _install_linux()
+            rprint("[blue]Installing Java runtime via apt...[/blue]")
+            subprocess.run(
+                ["sudo", "apt-get", "install", "-y", "default-jre-headless"],
+                check=True,
+            )
+            rprint("✅ Java runtime installed.")
         case "win32":
-            _install_windows()
+            if shutil.which("winget") is None:
+                raise RuntimeError(
+                    "winget not found. Install a Java runtime manually from https://adoptium.net"
+                )
+            rprint("[blue]Installing Java runtime via winget (Temurin)...[/blue]")
+            subprocess.run(
+                [
+                    "winget", "install",
+                    "--exact", "--id", "EclipseAdoptium.Temurin.21.JRE",
+                    "--accept-source-agreements",
+                    "--accept-package-agreements",
+                ],
+                check=True,
+            )
+            rprint("✅ Java runtime installed.")
         case _:
-            raise NotImplementedError(f"Unsupported platform: {sys.platform}")
-
-
-def _install_macos() -> None:
-    if shutil.which("brew") is None:
-        raise RuntimeError(
-            "Homebrew not found. Install it from https://brew.sh then retry."
-        )
-
-    rprint("[blue]Installing OpenRocket via Homebrew...[/blue]")
-    subprocess.run(["brew", "install", "--cask", "openrocket"], check=True)
-    rprint("✅ OpenRocket installed via Homebrew.")
-
-
-def _install_linux() -> None:
-    version, url = _get_latest_jar_asset()
-
-    dest = Path.home() / ".local" / "share" / "openrocket" / f"OpenRocket-{version}.jar"
-
-    if dest.exists():
-        rprint(f"✅ OpenRocket [bold]{version}[/bold] is already installed at: [cyan]{dest}[/cyan]")
-        return
-
-    rprint(f"[blue]Downloading OpenRocket {version}...[/blue]")
-    _download_jar(url, dest)
-    rprint(f"✅ OpenRocket [bold]{version}[/bold] installed at: [cyan]{dest}[/cyan]")
-
-
-def _install_windows() -> None:
-    if shutil.which("winget") is None:
-        raise RuntimeError(
-            "winget not found. Update Windows or install App Installer from the Microsoft Store."
-        )
-
-    rprint("[blue]Installing OpenRocket via winget...[/blue]")
-    subprocess.run(
-        [
-            "winget", "install",
-            "--exact", "--id", "OpenRocket.OpenRocket",
-            "--accept-source-agreements",
-            "--accept-package-agreements",
-        ],
-        check=True,
-    )
-    rprint("✅ OpenRocket installed via winget.")
+            raise NotImplementedError(
+                f"Unsupported platform: {sys.platform}. "
+                "Install a Java runtime manually then retry."
+            )

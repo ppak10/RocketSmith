@@ -34,6 +34,12 @@ rocketsmith mcp install claude-desktop --project-path /path/to/RocketSmith
 
 Note: After installation, restart Claude Desktop for the changes to take effect.
 
+### OpenRocket Compatibility
+
+RocketSmith uses [orhelper](https://github.com/SilentSys/orhelper) to interface with OpenRocket. orhelper 0.1.x targets the `net.sf.openrocket` Java package, which was present in **OpenRocket 23.09 and earlier**. OpenRocket 24+ reorganized its packages to `info.openrocket` and is not currently supported.
+
+`rocketsmith openrocket install` pins to OpenRocket 23.09 on all platforms.
+
 ### CLI (`rocketsmith --help`)
 #### Create Workspace (via `workspace-agent`)
 ```bash

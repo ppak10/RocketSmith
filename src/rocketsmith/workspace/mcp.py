@@ -18,6 +18,7 @@ def register_workspace_create(app: FastMCP):
         workspace_name: str,
         workspaces_path: Path | None = None,
         force: bool = False,
+        include_examples: bool = False,
     ) -> Union[ToolSuccess[Workspace], ToolError]:
         """
         Initialize rocketsmith workspace folder.
@@ -26,6 +27,7 @@ def register_workspace_create(app: FastMCP):
             workspace_name: Name of folder to initialize.
             workspaces_path: Path of folder containing workspaces.
             force: Overwrite existing workspace.
+            include_examples: Copy example .ork files into openrocket/ subfolder.
         """
         from rocketsmith.workspace.create import create_rocketsmith_workspace
 
@@ -34,6 +36,7 @@ def register_workspace_create(app: FastMCP):
                 workspace_name=workspace_name,
                 workspaces_path=workspaces_path,
                 force=force,
+                include_examples=include_examples,
             )
 
             return tool_success(workspace)

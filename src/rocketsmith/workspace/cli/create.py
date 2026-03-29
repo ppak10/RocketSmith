@@ -13,6 +13,9 @@ def register_workspace_create(app: typer.Typer):
         force: Annotated[
             bool, typer.Option("--force", help="Overwrite existing subfolder")
         ] = False,
+        include_examples: Annotated[
+            bool, typer.Option("--include-examples", help="Copy example .ork files into openrocket/ subfolder")
+        ] = False,
     ) -> None:
         """Create a folder to store data related to a workspace."""
         from rocketsmith.workspace.create import create_rocketsmith_workspace
@@ -22,6 +25,7 @@ def register_workspace_create(app: typer.Typer):
                 workspace_name=workspace_name,
                 workspaces_path=workspaces_path,
                 force=force,
+                include_examples=include_examples,
             )
             rprint(f"✅ Workspace created at: {workspace.path}")
         except FileExistsError:
