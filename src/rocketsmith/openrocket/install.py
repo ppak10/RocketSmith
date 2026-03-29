@@ -120,7 +120,12 @@ def _install_windows() -> None:
 
     rprint("[blue]Installing OpenRocket via winget...[/blue]")
     subprocess.run(
-        ["winget", "install", "--exact", "--id", "OpenRocket.OpenRocket"],
+        [
+            "winget", "install",
+            "--exact", "--id", "OpenRocket.OpenRocket",
+            "--accept-source-agreements",
+            "--accept-package-agreements",
+        ],
         check=True,
     )
     rprint("✅ OpenRocket installed via winget.")

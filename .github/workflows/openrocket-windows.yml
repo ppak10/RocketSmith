@@ -23,11 +23,14 @@ jobs:
 
       - name: Install OpenRocket
         run: uv run rocketsmith openrocket install
+        env:
+          PYTHONUTF8: 1
 
       - name: Run OpenRocket tests
         run: uv run pytest tests/openrocket --cov=rocketsmith.openrocket --cov-report xml --junitxml=junitxml -o junit_family=legacy
         env:
           NO_COLOR: 1
+          PYTHONUTF8: 1
           TERM: dumb
 
       - name: Upload to Codecov
