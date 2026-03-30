@@ -27,6 +27,12 @@ def create_rocketsmith_workspace(
             force=force,
             include_examples=include_examples,
         )
+        _create_workspace_parts_folder(
+            workspace_name=workspace_name,
+            workspaces_path=workspaces_path,
+            force=force,
+            include_examples=include_examples,
+        )
 
     return workspace
 
@@ -50,5 +56,28 @@ def _create_workspace_openrocket_folder(
     )
 
     if include_examples:
-        for ork_file in (DATA_DIR).glob("*.ork"):
+        for ork_file in (DATA_DIR / "openrocket").glob("*.ork"):
             shutil.copy2(ork_file, openrocket_folder.path / ork_file.name)
+
+
+def _create_workspace_parts_folder(
+    workspace_name: str,
+    workspaces_path: Path | None = None,
+    force: bool = False,
+    include_examples: bool = False,
+) -> None:
+    """
+    Create parts subfolder within workspace and optionally copy example STEP files.
+    """
+    from rocketsmith.data import DATA_DIR
+
+    parts_folder = create_workspace_folder(
+        name_or_path="parts",
+        workspace_name=workspace_name,
+        workspaces_path=workspaces_path,
+        force=force,
+    )
+
+    if include_examples:
+        for step_file in (DATA_DIR / "part").glob("*.step"):
+            shutil.copy2(step_file, parts_folder.path / step_file.name)
