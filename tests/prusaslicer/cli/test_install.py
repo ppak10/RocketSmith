@@ -54,19 +54,19 @@ def test_install_linux_brew(runner):
         )
 
 
-def test_install_linux_apt(runner):
-    """Linux: falls back to apt-get when brew is not available."""
+def test_install_linux_snap(runner):
+    """Linux: falls back to snap when brew is not available."""
     with (
         patch("rocketsmith.prusaslicer.install.get_prusaslicer_path", side_effect=FileNotFoundError),
         patch("sys.platform", "linux"),
-        patch("shutil.which", side_effect=lambda cmd: "/usr/bin/apt-get" if cmd == "apt-get" else None),
+        patch("shutil.which", side_effect=lambda cmd: "/usr/bin/snap" if cmd == "snap" else None),
         patch("subprocess.run") as mock_run,
     ):
         mock_run.return_value = MagicMock(returncode=0)
         result = runner.invoke(app, ["install"])
         assert result.exit_code == 0
         mock_run.assert_called_once_with(
-            ["sudo", "apt-get", "install", "-y", "prusaslicer"], check=True
+            ["sudo", "snap", "install", "prusaslicer"], check=True
         )
 
 
@@ -79,7 +79,7 @@ def test_install_linux_no_package_manager(runner):
     ):
         result = runner.invoke(app, ["install"])
         assert result.exit_code == 1
-        assert "apt-get" in result.stdout.lower() or "brew" in result.stdout.lower()
+        assert "snap" in result.stdout.lower() or "brew" in result.stdout.lower()
 
 
 def test_install_windows(runner):
@@ -131,7 +131,7 @@ def test_install_already_installed(runner, tmp_path):
         mock_run.assert_not_called()
 
 
-def test_install_integration(runner):
-    """Integration: install command succeeds on the current platform."""
+def test_install_integration(runner, prusaslicer_exe):
+    """Integration: install command succeeds when PrusaSlicer is already installed."""
     result = runner.invoke(app, ["install"])
     assert result.exit_code == 0

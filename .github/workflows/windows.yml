@@ -1,4 +1,4 @@
-name: openrocket-windows
+name: windows
 
 on: [push, pull_request]
 
@@ -26,8 +26,13 @@ jobs:
         env:
           PYTHONUTF8: 1
 
-      - name: Run OpenRocket tests
-        run: uv run pytest tests/openrocket --cov=rocketsmith.openrocket --cov-report xml --junitxml=junitxml -o junit_family=legacy
+      - name: Install PrusaSlicer
+        run: uv run rocketsmith prusaslicer install
+        env:
+          PYTHONUTF8: 1
+
+      - name: Run tests
+        run: uv run pytest tests/openrocket tests/prusaslicer --cov=rocketsmith --cov-report xml --junitxml=junitxml -o junit_family=legacy
         env:
           NO_COLOR: 1
           PYTHONUTF8: 1

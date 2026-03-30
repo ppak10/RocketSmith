@@ -1,7 +1,7 @@
 [![pytest](https://github.com/ppak10/RocketSmith/actions/workflows/pytest.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/pytest.yml)
-[![openrocket-macos](https://github.com/ppak10/RocketSmith/actions/workflows/openrocket-macos.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/openrocket-macos.yml)
-[![openrocket-ubuntu](https://github.com/ppak10/RocketSmith/actions/workflows/openrocket-ubuntu.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/openrocket-ubuntu.yml)
-[![openrocket-windows](https://github.com/ppak10/RocketSmith/actions/workflows/openrocket-windows.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/openrocket-windows.yml)
+[![macos](https://github.com/ppak10/RocketSmith/actions/workflows/macos.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/macos.yml)
+[![ubuntu](https://github.com/ppak10/RocketSmith/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/ubuntu.yml)
+[![windows](https://github.com/ppak10/RocketSmith/actions/workflows/windows.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/windows.yml)
 [![codecov](https://codecov.io/github/ppak10/RocketSmith/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/github/ppak10/RocketSmith)
 
 # <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.iconify.design/lucide/rocket.svg?color=white&width=32&height=32"><img src="https://api.iconify.design/lucide/rocket.svg?color=black&width=32&height=32" width="32" height="32" /></picture> RocketSmith

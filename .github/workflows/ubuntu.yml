@@ -1,10 +1,10 @@
-name: openrocket-macos
+name: ubuntu
 
 on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository code
@@ -24,8 +24,11 @@ jobs:
       - name: Install OpenRocket
         run: uv run rocketsmith openrocket install
 
-      - name: Run OpenRocket tests
-        run: uv run pytest tests/openrocket --cov=rocketsmith.openrocket --cov-report xml --junitxml=junitxml -o junit_family=legacy
+      - name: Install PrusaSlicer
+        run: uv run rocketsmith prusaslicer install
+
+      - name: Run tests
+        run: uv run pytest tests/openrocket tests/prusaslicer --cov=rocketsmith --cov-report xml --junitxml=junitxml -o junit_family=legacy
         env:
           NO_COLOR: 1
           TERM: dumb

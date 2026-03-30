@@ -42,13 +42,13 @@ def _install_linux() -> None:
         rprint("[blue]Installing PrusaSlicer via Homebrew...[/blue]")
         subprocess.run(["brew", "install", "prusaslicer"], check=True)
         rprint("✅ PrusaSlicer installed.")
-    elif shutil.which("apt-get") is not None:
-        rprint("[blue]Installing PrusaSlicer via apt...[/blue]")
-        subprocess.run(["sudo", "apt-get", "install", "-y", "prusaslicer"], check=True)
+    elif shutil.which("snap") is not None:
+        rprint("[blue]Installing PrusaSlicer via snap...[/blue]")
+        subprocess.run(["sudo", "snap", "install", "prusaslicer"], check=True)
         rprint("✅ PrusaSlicer installed.")
     else:
         raise RuntimeError(
-            "No supported package manager found (brew or apt-get). "
+            "No supported package manager found (brew or snap). "
             "Install PrusaSlicer manually from https://www.prusa3d.com/prusaslicer/"
         )
 
