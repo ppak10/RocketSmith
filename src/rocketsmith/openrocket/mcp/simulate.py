@@ -1,10 +1,10 @@
 from mcp.server.fastmcp import FastMCP
 
-from pathlib import Path
-from typing import Union
-
 
 def register_openrocket_simulate(app: FastMCP):
+    from pathlib import Path
+    from typing import Union
+
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import tool_success, tool_error
     from rocketsmith.openrocket.models import OpenRocketSimulationSummary

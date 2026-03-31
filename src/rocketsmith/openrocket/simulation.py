@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from rocketsmith.openrocket.models import OpenRocketSimulation
-from rocketsmith.openrocket.utils import get_openrocket_jvm
 
 
 def run_simulation(
@@ -20,17 +19,11 @@ def run_simulation(
     """
     import orhelper
     from orhelper import FlightDataType, FlightEvent
+    from rocketsmith.openrocket.components import _or_context
 
     results = []
 
-    jvm = get_openrocket_jvm(openrocket_path)
-    if jvm:
-        import os
-        # JAVA_HOME must point to the JRE home (three levels up from libjvm.dylib)
-        # e.g. .../jre.bundle/Contents/Home/lib/server/libjvm.dylib -> .../Home
-        os.environ["JAVA_HOME"] = str(jvm.parent.parent.parent)
-
-    with orhelper.OpenRocketInstance(str(openrocket_path), log_level="ERROR") as instance:
+    with _or_context(openrocket_path) as instance:
         helper = orhelper.Helper(instance)
         doc = helper.load_doc(str(ork_path))
 

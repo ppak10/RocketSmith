@@ -1,13 +1,21 @@
 from mcp.server.fastmcp import FastMCP
 
 from rocketsmith.workspace.mcp import register_workspace_create
-from rocketsmith.openrocket.mcp import register_openrocket_simulate
+from rocketsmith.openrocket.mcp import (
+    register_openrocket_simulate,
+    register_openrocket_new,
+    register_openrocket_inspect,
+    register_openrocket_component,
+)
 from rocketsmith.prusaslicer.mcp import register_prusaslicer_slice
 
 app = FastMCP(name="rocketsmith")
 
 _ = register_workspace_create(app)
 _ = register_openrocket_simulate(app)
+_ = register_openrocket_new(app)
+_ = register_openrocket_inspect(app)
+_ = register_openrocket_component(app)
 _ = register_prusaslicer_slice(app)
 
 

@@ -1,0 +1,66 @@
+import typer
+
+from rich import print as rprint
+from rich.table import Table
+from rich.console import Console
+from typing_extensions import Annotated
+
+from rocketsmith.openrocket.utils import get_openrocket_path
+from wa.cli.options import WorkspaceOption
+from wa.cli.utils import get_workspace
+
+
+def register_openrocket_read_component(app: typer.Typer):
+    @app.command(name="read-component")
+    def openrocket_read_component(
+        ork_filename: Annotated[
+            str,
+            typer.Argument(help="Filename of the .ork file in the workspace openrocket/ folder."),
+        ],
+        component_name: Annotated[
+            str,
+            typer.Argument(help="Name of the component to read (as shown by inspect)."),
+        ],
+        workspace_option: WorkspaceOption = None,
+        openrocket_path: Annotated[
+            str | None,
+            typer.Option("--openrocket-path", help="Path to OpenRocket JAR or its parent directory."),
+        ] = None,
+    ) -> None:
+        """Display all properties of a single component by name."""
+        from rocketsmith.openrocket.components import read_component
+
+        try:
+            jar = get_openrocket_path(openrocket_path)
+        except FileNotFoundError as e:
+            rprint(f"⚠️  [yellow]{e}[/yellow]")
+            raise typer.Exit(1)
+
+        workspace = get_workspace(workspace_option)
+        ork_path = workspace.path / "openrocket" / ork_filename
+
+        if not ork_path.exists():
+            rprint(f"⚠️  [yellow].ork file not found: {ork_path}[/yellow]")
+            raise typer.Exit(1)
+
+        try:
+            info = read_component(ork_path, component_name, jar)
+        except ValueError as e:
+            rprint(f"⚠️  [yellow]{e}[/yellow]")
+            raise typer.Exit(1)
+        except Exception as e:
+            rprint(f"⚠️  [yellow]Failed to read component: {e}[/yellow]")
+            raise typer.Exit(1)
+
+        table = Table(title=f"{info['type']}  —  {info['name']}")
+        table.add_column("Property", style="dim")
+        table.add_column("Value", style="cyan")
+
+        for key, value in info.items():
+            if key in ("type", "name"):
+                continue
+            table.add_row(key, str(value))
+
+        Console().print(table)
+
+    return openrocket_read_component
