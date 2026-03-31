@@ -60,6 +60,7 @@ The following tools are exposed to agents via the MCP server.
 | `openrocket_new` | Create a new empty `.ork` file |
 | `openrocket_inspect` | Return the full component tree of an `.ork` file |
 | `openrocket_component` | Create, read, update, or delete a component (`action` parameter) |
+| `openrocket_database` | Query the OpenRocket built-in database for motors, presets, or materials |
 | `openrocket_simulate` | Run all simulations in an `.ork` file and return flight summaries |
 | `prusaslicer_slice` | Slice a model with PrusaSlicer |
 
@@ -75,6 +76,27 @@ The `openrocket_component` tool accepts an explicit `action` parameter:
 | `delete` | `component_name` | Remove a named component |
 
 All dimensional properties are in SI units (metres, kilograms).
+
+**Preset and material support (`create` and `update`):**
+
+| Parameter | Description |
+|---|---|
+| `preset_part_no` | Part number from `openrocket_database` (e.g. `BT-20`). Loads manufacturer geometry and material as a baseline. |
+| `preset_manufacturer` | Optional manufacturer filter when the same part number appears across brands. |
+| `material_name` | Material name from `openrocket_database` (e.g. `Aluminum`, `Carbon fiber`). Overrides the preset's material when combined with `preset_part_no`. |
+| `material_type` | Narrows material lookup to `bulk`, `surface`, or `line`. Optional. |
+
+Explicit dimension params (e.g. `length`, `diameter`) always override the loaded preset. The precedence is: preset baseline → dimension overrides → material override.
+
+### `openrocket_database` actions
+
+| Action | Required params | Optional filters | Description |
+|---|---|---|---|
+| `motors` | — | `manufacturer`, `impulse_class`, `diameter_mm`, `motor_type` | List ~1,900 motors. Returns manufacturer, name, impulse, thrust, burn time. |
+| `presets` | `preset_type` | `manufacturer` | List manufacturer component presets. Valid types: `body-tube`, `nose-cone`, `transition`, `tube-coupler`, `bulk-head`, `centering-ring`, `engine-block`, `launch-lug`, `rail-button`, `streamer`, `parachute`. |
+| `materials` | `material_type` | — | List structural materials. Valid types: `bulk` (kg/m³), `surface` (kg/m²), `line` (kg/m). |
+
+Use the `limit` parameter (default `50`, pass `None` for all results) to control response size.
 
 ## CLI Reference
 
@@ -155,6 +177,10 @@ Valid types: `nose-cone`, `body-tube`, `transition`, `fin-set`, `parachute`, `ma
 |---|---|
 | `--name` | Component name |
 | `--parent` | Named parent component (defaults to first stage or last body tube) |
+| `--preset` | Manufacturer part number to load as a preset baseline (e.g. `BT-20`) |
+| `--preset-manufacturer` | Manufacturer filter for preset lookup |
+| `--material` | Material name to apply (e.g. `Aluminum`, `Carbon fiber`) |
+| `--material-type` | Material type for lookup: `bulk`, `surface`, or `line` |
 | `--length` | Length in metres |
 | `--diameter` | Diameter in metres (base for nose-cone, outer for body-tube) |
 | `--fore-diameter` | Fore diameter in metres (transition only) |
@@ -169,13 +195,21 @@ Valid types: `nose-cone`, `body-tube`, `transition`, `fin-set`, `parachute`, `ma
 | `--cd` | Parachute drag coefficient |
 | `--mass` | Mass in kg (mass component only) |
 
-Example:
+When `--preset` is provided, it loads the manufacturer's geometry and material as a baseline. Any additional options (e.g. `--length`) override the preset values.
+
+Examples:
 
 ```bash
+# Build from scratch
 rocketsmith openrocket new my-rocket --workspace my-workspace
 rocketsmith openrocket create-component my-rocket.ork nose-cone --name "Nose" --length 0.15 --diameter 0.064 --shape ogive --workspace my-workspace
 rocketsmith openrocket create-component my-rocket.ork body-tube --name "Body" --length 0.4 --diameter 0.064 --workspace my-workspace
 rocketsmith openrocket create-component my-rocket.ork fin-set --count 3 --root-chord 0.08 --tip-chord 0.04 --span 0.06 --workspace my-workspace
+
+# Build from manufacturer presets
+rocketsmith openrocket create-component my-rocket.ork body-tube --preset BT-20 --workspace my-workspace
+rocketsmith openrocket create-component my-rocket.ork body-tube --preset BT-20 --length 0.5 --workspace my-workspace  # preset diameter, custom length
+rocketsmith openrocket create-component my-rocket.ork body-tube --preset BT-20 --material "Carbon fiber" --workspace my-workspace  # swap material
 ```
 
 **Read a component's properties:**
@@ -190,10 +224,46 @@ rocketsmith openrocket read-component <filename.ork> "<component-name>" --worksp
 rocketsmith openrocket update-component <filename.ork> "<component-name>" [options] --workspace <workspace-name>
 ```
 
-Accepts the same property options as `create-component`. Only the provided options are changed.
+Accepts the same options as `create-component` including `--preset` and `--material`. Only the provided options are changed. Note: providing `--preset` resets the component's geometry to the preset's defaults before applying any other options.
 
 **Delete a component:**
 
 ```bash
 rocketsmith openrocket delete-component <filename.ork> "<component-name>" --workspace <workspace-name>
 ```
+
+---
+
+#### Database
+
+Browse or query the OpenRocket built-in database of motors, manufacturer component presets, and structural materials.
+
+**Interactive browser:**
+
+```bash
+rocketsmith openrocket database
+```
+
+Opens a drill-down menu: select a category (Motors, Recovery, Airframe, Hardware, Materials), apply filters, and pick an item to view its full spec.
+
+**List motors:**
+
+```bash
+rocketsmith openrocket list-motors [--class <letter>] [--diameter <mm>] [--manufacturer <name>] [--type <single-use|reloadable|hybrid>]
+```
+
+**List component presets:**
+
+```bash
+rocketsmith openrocket list-presets <type> [--manufacturer <name>]
+```
+
+Valid types: `body-tube`, `nose-cone`, `transition`, `tube-coupler`, `bulk-head`, `centering-ring`, `engine-block`, `launch-lug`, `rail-button`, `streamer`, `parachute`
+
+**List materials:**
+
+```bash
+rocketsmith openrocket list-materials <type>
+```
+
+Valid types: `bulk` (density in kg/m³), `surface` (area density in kg/m²), `line` (linear density in kg/m)

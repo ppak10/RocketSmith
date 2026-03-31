@@ -6,6 +6,7 @@ from rocketsmith.openrocket.mcp import (
     register_openrocket_new,
     register_openrocket_inspect,
     register_openrocket_component,
+    register_openrocket_database,
 )
 from rocketsmith.prusaslicer.mcp import register_prusaslicer_slice
 
@@ -16,6 +17,7 @@ _ = register_openrocket_simulate(app)
 _ = register_openrocket_new(app)
 _ = register_openrocket_inspect(app)
 _ = register_openrocket_component(app)
+_ = register_openrocket_database(app)
 _ = register_prusaslicer_slice(app)
 
 

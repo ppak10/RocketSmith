@@ -12,6 +12,18 @@ COMPONENT_TYPES = {
     "mass": "MassComponent",
 }
 
+# Maps component type key (CLI name or Java class name) to preset type key
+_COMPONENT_TO_PRESET_TYPE = {
+    "body-tube":  "body-tube",
+    "nose-cone":  "nose-cone",
+    "transition": "transition",
+    "parachute":  "parachute",
+    "BodyTube":   "body-tube",
+    "NoseCone":   "nose-cone",
+    "Transition": "transition",
+    "Parachute":  "parachute",
+}
+
 
 def _setup_jvm(jar_path: Path) -> None:
     from rocketsmith.openrocket.utils import get_openrocket_jvm
@@ -57,6 +69,68 @@ def _or_context(jar_path: Path):
         # Do not call instance.__exit__() — shutdownJVM() would prevent any
         # subsequent tool call in this process from restarting the JVM.
         yield instance
+
+
+def _resolve_preset(type_key: str, part_no: str, manufacturer: str | None):
+    """Look up a ComponentPreset by type key (CLI name or Java class name) and part number.
+
+    Must be called inside an active _or_context so the JVM and Application are live.
+    Raises ValueError if the preset cannot be found.
+    """
+    import jpype
+    from rocketsmith.openrocket.database import PRESET_TYPES
+
+    preset_type = _COMPONENT_TO_PRESET_TYPE.get(type_key)
+    if preset_type is None:
+        raise ValueError(
+            f"Component type '{type_key}' does not support presets. "
+            f"Supported: {', '.join(_COMPONENT_TO_PRESET_TYPE)}"
+        )
+
+    java_type_name = PRESET_TYPES[preset_type]
+    Application = jpype.JPackage("net").sf.openrocket.startup.Application
+    CP = jpype.JPackage("net").sf.openrocket.preset.ComponentPreset
+    java_type = getattr(CP.Type, java_type_name)
+    presets = Application.getComponentPresetDao().listForType(java_type)
+
+    for i in range(presets.size()):
+        p = presets.get(i)
+        if str(p.getPartNo()).lower() == part_no.lower():
+            if manufacturer is None or manufacturer.lower() in str(p.getManufacturer()).lower():
+                return p
+
+    suffix = f" for manufacturer '{manufacturer}'" if manufacturer else ""
+    raise ValueError(f"Preset '{part_no}' not found{suffix}.")
+
+
+def _resolve_material(material_name: str, material_type: str | None):
+    """Look up a Material object by name, optionally restricted to a type.
+
+    Must be called inside an active _or_context so the JVM is live.
+    Raises ValueError if the material cannot be found.
+    """
+    import jpype
+    from rocketsmith.openrocket.database import MATERIAL_TYPES
+
+    Databases = jpype.JPackage("net").sf.openrocket.database.Databases
+
+    if material_type is not None:
+        if material_type not in MATERIAL_TYPES:
+            raise ValueError(
+                f"Unknown material type '{material_type}'. "
+                f"Valid: {', '.join(sorted(MATERIAL_TYPES))}"
+            )
+        dbs = [{"bulk": Databases.BULK_MATERIAL, "surface": Databases.SURFACE_MATERIAL,
+                "line": Databases.LINE_MATERIAL}[material_type]]
+    else:
+        dbs = [Databases.BULK_MATERIAL, Databases.SURFACE_MATERIAL, Databases.LINE_MATERIAL]
+
+    for db in dbs:
+        for mat in db:
+            if str(mat.getName()).lower() == material_name.lower():
+                return mat
+
+    raise ValueError(f"Material '{material_name}' not found.")
 
 
 def _save_doc(doc, output_path: Path) -> None:
@@ -150,6 +224,22 @@ def _extract_properties(comp) -> dict:
             props["mass_kg"] = round(float(comp.getMass()), 6)
         except Exception:
             pass
+
+    try:
+        preset = comp.getPresetComponent()
+        if preset is not None:
+            props["preset_manufacturer"] = str(preset.getManufacturer())
+            props["preset_part_no"] = str(preset.getPartNo())
+    except Exception:
+        pass
+
+    try:
+        mat = comp.getMaterial()
+        if mat is not None:
+            props["material"] = str(mat.getName())
+            props["material_density_kg_m3"] = round(float(mat.getDensity()), 4)
+    except Exception:
+        pass
 
     return props
 
@@ -304,6 +394,10 @@ def create_component(
     component_type: str,
     jar_path: Path,
     parent_name: str | None = None,
+    preset_part_no: str | None = None,
+    preset_manufacturer: str | None = None,
+    material_name: str | None = None,
+    material_type: str | None = None,
     **kwargs,
 ) -> dict:
     """Add a new component to an .ork file and save in-place."""
@@ -330,7 +424,20 @@ def create_component(
 
         comp_cls = getattr(jpype.JPackage("net").sf.openrocket.rocketcomponent, java_type_name)
         comp = comp_cls()
+
+        # Load preset first — establishes baseline geometry and material
+        if preset_part_no is not None:
+            preset = _resolve_preset(component_type, preset_part_no, preset_manufacturer)
+            comp.loadPreset(preset)
+
+        # Apply explicit dimension overrides on top of preset (or standalone)
         _apply_properties(comp, java_type_name, **kwargs)
+
+        # Apply explicit material override last — takes precedence over preset's material
+        if material_name is not None:
+            mat = _resolve_material(material_name, material_type)
+            comp.setMaterial(mat)
+
         parent.addChild(comp)
 
         result = {
@@ -347,6 +454,10 @@ def update_component(
     ork_path: Path,
     component_name: str,
     jar_path: Path,
+    preset_part_no: str | None = None,
+    preset_manufacturer: str | None = None,
+    material_name: str | None = None,
+    material_type: str | None = None,
     **kwargs,
 ) -> dict:
     """Update properties of a named component and save in-place."""
@@ -358,7 +469,18 @@ def update_component(
         comp = _find_by_name(helper, doc.getRocket(), component_name)
         java_type_name = str(comp.getClass().getSimpleName())
 
+        # Load preset first — resets geometry and material to preset baseline
+        if preset_part_no is not None:
+            preset = _resolve_preset(java_type_name, preset_part_no, preset_manufacturer)
+            comp.loadPreset(preset)
+
+        # Apply explicit dimension overrides
         _apply_properties(comp, java_type_name, **kwargs)
+
+        # Apply explicit material override last
+        if material_name is not None:
+            mat = _resolve_material(material_name, material_type)
+            comp.setMaterial(mat)
 
         result = {
             "type": java_type_name,

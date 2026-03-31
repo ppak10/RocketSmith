@@ -24,6 +24,10 @@ def register_openrocket_component(app: FastMCP):
         component_type: str | None = None,
         parent: str | None = None,
         name: str | None = None,
+        preset_part_no: str | None = None,
+        preset_manufacturer: str | None = None,
+        material_name: str | None = None,
+        material_type: str | None = None,
         length: float | None = None,
         diameter: float | None = None,
         fore_diameter: float | None = None,
@@ -50,6 +54,18 @@ def register_openrocket_component(app: FastMCP):
                     Only the provided properties are changed; others are left as-is.
             delete: Remove a named component. Requires 'component_name'.
 
+        Preset and material support (create and update):
+            preset_part_no: Part number from openrocket_database (e.g. 'BT-20').
+                Loads all geometry and material from the manufacturer preset as a
+                baseline. Explicit dimension params override the preset values.
+            preset_manufacturer: Optional manufacturer filter when looking up the
+                preset, useful if the same part number exists across manufacturers.
+            material_name: Material name from openrocket_database (e.g. 'Aluminum',
+                'Carbon fiber'). Overrides the preset's material when combined with
+                preset_part_no, or sets the material standalone.
+            material_type: Narrows material lookup to 'bulk', 'surface', or 'line'.
+                Optional — omit to search all types.
+
         Component-specific properties (all in SI units — metres, kilograms):
             length, diameter, fore_diameter, aft_diameter, thickness, shape
                 → nose-cone, body-tube, transition
@@ -67,6 +83,10 @@ def register_openrocket_component(app: FastMCP):
             component_type: Type of component to create (e.g. 'nose-cone').
             parent: Named parent component for create (optional).
             name: Display name to assign when creating or renaming a component.
+            preset_part_no: Part number to load as a preset baseline (create/update).
+            preset_manufacturer: Manufacturer filter for preset lookup (optional).
+            material_name: Material to apply by name (create/update).
+            material_type: Restrict material search to 'bulk', 'surface', or 'line'.
             openrocket_path: Optional path to the OpenRocket JAR file.
         """
         from rocketsmith.openrocket.components import (
@@ -109,6 +129,10 @@ def register_openrocket_component(app: FastMCP):
                     component_type=component_type,
                     jar_path=openrocket_path,
                     parent_name=parent,
+                    preset_part_no=preset_part_no,
+                    preset_manufacturer=preset_manufacturer,
+                    material_name=material_name,
+                    material_type=material_type,
                     **props,
                 )
                 return tool_success(result)
@@ -136,6 +160,10 @@ def register_openrocket_component(app: FastMCP):
                     ork_path=ork_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
+                    preset_part_no=preset_part_no,
+                    preset_manufacturer=preset_manufacturer,
+                    material_name=material_name,
+                    material_type=material_type,
                     **props,
                 )
                 return tool_success(result)
