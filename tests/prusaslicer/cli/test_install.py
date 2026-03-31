@@ -54,32 +54,29 @@ def test_install_linux_brew(runner):
         )
 
 
-def test_install_linux_snap(runner):
-    """Linux: falls back to snap when brew is not available."""
-    with (
-        patch("rocketsmith.prusaslicer.install.get_prusaslicer_path", side_effect=FileNotFoundError),
-        patch("sys.platform", "linux"),
-        patch("shutil.which", side_effect=lambda cmd: "/usr/bin/snap" if cmd == "snap" else None),
-        patch("subprocess.run") as mock_run,
-    ):
-        mock_run.return_value = MagicMock(returncode=0)
-        result = runner.invoke(app, ["install"])
-        assert result.exit_code == 0
-        mock_run.assert_called_once_with(
-            ["sudo", "snap", "install", "prusaslicer"], check=True
-        )
+def test_install_linux_appimage(runner, tmp_path):
+    """Linux: downloads AppImage when brew is not available."""
+    downloaded = []
 
+    def fake_download(url, dest):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.touch()
+        downloaded.append((url, dest))
 
-def test_install_linux_no_package_manager(runner):
-    """Linux: exits with code 1 when no supported package manager is found."""
     with (
         patch("rocketsmith.prusaslicer.install.get_prusaslicer_path", side_effect=FileNotFoundError),
         patch("sys.platform", "linux"),
         patch("shutil.which", return_value=None),
+        patch("rocketsmith.prusaslicer.install._get_latest_appimage_url",
+              return_value=("PrusaSlicer-2.9.0+linux-x64.AppImage",
+                            "https://example.com/PrusaSlicer-2.9.0+linux-x64.AppImage")),
+        patch("rocketsmith.prusaslicer.install._APPIMAGE_INSTALL_DIR", tmp_path),
+        patch("rocketsmith.prusaslicer.install._download_file", side_effect=fake_download),
     ):
         result = runner.invoke(app, ["install"])
-        assert result.exit_code == 1
-        assert "snap" in result.stdout.lower() or "brew" in result.stdout.lower()
+        assert result.exit_code == 0
+        expected_dest = tmp_path / "PrusaSlicer-2.9.0+linux-x64.AppImage"
+        assert downloaded == [("https://example.com/PrusaSlicer-2.9.0+linux-x64.AppImage", expected_dest)]
 
 
 def test_install_windows(runner):

@@ -78,6 +78,13 @@ def get_prusaslicer_path(hint: Path | None = None) -> Path:
         if candidate.is_file():
             return candidate
 
+    # 5. AppImage in the rocketsmith install dir (Linux)
+    if platform == "linux":
+        appimage_dir = Path.home() / ".local" / "share" / "prusaslicer"
+        matches = sorted(appimage_dir.glob("PrusaSlicer*.AppImage"))
+        if matches:
+            return matches[-1]
+
     raise FileNotFoundError(
         "PrusaSlicer executable not found. Install PrusaSlicer or set the "
         "PRUSASLICER_PATH environment variable to its path."

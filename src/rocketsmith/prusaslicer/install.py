@@ -1,10 +1,18 @@
+import json
 import shutil
 import subprocess
 import sys
+import urllib.request
 
+from pathlib import Path
 from rich import print as rprint
+from rich.progress import Progress, SpinnerColumn, DownloadColumn, TransferSpeedColumn, BarColumn, TextColumn
 
 from rocketsmith.prusaslicer.utils import get_prusaslicer_path
+
+
+_GITHUB_RELEASES_API = "https://api.github.com/repos/prusa3d/PrusaSlicer/releases/latest"
+_APPIMAGE_INSTALL_DIR = Path.home() / ".local" / "share" / "prusaslicer"
 
 
 def install() -> None:
@@ -42,15 +50,61 @@ def _install_linux() -> None:
         rprint("[blue]Installing PrusaSlicer via Homebrew...[/blue]")
         subprocess.run(["brew", "install", "prusaslicer"], check=True)
         rprint("✅ PrusaSlicer installed.")
-    elif shutil.which("snap") is not None:
-        rprint("[blue]Installing PrusaSlicer via snap...[/blue]")
-        subprocess.run(["sudo", "snap", "install", "prusaslicer"], check=True)
-        rprint("✅ PrusaSlicer installed.")
     else:
-        raise RuntimeError(
-            "No supported package manager found (brew or snap). "
-            "Install PrusaSlicer manually from https://www.prusa3d.com/prusaslicer/"
-        )
+        _install_appimage()
+
+
+def _get_latest_appimage_url() -> tuple[str, str]:
+    """Fetch the latest PrusaSlicer release and return (filename, download_url) for the Linux AppImage."""
+    req = urllib.request.Request(
+        _GITHUB_RELEASES_API,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "rocketsmith"},
+    )
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read())
+
+    asset = next(
+        (a for a in data["assets"] if a["name"].endswith(".AppImage") and "linux" in a["name"].lower()),
+        None,
+    )
+    if asset is None:
+        raise RuntimeError("No Linux AppImage found in the latest PrusaSlicer release.")
+
+    return asset["name"], asset["browser_download_url"]
+
+
+def _download_file(url: str, dest: Path) -> None:
+    """Download a file from url to dest with a progress bar."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+    ) as progress:
+        task = progress.add_task(f"Downloading [cyan]{dest.name}[/cyan]...", total=None)
+
+        def _reporthook(block_count, block_size, total_size):
+            if total_size > 0:
+                progress.update(task, total=total_size, completed=block_count * block_size)
+
+        urllib.request.urlretrieve(url, dest, reporthook=_reporthook)
+
+
+def _install_appimage() -> None:
+    rprint("[blue]Fetching latest PrusaSlicer release from GitHub...[/blue]")
+    filename, url = _get_latest_appimage_url()
+    dest = _APPIMAGE_INSTALL_DIR / filename
+
+    if dest.exists():
+        rprint(f"✅ PrusaSlicer AppImage already at: [cyan]{dest}[/cyan]")
+        return
+
+    _download_file(url, dest)
+    dest.chmod(dest.stat().st_mode | 0o111)  # make executable
+    rprint(f"✅ PrusaSlicer installed at: [cyan]{dest}[/cyan]")
 
 
 def _install_windows() -> None:
