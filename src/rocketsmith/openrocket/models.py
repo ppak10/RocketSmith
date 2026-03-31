@@ -12,3 +12,13 @@ class OpenRocketSimulation(BaseModel):
     name: str
     timeseries: dict[FlightDataType, np.ndarray]
     events: dict[FlightEvent, list[float]]
+
+
+class OpenRocketSimulationSummary(BaseModel):
+    """JSON-serializable summary of a single OpenRocket simulation, for MCP output."""
+
+    name: str
+    max_altitude_m: float
+    max_velocity_ms: float
+    time_to_apogee_s: float | None
+    flight_time_s: float
