@@ -50,6 +50,32 @@ rocketsmith mcp install claude-desktop --project-path /path/to/RocketSmith
 
 Note: Restart Claude Desktop after installation for changes to take effect.
 
+## MCP Tools
+
+The following tools are exposed to agents via the MCP server.
+
+| Tool | Description |
+|---|---|
+| `workspace_create` | Create a new workspace |
+| `openrocket_new` | Create a new empty `.ork` file |
+| `openrocket_inspect` | Return the full component tree of an `.ork` file |
+| `openrocket_component` | Create, read, update, or delete a component (`action` parameter) |
+| `openrocket_simulate` | Run all simulations in an `.ork` file and return flight summaries |
+| `prusaslicer_slice` | Slice a model with PrusaSlicer |
+
+### `openrocket_component` actions
+
+The `openrocket_component` tool accepts an explicit `action` parameter:
+
+| Action | Required params | Description |
+|---|---|---|
+| `create` | `component_type` | Add a new component. Valid types: `nose-cone`, `body-tube`, `transition`, `fin-set`, `parachute`, `mass` |
+| `read` | `component_name` | Return properties of a named component |
+| `update` | `component_name` | Modify one or more properties of a named component |
+| `delete` | `component_name` | Remove a named component |
+
+All dimensional properties are in SI units (metres, kilograms).
+
 ## CLI Reference
 
 ### Workspace
@@ -74,6 +100,8 @@ This copies `simple.ork` into the `openrocket/` subfolder of the workspace, read
 
 ### OpenRocket
 
+All OpenRocket commands resolve `.ork` files from `<workspace>/openrocket/<filename>`. Use `--workspace` / `-w` to specify a workspace, or `--openrocket-path` to point to a non-standard JAR location.
+
 **Install OpenRocket 23.09 and Java:**
 
 ```bash
@@ -84,6 +112,18 @@ rocketsmith openrocket install
 
 ```bash
 rocketsmith openrocket version
+```
+
+**Create a new empty `.ork` file:**
+
+```bash
+rocketsmith openrocket new <name> --workspace <workspace-name>
+```
+
+**Inspect the component tree of an `.ork` file:**
+
+```bash
+rocketsmith openrocket inspect <filename.ork> --workspace <workspace-name>
 ```
 
 **Run all simulations in an `.ork` file:**
@@ -99,4 +139,61 @@ rocketsmith workspace create my-rocket --include-examples
 rocketsmith openrocket run-simulation simple.ork --workspace my-rocket
 ```
 
-The `--workspace` / `-w` flag resolves the `.ork` file from `<workspace>/openrocket/<filename.ork>`. If your OpenRocket JAR is in a non-standard location, use `--openrocket-path` to point to it directly.
+---
+
+#### Components
+
+**Add a component:**
+
+```bash
+rocketsmith openrocket create-component <filename.ork> <type> [options] --workspace <workspace-name>
+```
+
+Valid types: `nose-cone`, `body-tube`, `transition`, `fin-set`, `parachute`, `mass`
+
+| Option | Description |
+|---|---|
+| `--name` | Component name |
+| `--parent` | Named parent component (defaults to first stage or last body tube) |
+| `--length` | Length in metres |
+| `--diameter` | Diameter in metres (base for nose-cone, outer for body-tube) |
+| `--fore-diameter` | Fore diameter in metres (transition only) |
+| `--aft-diameter` | Aft diameter in metres (transition only) |
+| `--thickness` | Wall thickness in metres |
+| `--shape` | Nose-cone/transition shape: `ogive`, `conical`, `ellipsoid`, `power`, `parabolic`, `haack` |
+| `--count` | Fin count (fin-set only) |
+| `--root-chord` | Fin root chord in metres |
+| `--tip-chord` | Fin tip chord in metres |
+| `--span` | Fin span in metres |
+| `--sweep` | Fin sweep length in metres |
+| `--cd` | Parachute drag coefficient |
+| `--mass` | Mass in kg (mass component only) |
+
+Example:
+
+```bash
+rocketsmith openrocket new my-rocket --workspace my-workspace
+rocketsmith openrocket create-component my-rocket.ork nose-cone --name "Nose" --length 0.15 --diameter 0.064 --shape ogive --workspace my-workspace
+rocketsmith openrocket create-component my-rocket.ork body-tube --name "Body" --length 0.4 --diameter 0.064 --workspace my-workspace
+rocketsmith openrocket create-component my-rocket.ork fin-set --count 3 --root-chord 0.08 --tip-chord 0.04 --span 0.06 --workspace my-workspace
+```
+
+**Read a component's properties:**
+
+```bash
+rocketsmith openrocket read-component <filename.ork> "<component-name>" --workspace <workspace-name>
+```
+
+**Update a component:**
+
+```bash
+rocketsmith openrocket update-component <filename.ork> "<component-name>" [options] --workspace <workspace-name>
+```
+
+Accepts the same property options as `create-component`. Only the provided options are changed.
+
+**Delete a component:**
+
+```bash
+rocketsmith openrocket delete-component <filename.ork> "<component-name>" --workspace <workspace-name>
+```
