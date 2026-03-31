@@ -11,7 +11,7 @@ from rich.progress import Progress, SpinnerColumn, DownloadColumn, TransferSpeed
 from rocketsmith.prusaslicer.utils import get_prusaslicer_path
 
 
-_GITHUB_RELEASES_API = "https://api.github.com/repos/prusa3d/PrusaSlicer/releases/latest"
+_GITHUB_RELEASES_API = "https://api.github.com/repos/prusa3d/PrusaSlicer/releases"
 _APPIMAGE_INSTALL_DIR = Path.home() / ".local" / "share" / "prusaslicer"
 
 
@@ -55,22 +55,33 @@ def _install_linux() -> None:
 
 
 def _get_latest_appimage_url() -> tuple[str, str]:
-    """Fetch the latest PrusaSlicer release and return (filename, download_url) for the Linux AppImage."""
+    """
+    Find the most recent PrusaSlicer release that ships a Linux x64 AppImage
+    and return (filename, download_url). Newer releases (2.9+) dropped AppImages
+    so this searches backwards until one is found.
+    """
     req = urllib.request.Request(
-        _GITHUB_RELEASES_API,
+        _GITHUB_RELEASES_API + "?per_page=30",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "rocketsmith"},
     )
     with urllib.request.urlopen(req) as response:
-        data = json.loads(response.read())
+        releases = json.loads(response.read())
 
-    asset = next(
-        (a for a in data["assets"] if a["name"].endswith(".AppImage") and "linux" in a["name"].lower()),
-        None,
-    )
-    if asset is None:
-        raise RuntimeError("No Linux AppImage found in the latest PrusaSlicer release.")
+    for release in releases:
+        asset = next(
+            (
+                a for a in release["assets"]
+                if a["name"].endswith(".AppImage")
+                and "linux" in a["name"].lower()
+                and "x64" in a["name"].lower()
+                and "GTK3" in a["name"]
+            ),
+            None,
+        )
+        if asset:
+            return asset["name"], asset["browser_download_url"]
 
-    return asset["name"], asset["browser_download_url"]
+    raise RuntimeError("No Linux x64 AppImage found in the last 30 PrusaSlicer releases.")
 
 
 def _download_file(url: str, dest: Path) -> None:
