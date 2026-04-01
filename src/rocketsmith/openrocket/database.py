@@ -102,7 +102,7 @@ def list_motors(
                 continue
 
             m0 = ms.getMotors().get(0)
-            results.append({
+            entry = {
                 "manufacturer": mfr,
                 "designation": str(ms.getDesignation()),
                 "common_name": name,
@@ -113,7 +113,12 @@ def list_motors(
                 "avg_thrust_n": round(float(m0.getAverageThrustEstimate()), 2),
                 "burn_time_s": round(float(m0.getBurnTimeEstimate()), 3),
                 "variant_count": int(ms.getMotorCount()),
-            })
+            }
+            try:
+                entry["digest"] = str(m0.getDigest())
+            except Exception:
+                pass
+            results.append(entry)
 
         return results
 

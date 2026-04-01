@@ -44,6 +44,7 @@ def register_openrocket_simulate(app: FastMCP):
                 altitude = sim.timeseries.get(FlightDataType.TYPE_ALTITUDE)
                 velocity = sim.timeseries.get(FlightDataType.TYPE_VELOCITY_TOTAL)
                 time = sim.timeseries.get(FlightDataType.TYPE_TIME)
+                stability = sim.timeseries.get(FlightDataType.TYPE_STABILITY)
 
                 max_altitude_m = float(altitude.max()) if altitude is not None else 0.0
                 max_velocity_ms = float(velocity.max()) if velocity is not None else 0.0
@@ -52,12 +53,17 @@ def register_openrocket_simulate(app: FastMCP):
                 apogee_events = sim.events.get(FlightEvent.APOGEE)
                 time_to_apogee_s = float(apogee_events[0]) if apogee_events else None
 
+                min_stability_cal = float(stability.min()) if stability is not None else None
+                max_stability_cal = float(stability.max()) if stability is not None else None
+
                 summaries.append(OpenRocketSimulationSummary(
                     name=sim.name,
                     max_altitude_m=max_altitude_m,
                     max_velocity_ms=max_velocity_ms,
                     time_to_apogee_s=time_to_apogee_s,
                     flight_time_s=flight_time_s,
+                    min_stability_cal=min_stability_cal,
+                    max_stability_cal=max_stability_cal,
                 ))
 
             return tool_success(summaries)

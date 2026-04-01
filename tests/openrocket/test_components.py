@@ -16,7 +16,7 @@ from rocketsmith.data import DATA_DIR
 
 def test_component_types_keys():
     """COMPONENT_TYPES contains exactly the expected CLI type names."""
-    assert set(COMPONENT_TYPES) == {"nose-cone", "body-tube", "transition", "fin-set", "parachute", "mass"}
+    assert set(COMPONENT_TYPES) == {"nose-cone", "body-tube", "inner-tube", "transition", "fin-set", "parachute", "mass"}
 
 
 def test_create_component_invalid_type_raises(tmp_path):

@@ -6,6 +6,7 @@ from pathlib import Path
 COMPONENT_TYPES = {
     "nose-cone": "NoseCone",
     "body-tube": "BodyTube",
+    "inner-tube": "InnerTube",
     "transition": "Transition",
     "fin-set": "TrapezoidFinSet",
     "parachute": "Parachute",
@@ -173,7 +174,7 @@ def _extract_properties(comp) -> dict:
         except Exception:
             pass
 
-    elif type_name == "BodyTube":
+    elif type_name in ("BodyTube", "InnerTube"):
         try:
             props["outer_diameter_m"] = round(float(comp.getOuterRadius()) * 2, 4)
         except Exception:
@@ -184,6 +185,10 @@ def _extract_properties(comp) -> dict:
             pass
         try:
             props["thickness_m"] = round(float(comp.getThickness()), 4)
+        except Exception:
+            pass
+        try:
+            props["motor_mount"] = bool(comp.isMotorMount())
         except Exception:
             pass
 
@@ -267,7 +272,7 @@ def _find_by_name(helper, rocket, name: str):
 
 def _find_default_parent(rocket, java_type_name: str):
     """Return the appropriate default parent for a new component."""
-    INTERNAL_TYPES = {"TrapezoidFinSet", "EllipticalFinSet", "Parachute", "MassComponent", "ShockCord", "Streamer"}
+    INTERNAL_TYPES = {"TrapezoidFinSet", "EllipticalFinSet", "Parachute", "MassComponent", "ShockCord", "Streamer", "InnerTube"}
 
     first_stage = None
     last_body_tube = None
@@ -313,7 +318,7 @@ def _apply_properties(comp, java_type_name: str, **kwargs) -> None:
         if kwargs.get("thickness") is not None:
             comp.setThickness(float(kwargs["thickness"]))
 
-    elif java_type_name == "BodyTube":
+    elif java_type_name in ("BodyTube", "InnerTube"):
         if kwargs.get("diameter") is not None:
             comp.setOuterRadius(float(kwargs["diameter"]) / 2)
         if kwargs.get("thickness") is not None:

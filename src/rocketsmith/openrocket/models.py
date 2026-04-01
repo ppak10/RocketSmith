@@ -22,3 +22,5 @@ class OpenRocketSimulationSummary(BaseModel):
     max_velocity_ms: float
     time_to_apogee_s: float | None
     flight_time_s: float
+    min_stability_cal: float | None
+    max_stability_cal: float | None
