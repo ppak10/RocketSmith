@@ -15,14 +15,14 @@ COMPONENT_TYPES = {
 
 # Maps component type key (CLI name or Java class name) to preset type key
 _COMPONENT_TO_PRESET_TYPE = {
-    "body-tube":  "body-tube",
-    "nose-cone":  "nose-cone",
+    "body-tube": "body-tube",
+    "nose-cone": "nose-cone",
     "transition": "transition",
-    "parachute":  "parachute",
-    "BodyTube":   "body-tube",
-    "NoseCone":   "nose-cone",
+    "parachute": "parachute",
+    "BodyTube": "body-tube",
+    "NoseCone": "nose-cone",
     "Transition": "transition",
-    "Parachute":  "parachute",
+    "Parachute": "parachute",
 }
 
 
@@ -97,7 +97,10 @@ def _resolve_preset(type_key: str, part_no: str, manufacturer: str | None):
     for i in range(presets.size()):
         p = presets.get(i)
         if str(p.getPartNo()).lower() == part_no.lower():
-            if manufacturer is None or manufacturer.lower() in str(p.getManufacturer()).lower():
+            if (
+                manufacturer is None
+                or manufacturer.lower() in str(p.getManufacturer()).lower()
+            ):
                 return p
 
     suffix = f" for manufacturer '{manufacturer}'" if manufacturer else ""
@@ -121,10 +124,19 @@ def _resolve_material(material_name: str, material_type: str | None):
                 f"Unknown material type '{material_type}'. "
                 f"Valid: {', '.join(sorted(MATERIAL_TYPES))}"
             )
-        dbs = [{"bulk": Databases.BULK_MATERIAL, "surface": Databases.SURFACE_MATERIAL,
-                "line": Databases.LINE_MATERIAL}[material_type]]
+        dbs = [
+            {
+                "bulk": Databases.BULK_MATERIAL,
+                "surface": Databases.SURFACE_MATERIAL,
+                "line": Databases.LINE_MATERIAL,
+            }[material_type]
+        ]
     else:
-        dbs = [Databases.BULK_MATERIAL, Databases.SURFACE_MATERIAL, Databases.LINE_MATERIAL]
+        dbs = [
+            Databases.BULK_MATERIAL,
+            Databases.SURFACE_MATERIAL,
+            Databases.LINE_MATERIAL,
+        ]
 
     for db in dbs:
         for mat in db:
@@ -213,6 +225,10 @@ def _extract_properties(comp) -> dict:
             props["sweep_m"] = round(float(comp.getSweep()), 4)
         except Exception:
             pass
+        try:
+            props["thickness_m"] = round(float(comp.getThickness()), 4)
+        except Exception:
+            pass
 
     elif type_name == "Parachute":
         try:
@@ -246,6 +262,16 @@ def _extract_properties(comp) -> dict:
     except Exception:
         pass
 
+    try:
+        props["axial_offset_m"] = round(float(comp.getAxialOffset()), 4)
+    except Exception:
+        pass
+
+    try:
+        props["axial_offset_method"] = str(comp.getAxialMethod().name()).lower()
+    except Exception:
+        pass
+
     return props
 
 
@@ -272,14 +298,25 @@ def _find_by_name(helper, rocket, name: str):
 
 def _find_default_parent(rocket, java_type_name: str):
     """Return the appropriate default parent for a new component."""
-    INTERNAL_TYPES = {"TrapezoidFinSet", "EllipticalFinSet", "Parachute", "MassComponent", "ShockCord", "Streamer", "InnerTube"}
+    INTERNAL_TYPES = {
+        "TrapezoidFinSet",
+        "EllipticalFinSet",
+        "Parachute",
+        "MassComponent",
+        "ShockCord",
+        "Streamer",
+        "InnerTube",
+    }
 
     first_stage = None
     last_body_tube = None
 
     for i in range(rocket.getChildCount()):
         child = rocket.getChild(i)
-        if str(child.getClass().getSimpleName()) == "AxialStage" and first_stage is None:
+        if (
+            str(child.getClass().getSimpleName()) == "AxialStage"
+            and first_stage is None
+        ):
             first_stage = child
             for j in range(child.getChildCount()):
                 gc = child.getChild(j)
@@ -288,7 +325,9 @@ def _find_default_parent(rocket, java_type_name: str):
 
     if java_type_name in INTERNAL_TYPES:
         if last_body_tube is None:
-            raise ValueError("No BodyTube found in first stage — add a body tube first.")
+            raise ValueError(
+                "No BodyTube found in first stage — add a body tube first."
+            )
         return last_body_tube
     else:
         if first_stage is None:
@@ -313,6 +352,7 @@ def _apply_properties(comp, java_type_name: str, **kwargs) -> None:
             comp.setAftRadius(float(kwargs["aft_diameter"]) / 2)
         if kwargs.get("shape") is not None:
             from net.sf.openrocket.rocketcomponent import Transition as JTransition
+
             shape = JTransition.Shape.valueOf(kwargs["shape"].upper())
             comp.setShapeType(shape)
         if kwargs.get("thickness") is not None:
@@ -335,6 +375,8 @@ def _apply_properties(comp, java_type_name: str, **kwargs) -> None:
             comp.setHeight(float(kwargs["span"]))
         if kwargs.get("sweep") is not None:
             comp.setSweep(float(kwargs["sweep"]))
+        if kwargs.get("thickness") is not None:
+            comp.setThickness(float(kwargs["thickness"]))
 
     elif java_type_name == "Parachute":
         if kwargs.get("diameter") is not None:
@@ -346,8 +388,19 @@ def _apply_properties(comp, java_type_name: str, **kwargs) -> None:
         if kwargs.get("mass") is not None:
             comp.setMass(float(kwargs["mass"]))
 
+    # Axial positioning — applies to all component types.
+    # Always set the method before the offset so the new method interprets the value correctly.
+    if kwargs.get("axial_offset_method") is not None:
+        import jpype
+
+        AxialMethod = jpype.JPackage("net").sf.openrocket.rocketcomponent.AxialMethod
+        comp.setAxialMethod(AxialMethod.valueOf(kwargs["axial_offset_method"].upper()))
+    if kwargs.get("axial_offset_m") is not None:
+        comp.setAxialOffset(float(kwargs["axial_offset_m"]))
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 def inspect_ork(ork_path: Path, jar_path: Path) -> list[dict]:
     """Return the full component tree of an .ork file as a flat list."""
@@ -427,12 +480,16 @@ def create_component(
             else _find_default_parent(rocket, java_type_name)
         )
 
-        comp_cls = getattr(jpype.JPackage("net").sf.openrocket.rocketcomponent, java_type_name)
+        comp_cls = getattr(
+            jpype.JPackage("net").sf.openrocket.rocketcomponent, java_type_name
+        )
         comp = comp_cls()
 
         # Load preset first — establishes baseline geometry and material
         if preset_part_no is not None:
-            preset = _resolve_preset(component_type, preset_part_no, preset_manufacturer)
+            preset = _resolve_preset(
+                component_type, preset_part_no, preset_manufacturer
+            )
             comp.loadPreset(preset)
 
         # Apply explicit dimension overrides on top of preset (or standalone)
@@ -476,7 +533,9 @@ def update_component(
 
         # Load preset first — resets geometry and material to preset baseline
         if preset_part_no is not None:
-            preset = _resolve_preset(java_type_name, preset_part_no, preset_manufacturer)
+            preset = _resolve_preset(
+                java_type_name, preset_part_no, preset_manufacturer
+            )
             comp.loadPreset(preset)
 
         # Apply explicit dimension overrides
@@ -508,7 +567,9 @@ def delete_component(ork_path: Path, component_name: str, jar_path: Path) -> str
         parent = comp.getParent()
 
         if parent is None:
-            raise ValueError(f"Cannot delete '{component_name}': it is the rocket root.")
+            raise ValueError(
+                f"Cannot delete '{component_name}': it is the rocket root."
+            )
 
         name = str(comp.getName())
         parent.removeChild(comp)

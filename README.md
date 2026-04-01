@@ -169,7 +169,7 @@ Each simulation summary includes:
 | `min_stability_cal` | Minimum stability margin over the flight in calibers |
 | `max_stability_cal` | Maximum stability margin over the flight in calibers |
 
-A stability margin above ~1.5 calibers is generally considered stable for most hobby rockets.
+A stability margin of 1.0–1.5 calibers is the target for most hobby rockets. Below 1.0 is unstable; above 1.5 increases weathercocking sensitivity.
 
 ## CLI Reference
 

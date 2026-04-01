@@ -21,6 +21,17 @@ def register_openrocket_simulate(app: FastMCP):
         """
         Run all simulations defined in an OpenRocket design file.
 
+        Returns a summary per simulation including max_altitude_m, max_velocity_ms,
+        time_to_apogee_s, flight_time_s, min_stability_cal, and max_stability_cal.
+
+        Note on stability values: min_stability_cal and max_stability_cal may return
+        null if the OpenRocket JAR does not expose TYPE_STABILITY in its timeseries API.
+        If null, compute stability manually from the component tree:
+            stability_cal = (CP_from_nose_m - CG_from_nose_m) / reference_diameter_m
+        where reference_diameter_m is the maximum body diameter. Use openrocket_inspect
+        to read the component tree and derive CG/CP positions, or apply the Barrowman
+        equations directly from component dimensions.
+
         Args:
             ork_path: Path to the OpenRocket .ork design file.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
@@ -53,18 +64,24 @@ def register_openrocket_simulate(app: FastMCP):
                 apogee_events = sim.events.get(FlightEvent.APOGEE)
                 time_to_apogee_s = float(apogee_events[0]) if apogee_events else None
 
-                min_stability_cal = float(stability.min()) if stability is not None else None
-                max_stability_cal = float(stability.max()) if stability is not None else None
+                min_stability_cal = (
+                    float(stability.min()) if stability is not None else None
+                )
+                max_stability_cal = (
+                    float(stability.max()) if stability is not None else None
+                )
 
-                summaries.append(OpenRocketSimulationSummary(
-                    name=sim.name,
-                    max_altitude_m=max_altitude_m,
-                    max_velocity_ms=max_velocity_ms,
-                    time_to_apogee_s=time_to_apogee_s,
-                    flight_time_s=flight_time_s,
-                    min_stability_cal=min_stability_cal,
-                    max_stability_cal=max_stability_cal,
-                ))
+                summaries.append(
+                    OpenRocketSimulationSummary(
+                        name=sim.name,
+                        max_altitude_m=max_altitude_m,
+                        max_velocity_ms=max_velocity_ms,
+                        time_to_apogee_s=time_to_apogee_s,
+                        flight_time_s=flight_time_s,
+                        min_stability_cal=min_stability_cal,
+                        max_stability_cal=max_stability_cal,
+                    )
+                )
 
             return tool_success(summaries)
 

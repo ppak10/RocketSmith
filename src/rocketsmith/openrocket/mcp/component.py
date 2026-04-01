@@ -13,7 +13,10 @@ def register_openrocket_component(app: FastMCP):
         description=(
             "Create, read, update, or delete a component in an OpenRocket .ork file. "
             "Use 'action' to specify the operation. "
-            "Valid component types for create: nose-cone, body-tube, transition, fin-set, parachute, mass."
+            "Valid component types for create: nose-cone, body-tube, inner-tube, transition, fin-set, parachute, mass. "
+            "inner-tube serves two purposes: motor mount (set motor_mount=true, sized to motor diameter) "
+            "and coupler (short tube joining two body sections, OD = body tube ID, no motor_mount flag). "
+            "Use axial_offset_m and axial_offset_method to position components precisely within their parent."
         ),
         structured_output=True,
     )
@@ -41,6 +44,8 @@ def register_openrocket_component(app: FastMCP):
         sweep: float | None = None,
         cd: float | None = None,
         mass: float | None = None,
+        axial_offset_m: float | None = None,
+        axial_offset_method: str | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
@@ -69,12 +74,23 @@ def register_openrocket_component(app: FastMCP):
         Component-specific properties (all in SI units — metres, kilograms):
             length, diameter, fore_diameter, aft_diameter, thickness, shape
                 → nose-cone, body-tube, transition
-            count, root_chord, tip_chord, span, sweep
+            count, root_chord, tip_chord, span, sweep, thickness
                 → fin-set
             diameter, cd
                 → parachute
             mass
                 → mass component
+
+        Axial positioning (all component types):
+            axial_offset_m: Offset in metres along the parent's axis.
+            axial_offset_method: Reference point for the offset. One of:
+                "top"      — offset from the fore (top) end of the parent
+                "bottom"   — offset from the aft (bottom) end of the parent
+                "middle"   — offset from the middle of the parent
+                "absolute" — absolute position from the rocket nose
+            Always set axial_offset_method before axial_offset_m. For a coupler that
+            should protrude half its length past the aft end of its parent, use
+            axial_offset_method="bottom" and axial_offset_m=-(coupler_length / 2).
 
         Args:
             action: One of 'create', 'read', 'update', 'delete'.
@@ -101,22 +117,28 @@ def register_openrocket_component(app: FastMCP):
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
 
-            props = {k: v for k, v in dict(
-                name=name,
-                length=length,
-                diameter=diameter,
-                fore_diameter=fore_diameter,
-                aft_diameter=aft_diameter,
-                thickness=thickness,
-                shape=shape,
-                count=count,
-                root_chord=root_chord,
-                tip_chord=tip_chord,
-                span=span,
-                sweep=sweep,
-                cd=cd,
-                mass=mass,
-            ).items() if v is not None}
+            props = {
+                k: v
+                for k, v in dict(
+                    name=name,
+                    length=length,
+                    diameter=diameter,
+                    fore_diameter=fore_diameter,
+                    aft_diameter=aft_diameter,
+                    thickness=thickness,
+                    shape=shape,
+                    count=count,
+                    root_chord=root_chord,
+                    tip_chord=tip_chord,
+                    span=span,
+                    sweep=sweep,
+                    cd=cd,
+                    mass=mass,
+                    axial_offset_m=axial_offset_m,
+                    axial_offset_method=axial_offset_method,
+                ).items()
+                if v is not None
+            }
 
             if action == "create":
                 if component_type is None:
