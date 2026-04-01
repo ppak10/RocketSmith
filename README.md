@@ -36,10 +36,34 @@ rocketsmith openrocket version
 
 ## Agent Setup
 
-### Claude Code
+### Claude Code (Plugin — recommended)
+
+Install directly from the repository as a Claude Code plugin:
+
+```bash
+/plugin install https://github.com/ppak10/RocketSmith
+```
+
+This registers the MCP server and installs the rocketsmith agent automatically. No additional steps required.
+
+To update:
+
+```bash
+/plugin update rocketsmith
+```
+
+### Claude Code (manual install)
+
+If you prefer to manage the installation yourself:
 
 ```bash
 rocketsmith mcp install
+```
+
+To upgrade the package and refresh the agent file:
+
+```bash
+rocketsmith update
 ```
 
 ### Claude Desktop
@@ -56,6 +80,7 @@ The following tools are exposed to agents via the MCP server.
 
 | Tool | Description |
 |---|---|
+| `rocketsmith_setup` | Check or install dependencies (Java, OpenRocket, PrusaSlicer) |
 | `workspace_create` | Create a new workspace |
 | `openrocket_new` | Create a new empty `.ork` file |
 | `openrocket_inspect` | Return the full component tree of an `.ork` file |

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rocketsmith": {
+      "command": "uv",
+      "args": ["run", "--with", "rocketsmith", "python", "-m", "rocketsmith.mcp"]
+    }
+  }
+}

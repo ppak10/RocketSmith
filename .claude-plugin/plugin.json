@@ -1,0 +1,12 @@
+{
+  "name": "rocketsmith",
+  "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+  "version": "0.0.5",
+  "authors": [
+    { "name": "Peter Pak" },
+    { "name": "Jesse Barkley" },
+    { "name": "Rumi Loghmani" }
+  ],
+  "homepage": "https://github.com/ppak10/RocketSmith",
+  "repository": "https://github.com/ppak10/RocketSmith"
+}

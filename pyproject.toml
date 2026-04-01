@@ -1,8 +1,10 @@
 [project]
 name = "rocketsmith"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
   { name = "Peter Pak", email = "ppak10@gmail.com" },
+  { name = "Jesse Barkley" },
+  { name = "Rumi Loghmani" },
 ]
 description = "Let agents design, simulate, and build your rocket."
 readme = "README.md"

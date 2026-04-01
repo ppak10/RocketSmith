@@ -11,3 +11,12 @@ repos:
     hooks:
       - id: black
         language_version: python3
+
+  - repo: local
+    hooks:
+      - id: sync-agent-md
+        name: Sync agent.md to plugin agents directory
+        language: system
+        entry: bash -c 'cp src/rocketsmith/data/mcp/agent.md agents/rocketsmith.md && git add agents/rocketsmith.md'
+        files: ^src/rocketsmith/data/mcp/agent\.md$
+        pass_filenames: false
