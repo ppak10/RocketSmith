@@ -1,12 +1,27 @@
 import json
+import shutil
 import subprocess
 import sys
 
 from pathlib import Path
+from importlib.resources import files
 from rich import print as rprint
 
+import rocketsmith.data as _data
 
-def install(path: Path, client: str, include_agent: bool = True) -> None:
+
+def copy_agent(project_path: Path) -> None:
+    """Copy the bundled agent.md into <project_path>/.claude/agents/rocketsmith.md."""
+    agent_src = files(_data).joinpath("mcp/agent.md")
+    agents_dir = project_path / ".claude" / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    dest = agents_dir / "rocketsmith.md"
+    with agent_src.open("rb") as src, open(dest, "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    rprint(f"[bold green]Installed agent:[/bold green] {dest}")
+
+
+def install(path: Path, client: str, tools_only: bool = False, agent_path: Path | None = None) -> None:
     match client:
         case "claude-code":
             cmd = [
@@ -74,10 +89,10 @@ def install(path: Path, client: str, include_agent: bool = True) -> None:
                 "[yellow]Note: Please restart Claude Desktop for changes to take effect.[/yellow]"
             )
 
-            # Skip agent installation as Claude Desktop doesn't support custom agents
-            if include_agent:
+            # Agent installation is not supported for Claude Desktop
+            if not tools_only:
                 rprint(
-                    "[yellow]Note: Claude Desktop does not support custom agents like Claude Code does.[/yellow]"
+                    "[yellow]Note: Claude Desktop does not support custom agents — agent file skipped.[/yellow]"
                 )
 
             return  # Early return since we don't need to run subprocess command
@@ -119,5 +134,10 @@ def install(path: Path, client: str, include_agent: bool = True) -> None:
     except subprocess.CalledProcessError as e:
         rprint(f"[red]Command failed with return code {e.returncode}[/red]")
         rprint(f"[red]Error output: {e.stderr}[/red]" if e.stderr else "")
+        return
     except Exception as e:
         rprint(f"[red]Unexpected error running command:[/red] {e}")
+        return
+
+    if not tools_only:
+        copy_agent(agent_path or Path.cwd())
