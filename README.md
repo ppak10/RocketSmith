@@ -38,10 +38,11 @@ rocketsmith openrocket version
 
 ### Claude Code (Plugin — recommended)
 
-Install directly from the repository as a Claude Code plugin:
+Add the rocketsmith marketplace and install the plugin:
 
 ```bash
-/plugin install https://github.com/ppak10/RocketSmith
+/plugin marketplace add ppak10/RocketSmith
+/plugin install rocketsmith@rocketsmith
 ```
 
 This registers the MCP server and installs the rocketsmith agent automatically. No additional steps required.
@@ -49,7 +50,7 @@ This registers the MCP server and installs the rocketsmith agent automatically. 
 To update:
 
 ```bash
-/plugin update rocketsmith
+/plugin marketplace update rocketsmith
 ```
 
 ### Claude Code (manual install)
