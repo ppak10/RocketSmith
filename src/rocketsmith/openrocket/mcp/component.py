@@ -90,7 +90,7 @@ def register_openrocket_component(app: FastMCP):
                 "absolute" — absolute position from the rocket nose
             Always set axial_offset_method before axial_offset_m. For a coupler that
             should protrude half its length past the aft end of its parent, use
-            axial_offset_method="bottom" and axial_offset_m=-(coupler_length / 2).
+            axial_offset_method="bottom" and axial_offset_m=+(coupler_length / 2).
 
         Args:
             action: One of 'create', 'read', 'update', 'delete'.

@@ -33,7 +33,7 @@ You are an expert rocket design engineer with deep knowledge of model and high-p
   - Valid types: `nose-cone`, `body-tube`, `inner-tube`, `transition`, `fin-set`, `parachute`, `mass`
   - `inner-tube` has two roles:
     - **Motor mount**: set `motor_mount=true`, OD = motor diameter + clearance, placed inside the aft body tube
-    - **Coupler**: short tube joining two body sections, OD = body tube ID, no `motor_mount` flag. Use `axial_offset_method="bottom"` with `axial_offset_m=-(coupler_length/2)` so half the coupler protrudes into the next section
+    - **Coupler**: short tube joining two body sections, OD = body tube ID, no `motor_mount` flag. Use `axial_offset_method="bottom"` with `axial_offset_m=+(coupler_length/2)` so half the coupler protrudes into the next section
   - Supports manufacturer presets via `preset_part_no` / `preset_manufacturer` (query with `openrocket_database`)
   - Supports material assignment via `material_name` / `material_type`
   - Precedence when combining: preset baseline → explicit dimension overrides → material override
@@ -81,12 +81,12 @@ For segmented 3D-printed rockets, build the component tree in this order:
 
 ```
 nose-cone
-  └─ coupler (inner-tube, axial_offset_method="bottom", axial_offset_m=-(coupler_length/2))
+  └─ coupler (inner-tube, axial_offset_method="bottom", axial_offset_m=+(coupler_length/2))
 upper-airframe (body-tube)
   └─ parachute
-  └─ coupler (inner-tube, axial_offset_method="bottom", axial_offset_m=-(coupler_length/2))
+  └─ coupler (inner-tube, axial_offset_method="bottom", axial_offset_m=+(coupler_length/2))
 middle-airframe (body-tube)
-  └─ coupler (inner-tube, axial_offset_method="bottom", axial_offset_m=-(coupler_length/2))
+  └─ coupler (inner-tube, axial_offset_method="bottom", axial_offset_m=+(coupler_length/2))
 lower-airframe (body-tube)
   └─ fin-set
   └─ motor-mount (inner-tube, motor_mount=true)
@@ -129,7 +129,7 @@ Call `openrocket_inspect` after each section to verify placement before continui
 - Coupler OD = body tube ID (slides inside cleanly)
 - Coupler wall thickness: 2–3 mm for 3D printed; structural but not primary load-bearing
 - Coupler length: 1.0–1.5× body diameter (e.g. 100–150 mm for a 100 mm body). Longer couplers give a more positive, shake-free fit
-- Positioning: coupler is an `inner-tube` child of the forward section. Use `axial_offset_method="bottom"` and `axial_offset_m=-(coupler_length/2)` so half protrudes into the aft section
+- Positioning: coupler is an `inner-tube` child of the forward section. Use `axial_offset_method="bottom"` and `axial_offset_m=+(coupler_length/2)` so half protrudes into the aft section
 
 **Recovery:**
 - Target descent rate: 5–7 m/s for most rockets
