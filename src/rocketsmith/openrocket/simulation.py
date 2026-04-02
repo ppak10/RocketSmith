@@ -228,10 +228,31 @@ def run_simulation(
             sim = sims.get(i)
             helper.run_simulation(sim)
 
-            results.append(OpenRocketSimulation(
-                name=str(sim.getName()),
-                timeseries=helper.get_timeseries(sim, valid_types),
-                events=helper.get_events(sim),
-            ))
+            # Extract stability directly from FlightData (more reliable than timeseries)
+            max_stability_cal = None
+            min_stability_cal = None
+            try:
+                import math
+
+                flight_data = sim.getSimulatedData()
+                if flight_data is not None:
+                    max_val = float(flight_data.getMaxStabilityMargin())
+                    min_val = float(flight_data.getMinStabilityMargin())
+                    if not math.isnan(max_val):
+                        max_stability_cal = max_val
+                    if not math.isnan(min_val):
+                        min_stability_cal = min_val
+            except Exception:
+                pass
+
+            results.append(
+                OpenRocketSimulation(
+                    name=str(sim.getName()),
+                    timeseries=helper.get_timeseries(sim, valid_types),
+                    events=helper.get_events(sim),
+                    max_stability_cal=max_stability_cal,
+                    min_stability_cal=min_stability_cal,
+                )
+            )
 
     return results

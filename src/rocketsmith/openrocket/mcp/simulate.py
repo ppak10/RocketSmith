@@ -64,12 +64,20 @@ def register_openrocket_simulate(app: FastMCP):
                 apogee_events = sim.events.get(FlightEvent.APOGEE)
                 time_to_apogee_s = float(apogee_events[0]) if apogee_events else None
 
-                min_stability_cal = (
-                    float(stability.min()) if stability is not None else None
-                )
-                max_stability_cal = (
-                    float(stability.max()) if stability is not None else None
-                )
+                # Prefer FlightData direct values; fall back to timeseries
+                if (
+                    sim.min_stability_cal is not None
+                    or sim.max_stability_cal is not None
+                ):
+                    min_stability_cal = sim.min_stability_cal
+                    max_stability_cal = sim.max_stability_cal
+                else:
+                    min_stability_cal = (
+                        float(stability.min()) if stability is not None else None
+                    )
+                    max_stability_cal = (
+                        float(stability.max()) if stability is not None else None
+                    )
 
                 summaries.append(
                     OpenRocketSimulationSummary(

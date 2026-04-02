@@ -12,6 +12,8 @@ class OpenRocketSimulation(BaseModel):
     name: str
     timeseries: dict[FlightDataType, np.ndarray]
     events: dict[FlightEvent, list[float]]
+    max_stability_cal: float | None = None
+    min_stability_cal: float | None = None
 
 
 class OpenRocketSimulationSummary(BaseModel):
