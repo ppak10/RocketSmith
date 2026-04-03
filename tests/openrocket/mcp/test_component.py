@@ -19,6 +19,7 @@ def mcp_app():
 @pytest.fixture
 def tmp_ork(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork
+
     path = tmp_path / "test.ork"
     new_ork("Test Rocket", path, openrocket_jar)
     return path
@@ -191,7 +192,9 @@ async def test_read_component(mcp_app, tmp_ork, openrocket_jar):
 
 
 @pytest.mark.anyio
-async def test_read_nonexistent_component_returns_error(mcp_app, tmp_ork, openrocket_jar):
+async def test_read_nonexistent_component_returns_error(
+    mcp_app, tmp_ork, openrocket_jar
+):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
@@ -306,7 +309,8 @@ async def test_delete_persists(mcp_app, tmp_ork, openrocket_jar):
         component_name="Gone",
     )
 
-    names = [c["name"] for c in inspect_ork(tmp_ork, openrocket_jar)]
+    result = inspect_ork(tmp_ork, openrocket_jar)
+    names = [c["name"] for c in result["components"]]
     assert "Gone" not in names
 
 

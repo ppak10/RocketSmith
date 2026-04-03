@@ -45,9 +45,23 @@ def register_openrocket_inspect(app: FastMCP):
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
 
-            components = inspect_ork(ork_path=ork_path, jar_path=openrocket_path)
-            ascii_art = render_rocket_ascii(components)
-            return tool_success({"components": components, "ascii_art": ascii_art})
+            result = inspect_ork(ork_path=ork_path, jar_path=openrocket_path)
+            components = result["components"]
+            ascii_art = render_rocket_ascii(
+                components,
+                cg_x=result.get("cg_x"),
+                cp_x=result.get("cp_x"),
+                max_diameter=result.get("max_diameter_m"),
+            )
+            return tool_success(
+                {
+                    "components": components,
+                    "ascii_art": ascii_art,
+                    "cg_x": result.get("cg_x"),
+                    "cp_x": result.get("cp_x"),
+                    "max_diameter_m": result.get("max_diameter_m"),
+                }
+            )
 
         except FileNotFoundError as e:
             return tool_error(

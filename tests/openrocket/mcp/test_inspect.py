@@ -19,6 +19,7 @@ def mcp_app():
 @pytest.fixture
 def tmp_ork(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork
+
     path = tmp_path / "test.ork"
     new_ork("Test Rocket", path, openrocket_jar)
     return path
@@ -61,8 +62,12 @@ async def test_returns_component_list(mcp_app, tmp_ork, openrocket_jar):
     result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
 
     assert result.success is True
-    assert isinstance(result.data, list)
-    assert len(result.data) > 0
+    # result.data is now a dict with 'components' and 'ascii_art'
+    assert isinstance(result.data, dict)
+    assert "components" in result.data
+    assert "ascii_art" in result.data
+    assert isinstance(result.data["components"], list)
+    assert len(result.data["components"]) > 0
 
 
 @pytest.mark.anyio
@@ -73,8 +78,8 @@ async def test_root_is_rocket(mcp_app, tmp_ork, openrocket_jar):
     result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
 
     assert result.success is True
-    assert result.data[0]["type"] == "Rocket"
-    assert result.data[0]["depth"] == 0
+    assert result.data["components"][0]["type"] == "Rocket"
+    assert result.data["components"][0]["depth"] == 0
 
 
 @pytest.mark.anyio
@@ -85,7 +90,7 @@ async def test_contains_axial_stage(mcp_app, tmp_ork, openrocket_jar):
     result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
 
     assert result.success is True
-    types = [c["type"] for c in result.data]
+    types = [c["type"] for c in result.data["components"]]
     assert "AxialStage" in types
 
 
@@ -97,7 +102,7 @@ async def test_each_entry_has_depth_and_name(mcp_app, tmp_ork, openrocket_jar):
     result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
 
     assert result.success is True
-    for entry in result.data:
+    for entry in result.data["components"]:
         assert "depth" in entry
         assert "name" in entry
         assert "type" in entry

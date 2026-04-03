@@ -45,7 +45,8 @@ def register_openrocket_inspect(app: typer.Typer):
             raise typer.Exit(1)
 
         try:
-            components = inspect_ork(ork_path, jar)
+            result = inspect_ork(ork_path, jar)
+            components = result["components"]
         except Exception as e:
             rprint(f"⚠️  [yellow]Failed to inspect .ork: {e}[/yellow]")
             raise typer.Exit(1)
@@ -54,7 +55,12 @@ def register_openrocket_inspect(app: typer.Typer):
         from rocketsmith.openrocket.ascii import render_rocket_ascii
 
         console = Console()
-        ascii_art = render_rocket_ascii(components)
+        ascii_art = render_rocket_ascii(
+            components,
+            cg_x=result.get("cg_x"),
+            cp_x=result.get("cp_x"),
+            max_diameter=result.get("max_diameter_m"),
+        )
         console.print(ascii_art)
         console.print()
 
