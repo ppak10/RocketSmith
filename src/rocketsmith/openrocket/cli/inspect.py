@@ -15,12 +15,17 @@ def register_openrocket_inspect(app: typer.Typer):
     def openrocket_inspect(
         ork_filename: Annotated[
             str,
-            typer.Argument(help="Filename of the .ork file in the workspace openrocket/ folder."),
+            typer.Argument(
+                help="Filename of the .ork file in the workspace openrocket/ folder."
+            ),
         ],
         workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
-            typer.Option("--openrocket-path", help="Path to OpenRocket JAR or its parent directory."),
+            typer.Option(
+                "--openrocket-path",
+                help="Path to OpenRocket JAR or its parent directory.",
+            ),
         ] = None,
     ) -> None:
         """Display the full component tree of an .ork file."""
@@ -45,7 +50,15 @@ def register_openrocket_inspect(app: typer.Typer):
             rprint(f"⚠️  [yellow]Failed to inspect .ork: {e}[/yellow]")
             raise typer.Exit(1)
 
-        # Build a Rich tree from the flat depth-annotated list
+        # ── ASCII side-profile ────────────────────────────────────────────
+        from rocketsmith.openrocket.ascii import render_rocket_ascii
+
+        console = Console()
+        ascii_art = render_rocket_ascii(components)
+        console.print(ascii_art)
+        console.print()
+
+        # ── Component tree ────────────────────────────────────────────────
         root_label = f"[bold]{ork_filename}[/bold]"
         rich_tree = Tree(root_label)
         stack = [(rich_tree, -1)]  # (node, depth)
@@ -56,9 +69,15 @@ def register_openrocket_inspect(app: typer.Typer):
             name = entry["name"]
 
             # Format property summary
-            props = {k: v for k, v in entry.items() if k not in ("depth", "type", "name")}
-            prop_str = "  ".join(f"[dim]{k}=[/dim][cyan]{v}[/cyan]" for k, v in props.items())
-            label = f"[bold cyan]{type_name}[/bold cyan] [white]{name}[/white]  {prop_str}"
+            props = {
+                k: v for k, v in entry.items() if k not in ("depth", "type", "name")
+            }
+            prop_str = "  ".join(
+                f"[dim]{k}=[/dim][cyan]{v}[/cyan]" for k, v in props.items()
+            )
+            label = (
+                f"[bold cyan]{type_name}[/bold cyan] [white]{name}[/white]  {prop_str}"
+            )
 
             while len(stack) > 1 and stack[-1][1] >= depth:
                 stack.pop()
@@ -66,6 +85,6 @@ def register_openrocket_inspect(app: typer.Typer):
             node = stack[-1][0].add(label)
             stack.append((node, depth))
 
-        Console().print(rich_tree)
+        console.print(rich_tree)
 
     return openrocket_inspect

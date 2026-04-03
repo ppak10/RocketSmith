@@ -45,8 +45,13 @@ def update(project_path: Path, tools_only: bool = False) -> bool:
 
     # Report new version
     ver_result = subprocess.run(
-        ["uv", "run", "python", "-c",
-         "import importlib.metadata; print(importlib.metadata.version('rocketsmith'))"],
+        [
+            "uv",
+            "run",
+            "python",
+            "-c",
+            "import importlib.metadata; print(importlib.metadata.version('rocketsmith'))",
+        ],
         cwd=project_path,
         capture_output=True,
         text=True,
@@ -57,32 +62,48 @@ def update(project_path: Path, tools_only: bool = False) -> bool:
     if tools_only:
         return True
 
-    # Copy the agent file from the *newly installed* package.
+    # Copy the agent file from the *newly installed* package to all supported
+    # agent directories that exist in the project.
     # We must do this in a subprocess so it imports the new version, not the
     # currently running one.
-    agent_dest = project_path / ".claude" / "agents" / "rocketsmith.md"
-    agent_dest.parent.mkdir(parents=True, exist_ok=True)
+    agent_configs = [
+        (project_path / ".claude" / "agents", "mcp/claude_code/agent.md"),
+        (project_path / ".gemini" / "agents", "mcp/gemini_cli/agent.md"),
+    ]
 
-    env = os.environ.copy()
-    env["RS_AGENT_DEST"] = str(agent_dest)
+    for agents_dir, src_rel_path in agent_configs:
+        if not agents_dir.exists():
+            continue
 
-    copy_result = subprocess.run(
-        [
-            "uv", "run", "python", "-c",
-            "import shutil, os; "
-            "from importlib.resources import files; "
-            "import rocketsmith.data as d; "
-            "shutil.copy(str(files(d).joinpath('mcp/agent.md')), os.environ['RS_AGENT_DEST'])",
-        ],
-        cwd=project_path,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+        agent_dest = agents_dir / "rocketsmith.md"
+        agent_dest.parent.mkdir(parents=True, exist_ok=True)
 
-    if copy_result.returncode == 0:
-        rprint(f"✅ [bold green]Updated agent:[/bold green] {agent_dest}")
-    else:
-        rprint(f"⚠️  [yellow]Agent file update failed:[/yellow]\n{copy_result.stderr.strip()}")
+        env = os.environ.copy()
+        env["RS_AGENT_DEST"] = str(agent_dest)
+        env["RS_AGENT_SRC"] = src_rel_path
+
+        copy_result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "python",
+                "-c",
+                "import shutil, os; "
+                "from importlib.resources import files; "
+                "import rocketsmith.data as d; "
+                "shutil.copy(str(files(d).joinpath(os.environ['RS_AGENT_SRC'])), os.environ['RS_AGENT_DEST'])",
+            ],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        if copy_result.returncode == 0:
+            rprint(f"✅ [bold green]Updated agent:[/bold green] {agent_dest}")
+        else:
+            rprint(
+                f"⚠️  [yellow]Agent file update failed for {agents_dir}:[/yellow]\n{copy_result.stderr.strip()}"
+            )
 
     return True

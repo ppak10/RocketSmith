@@ -10,18 +10,31 @@ from rich import print as rprint
 import rocketsmith.data as _data
 
 
-def copy_agent(project_path: Path) -> None:
-    """Copy the bundled agent.md into <project_path>/.claude/agents/rocketsmith.md."""
-    agent_src = files(_data).joinpath("mcp/agent.md")
-    agents_dir = project_path / ".claude" / "agents"
+def copy_agent(project_path: Path, client: str) -> None:
+    """Copy the bundled agent.md into the appropriate agent directory for the client."""
+    # Determine the source and destination directories based on the client
+    match client:
+        case "gemini-cli":
+            agent_src = files(_data).joinpath("mcp/gemini_cli/agent.md")
+            agents_dir = project_path / ".gemini" / "agents"
+        case "claude-code" | "codex":
+            agent_src = files(_data).joinpath("mcp/claude_code/agent.md")
+            agents_dir = project_path / ".claude" / "agents"
+        case _:
+            # For other clients (like claude-desktop), agents might not be supported
+            # or use a different mechanism.
+            return
+
     agents_dir.mkdir(parents=True, exist_ok=True)
     dest = agents_dir / "rocketsmith.md"
     with agent_src.open("rb") as src, open(dest, "wb") as dst:
         shutil.copyfileobj(src, dst)
-    rprint(f"[bold green]Installed agent:[/bold green] {dest}")
+    rprint(f"[bold green]Installed agent for {client}:[/bold green] {dest}")
 
 
-def install(path: Path, client: str, tools_only: bool = False, agent_path: Path | None = None) -> None:
+def install(
+    path: Path, client: str, tools_only: bool = False, agent_path: Path | None = None
+) -> None:
     match client:
         case "claude-code":
             cmd = [
@@ -140,4 +153,4 @@ def install(path: Path, client: str, tools_only: bool = False, agent_path: Path 
         return
 
     if not tools_only:
-        copy_agent(agent_path or Path.cwd())
+        copy_agent(agent_path or Path.cwd(), client)

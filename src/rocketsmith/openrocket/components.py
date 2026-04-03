@@ -1,5 +1,6 @@
 import contextlib
-
+import os
+import sys
 from pathlib import Path
 
 # Maps CLI type names to OpenRocket Java class names
@@ -8,40 +9,71 @@ COMPONENT_TYPES = {
     "body-tube": "BodyTube",
     "inner-tube": "InnerTube",
     "transition": "Transition",
+    "tube-coupler": "TubeCoupler",
     "fin-set": "TrapezoidFinSet",
     "parachute": "Parachute",
     "mass": "MassComponent",
 }
 
-# Maps component type key (CLI name or Java class name) to preset type key
-_COMPONENT_TO_PRESET_TYPE = {
-    "body-tube": "body-tube",
-    "nose-cone": "nose-cone",
-    "transition": "transition",
-    "parachute": "parachute",
-    "BodyTube": "body-tube",
-    "NoseCone": "nose-cone",
-    "Transition": "transition",
-    "Parachute": "parachute",
-}
+
+@contextlib.contextmanager
+def _silence_fds():
+    """Temporarily redirect stdout/stderr FDs to /dev/null."""
+    null_fd = os.open(os.devnull, os.O_RDWR)
+    try:
+        old_stdout = os.dup(1)
+        old_stderr = os.dup(2)
+        try:
+            os.dup2(null_fd, 1)
+            os.dup2(null_fd, 2)
+            yield
+        finally:
+            os.dup2(old_stdout, 1)
+            os.dup2(old_stderr, 2)
+            os.close(old_stdout)
+            os.close(old_stderr)
+    finally:
+        os.close(null_fd)
 
 
 def _setup_jvm(jar_path: Path) -> None:
     from rocketsmith.openrocket.utils import get_openrocket_jvm
-    import os
 
     jvm = get_openrocket_jvm(jar_path)
     if jvm:
         os.environ["JAVA_HOME"] = str(jvm.parent.parent.parent)
 
 
-class _StubInstance:
-    """Minimal OpenRocketInstance substitute for a JVM that is already running.
+def _silence_jvm() -> None:
+    """Redirect Java-side stdout/stderr to null and silence SLF4J/Logback."""
+    import jpype
 
-    JPype can only be started once per process. When the JVM is already live
-    (e.g. in a test session that suppresses shutdown), we create this stub so
-    that orhelper.Helper can be constructed without restarting the JVM.
-    """
+    try:
+        System = jpype.JClass("java.lang.System")
+        JFile = jpype.JClass("java.io.File")
+        FileOutputStream = jpype.JClass("java.io.FileOutputStream")
+        PrintStream = jpype.JClass("java.io.PrintStream")
+
+        dev_null = "NUL" if sys.platform == "win32" else "/dev/null"
+        null_ps = PrintStream(FileOutputStream(JFile(dev_null)))
+
+        System.setOut(null_ps)
+        System.setErr(null_ps)
+
+        try:
+            LoggerFactory = jpype.JClass("org.slf4j.LoggerFactory")
+            context = LoggerFactory.getILoggerFactory()
+            if "logback" in context.getClass().getName().lower():
+                Level = jpype.JClass("ch.qos.logback.classic.Level")
+                context.getLogger("ROOT").setLevel(Level.ERROR)
+        except Exception:
+            System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "error")
+    except Exception:
+        pass
+
+
+class _StubInstance:
+    """Minimal OpenRocketInstance substitute for a JVM that is already running."""
 
     def __init__(self):
         import jpype
@@ -52,123 +84,100 @@ class _StubInstance:
 
 @contextlib.contextmanager
 def _or_context(jar_path: Path):
-    """Open an OpenRocket context, reusing an already-running JVM if present.
-
-    The JVM can only be started once per Python process. We deliberately never
-    call shutdownJVM() so that subsequent calls within the same process can
-    reuse the running JVM via _StubInstance.
-    """
+    """Open an OpenRocket context, reusing an already-running JVM if present."""
     import jpype
     import orhelper
 
     if jpype.isJVMStarted():
+        _silence_jvm()
         yield _StubInstance()
     else:
         _setup_jvm(jar_path)
-        instance = orhelper.OpenRocketInstance(str(jar_path), log_level="ERROR")
-        instance.__enter__()
-        # Do not call instance.__exit__() — shutdownJVM() would prevent any
-        # subsequent tool call in this process from restarting the JVM.
+        with _silence_fds():
+            instance = orhelper.OpenRocketInstance(str(jar_path), log_level="ERROR")
+            instance.__enter__()
+            _silence_jvm()
         yield instance
 
 
-def _resolve_preset(type_key: str, part_no: str, manufacturer: str | None):
-    """Look up a ComponentPreset by type key (CLI name or Java class name) and part number.
-
-    Must be called inside an active _or_context so the JVM and Application are live.
-    Raises ValueError if the preset cannot be found.
-    """
+def _save_doc(doc, ork_path: Path) -> None:
     import jpype
-    from rocketsmith.openrocket.database import PRESET_TYPES
 
-    preset_type = _COMPONENT_TO_PRESET_TYPE.get(type_key)
-    if preset_type is None:
-        raise ValueError(
-            f"Component type '{type_key}' does not support presets. "
-            f"Supported: {', '.join(_COMPONENT_TO_PRESET_TYPE)}"
-        )
+    JFile = jpype.JClass("java.io.File")
+    JGeneralRocketSaver = jpype.JClass("net.sf.openrocket.file.GeneralRocketSaver")
+    JStorageOptions = jpype.JClass("net.sf.openrocket.document.StorageOptions")
 
-    java_type_name = PRESET_TYPES[preset_type]
-    Application = jpype.JPackage("net").sf.openrocket.startup.Application
-    CP = jpype.JPackage("net").sf.openrocket.preset.ComponentPreset
-    java_type = getattr(CP.Type, java_type_name)
-    presets = Application.getComponentPresetDao().listForType(java_type)
-
-    for i in range(presets.size()):
-        p = presets.get(i)
-        if str(p.getPartNo()).lower() == part_no.lower():
-            if (
-                manufacturer is None
-                or manufacturer.lower() in str(p.getManufacturer()).lower()
-            ):
-                return p
-
-    suffix = f" for manufacturer '{manufacturer}'" if manufacturer else ""
-    raise ValueError(f"Preset '{part_no}' not found{suffix}.")
+    opts = JStorageOptions()
+    saver = JGeneralRocketSaver(JFile(os.path.abspath(str(ork_path))))
+    saver.save(doc, opts)
 
 
-def _resolve_material(material_name: str, material_type: str | None):
-    """Look up a Material object by name, optionally restricted to a type.
+def inspect_ork(ork_path: Path, jar_path: Path | None = None) -> list[dict]:
+    """Read component tree from .ork file and return as list of dicts."""
+    from rocketsmith.openrocket.utils import get_openrocket_path
 
-    Must be called inside an active _or_context so the JVM is live.
-    Raises ValueError if the material cannot be found.
-    """
-    import jpype
-    from rocketsmith.openrocket.database import MATERIAL_TYPES
+    if jar_path is None:
+        jar_path = get_openrocket_path()
 
-    Databases = jpype.JPackage("net").sf.openrocket.database.Databases
+    with _or_context(jar_path) as instance:
+        import orhelper
+        import jpype
 
-    if material_type is not None:
-        if material_type not in MATERIAL_TYPES:
-            raise ValueError(
-                f"Unknown material type '{material_type}'. "
-                f"Valid: {', '.join(sorted(MATERIAL_TYPES))}"
-            )
-        dbs = [
-            {
-                "bulk": Databases.BULK_MATERIAL,
-                "surface": Databases.SURFACE_MATERIAL,
-                "line": Databases.LINE_MATERIAL,
-            }[material_type]
-        ]
-    else:
-        dbs = [
-            Databases.BULK_MATERIAL,
-            Databases.SURFACE_MATERIAL,
-            Databases.LINE_MATERIAL,
-        ]
+        JFile = jpype.JClass("java.io.File")
+        helper = orhelper.Helper(instance)
+        path_str = os.path.abspath(str(ork_path))
+        try:
+            doc = helper.load_doc(path_str)
+        except Exception:
+            doc = helper.load_doc(JFile(path_str))
+        rocket = doc.getRocket()
 
-    for db in dbs:
-        for mat in db:
-            if str(mat.getName()).lower() == material_name.lower():
-                return mat
+        results = []
 
-    raise ValueError(f"Material '{material_name}' not found.")
+        def _walk(comp, depth):
+            # Extract properties
+            props = _extract_properties(comp)
+            props["depth"] = depth
+            results.append(props)
+
+            # Recurse children
+            children = []
+            try:
+                for i in range(comp.getChildCount()):
+                    children.append(comp.getChildAt(i))
+            except Exception:
+                try:
+                    for child in comp.getChildren():
+                        children.append(child)
+                except Exception:
+                    pass
+
+            for child in children:
+                _walk(child, depth + 1)
+
+        _walk(rocket, 0)
+        return results
 
 
-def _save_doc(doc, output_path: Path) -> None:
-    from java.io import File
-    from net.sf.openrocket.file import GeneralRocketSaver
-    from net.sf.openrocket.document import StorageOptions
-
-    opts = StorageOptions()
-    opts.setFileType(StorageOptions.FileType.OPENROCKET)
-    opts.setSaveSimulationData(True)
-
-    GeneralRocketSaver().save(File(str(output_path)), doc, opts)
+def read_components(ork_path: Path) -> list[dict]:
+    """Read component tree from .ork file."""
+    return inspect_ork(ork_path)
 
 
 def _extract_properties(comp) -> dict:
-    """Extract readable properties from a Java RocketComponent."""
-    type_name = str(comp.getClass().getSimpleName())
-    props = {}
+    """Extract dict of serializable properties from an OpenRocket component."""
+    props = {
+        "type": str(comp.getClass().getSimpleName()),
+        "name": str(comp.getName()),
+    }
 
-    try:
-        props["length_m"] = round(float(comp.getLength()), 4)
-    except Exception:
-        pass
+    type_name = props["type"]
 
     if type_name in ("NoseCone", "Transition"):
+        try:
+            props["length_m"] = round(float(comp.getLength()), 4)
+        except Exception:
+            pass
         try:
             props["fore_diameter_m"] = round(float(comp.getForeRadius()) * 2, 4)
         except Exception:
@@ -178,21 +187,21 @@ def _extract_properties(comp) -> dict:
         except Exception:
             pass
         try:
-            props["shape"] = str(comp.getShapeType().name()).lower()
-        except Exception:
-            pass
-        try:
             props["thickness_m"] = round(float(comp.getThickness()), 4)
         except Exception:
             pass
 
-    elif type_name in ("BodyTube", "InnerTube"):
+    elif type_name in ("BodyTube", "InnerTube", "TubeCoupler"):
         try:
             props["outer_diameter_m"] = round(float(comp.getOuterRadius()) * 2, 4)
         except Exception:
             pass
         try:
             props["inner_diameter_m"] = round(float(comp.getInnerRadius()) * 2, 4)
+        except Exception:
+            pass
+        try:
+            props["length_m"] = round(float(comp.getLength()), 4)
         except Exception:
             pass
         try:
@@ -236,18 +245,12 @@ def _extract_properties(comp) -> dict:
         except Exception:
             pass
         try:
-            props["cd"] = round(float(comp.getCD()), 3)
-        except Exception:
-            pass
-
-    elif type_name == "MassComponent":
-        try:
-            props["mass_kg"] = round(float(comp.getMass()), 6)
+            props["cd"] = round(float(comp.getCD()), 2)
         except Exception:
             pass
 
     try:
-        preset = comp.getPresetComponent()
+        preset = comp.getComponentPreset()
         if preset is not None:
             props["preset_manufacturer"] = str(preset.getManufacturer())
             props["preset_part_no"] = str(preset.getPartNo())
@@ -264,115 +267,132 @@ def _extract_properties(comp) -> dict:
 
     try:
         props["axial_offset_m"] = round(float(comp.getAxialOffset()), 4)
+        props["axial_offset_method"] = str(comp.getAxialOffsetMethod())
     except Exception:
         pass
 
+    # Position X (absolute)
     try:
-        props["axial_offset_method"] = str(comp.getAxialMethod().name()).lower()
+        # getPositionX() is the standard for absolute position from nose tip
+        props["position_x_m"] = round(float(comp.getPositionX()), 4)
     except Exception:
-        pass
+        # Fallback: walk parents and add getPosition().x
+        try:
+            x = 0.0
+            curr = comp
+            while curr is not None:
+                try:
+                    # In some OR versions, getPosition() returns a Coordinate
+                    p = curr.getPosition()
+                    try:
+                        x += float(p.x)
+                    except:
+                        x += float(p)
+                except:
+                    pass
+                curr = curr.getParent()
+            props["position_x_m"] = round(x, 4)
+        except:
+            props["position_x_m"] = 0.0
 
     return props
 
 
-def _walk_tree(comp, depth: int = 0) -> list[dict]:
-    """Recursively collect component info into a flat list."""
-    entry = {
-        "depth": depth,
-        "type": str(comp.getClass().getSimpleName()),
-        "name": str(comp.getName()),
-        **_extract_properties(comp),
-    }
-    results = [entry]
-    for i in range(comp.getChildCount()):
-        results.extend(_walk_tree(comp.getChild(i), depth + 1))
-    return results
+def update_component(ork_path: Path, component_name: str, **kwargs) -> dict | None:
+    """Update properties of an existing component by name."""
+    from rocketsmith.openrocket.utils import get_openrocket_path
+
+    jar_path = get_openrocket_path()
+
+    with _or_context(jar_path) as instance:
+        import orhelper
+        import jpype
+
+        JFile = jpype.JClass("java.io.File")
+        helper = orhelper.Helper(instance)
+        path_str = os.path.abspath(str(ork_path))
+        try:
+            doc = helper.load_doc(path_str)
+        except Exception:
+            doc = helper.load_doc(JFile(path_str))
+        rocket = doc.getRocket()
+
+        comp = None
+
+        def _find(c):
+            nonlocal comp
+            if str(c.getName()) == component_name:
+                comp = c
+                return True
+            for i in range(c.getChildCount()):
+                if _find(c.getChildAt(i)):
+                    return True
+            return False
+
+        _find(rocket)
+
+        if comp is None:
+            return None
+
+        _apply_properties(comp, **kwargs)
+        _save_doc(doc, ork_path)
+
+        return _extract_properties(comp)
 
 
-def _find_by_name(helper, rocket, name: str):
-    try:
-        return helper.get_component_named(rocket, name)
-    except ValueError:
-        raise ValueError(f"Component '{name}' not found.")
+def _apply_properties(comp, **kwargs):
+    """Apply dict of properties to an OpenRocket component."""
+    import jpype
 
+    java_type_name = str(comp.getClass().getSimpleName())
 
-def _find_default_parent(rocket, java_type_name: str):
-    """Return the appropriate default parent for a new component."""
-    INTERNAL_TYPES = {
-        "TrapezoidFinSet",
-        "EllipticalFinSet",
-        "Parachute",
-        "MassComponent",
-        "ShockCord",
-        "Streamer",
-        "InnerTube",
-    }
-
-    first_stage = None
-    last_body_tube = None
-
-    for i in range(rocket.getChildCount()):
-        child = rocket.getChild(i)
-        if (
-            str(child.getClass().getSimpleName()) == "AxialStage"
-            and first_stage is None
-        ):
-            first_stage = child
-            for j in range(child.getChildCount()):
-                gc = child.getChild(j)
-                if str(gc.getClass().getSimpleName()) == "BodyTube":
-                    last_body_tube = gc
-
-    if java_type_name in INTERNAL_TYPES:
-        if last_body_tube is None:
-            raise ValueError(
-                "No BodyTube found in first stage — add a body tube first."
-            )
-        return last_body_tube
-    else:
-        if first_stage is None:
-            raise ValueError("No AxialStage found in rocket.")
-        return first_stage
-
-
-def _apply_properties(comp, java_type_name: str, **kwargs) -> None:
-    """Apply non-None keyword properties to a Java RocketComponent."""
     if kwargs.get("name") is not None:
-        comp.setName(kwargs["name"])
-
-    if kwargs.get("length") is not None:
-        comp.setLength(float(kwargs["length"]))
+        comp.setName(str(kwargs["name"]))
 
     if java_type_name in ("NoseCone", "Transition"):
-        if kwargs.get("diameter") is not None:
-            comp.setAftRadius(float(kwargs["diameter"]) / 2)
+        if kwargs.get("length") is not None:
+            comp.setLength(float(kwargs["length"]))
         if kwargs.get("fore_diameter") is not None:
             comp.setForeRadius(float(kwargs["fore_diameter"]) / 2)
         if kwargs.get("aft_diameter") is not None:
             comp.setAftRadius(float(kwargs["aft_diameter"]) / 2)
-        if kwargs.get("shape") is not None:
-            from net.sf.openrocket.rocketcomponent import Transition as JTransition
-
-            shape = JTransition.Shape.valueOf(kwargs["shape"].upper())
-            comp.setShapeType(shape)
+        if java_type_name == "NoseCone":
+            if kwargs.get("shape") is not None:
+                JNoseCone = jpype.JClass("net.sf.openrocket.rocketcomponent.NoseCone")
+                shape = JNoseCone.Shape.valueOf(kwargs["shape"].upper())
+                comp.setShapeType(shape)
+        if java_type_name == "Transition":
+            if kwargs.get("shape") is not None:
+                JTransition = jpype.JClass(
+                    "net.sf.openrocket.rocketcomponent.Transition"
+                )
+                shape = JTransition.Shape.valueOf(kwargs["shape"].upper())
+                comp.setShapeType(shape)
         if kwargs.get("thickness") is not None:
             comp.setThickness(float(kwargs["thickness"]))
 
-    elif java_type_name in ("BodyTube", "InnerTube"):
+    elif java_type_name in ("BodyTube", "InnerTube", "TubeCoupler"):
         if kwargs.get("diameter") is not None:
             comp.setOuterRadius(float(kwargs["diameter"]) / 2)
         if kwargs.get("thickness") is not None:
             comp.setThickness(float(kwargs["thickness"]))
+        if kwargs.get("length") is not None:
+            comp.setLength(float(kwargs["length"]))
+        if (
+            java_type_name in ("BodyTube", "InnerTube")
+            and kwargs.get("motor_mount") is not None
+        ):
+            comp.setMotorMount(bool(kwargs["motor_mount"]))
 
     elif java_type_name == "TrapezoidFinSet":
-        if kwargs.get("count") is not None:
-            comp.setFinCount(int(kwargs["count"]))
+        if kwargs.get("fin_count") is not None:
+            comp.setFinCount(int(kwargs["fin_count"]))
         if kwargs.get("root_chord") is not None:
             comp.setRootChord(float(kwargs["root_chord"]))
         if kwargs.get("tip_chord") is not None:
             comp.setTipChord(float(kwargs["tip_chord"]))
         if kwargs.get("span") is not None:
-            comp.setHeight(float(kwargs["span"]))
+            comp.setSpan(float(kwargs["span"]))
         if kwargs.get("sweep") is not None:
             comp.setSweep(float(kwargs["sweep"]))
         if kwargs.get("thickness") is not None:
@@ -384,189 +404,109 @@ def _apply_properties(comp, java_type_name: str, **kwargs) -> None:
         if kwargs.get("cd") is not None:
             comp.setCD(float(kwargs["cd"]))
 
-    elif java_type_name == "MassComponent":
-        if kwargs.get("mass") is not None:
-            comp.setMass(float(kwargs["mass"]))
+    if kwargs.get("material") is not None:
+        mat = lookup_material(kwargs["material"])
+        if mat:
+            comp.setMaterial(mat)
 
-    # Axial positioning — applies to all component types.
-    # Always set the method before the offset so the new method interprets the value correctly.
+    if kwargs.get("axial_offset") is not None:
+        comp.setAxialOffset(float(kwargs["axial_offset"]))
     if kwargs.get("axial_offset_method") is not None:
-        import jpype
-
-        AxialMethod = jpype.JClass(
-            "net.sf.openrocket.rocketcomponent.position.AxialMethod"
-        )
-        comp.setAxialMethod(AxialMethod.valueOf(kwargs["axial_offset_method"].upper()))
-    if kwargs.get("axial_offset_m") is not None:
-        comp.setAxialOffset(float(kwargs["axial_offset_m"]))
-
-
-# ── Public API ────────────────────────────────────────────────────────────────
-
-
-def inspect_ork(ork_path: Path, jar_path: Path) -> list[dict]:
-    """Return the full component tree of an .ork file as a flat list."""
-    import orhelper
-
-    with _or_context(jar_path) as instance:
-        helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
-        return _walk_tree(doc.getRocket())
-
-
-def read_component(ork_path: Path, component_name: str, jar_path: Path) -> dict:
-    """Return properties of a single named component."""
-    import orhelper
-
-    with _or_context(jar_path) as instance:
-        helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
-        comp = _find_by_name(helper, doc.getRocket(), component_name)
-        return {
-            "type": str(comp.getClass().getSimpleName()),
-            "name": str(comp.getName()),
-            **_extract_properties(comp),
-        }
-
-
-def new_ork(name: str, output_path: Path, jar_path: Path) -> Path:
-    """Create a new .ork file with an empty Rocket and one AxialStage."""
-    with _or_context(jar_path):
-        from net.sf.openrocket.document import OpenRocketDocumentFactory
-        from net.sf.openrocket.rocketcomponent import AxialStage
-
-        doc = OpenRocketDocumentFactory.createEmptyRocket()
-        rocket = doc.getRocket()
-        rocket.setName(name)
-
-        stage = AxialStage()
-        stage.setName("Stage 1")
-        rocket.addChild(stage)
-
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        _save_doc(doc, output_path)
-
-    return output_path
+        JComponent = jpype.JClass("net.sf.openrocket.rocketcomponent.RocketComponent")
+        method = JComponent.Position.valueOf(kwargs["axial_offset_method"].upper())
+        comp.setAxialOffsetMethod(method)
 
 
 def create_component(
-    ork_path: Path,
-    component_type: str,
-    jar_path: Path,
-    parent_name: str | None = None,
-    preset_part_no: str | None = None,
-    preset_manufacturer: str | None = None,
-    material_name: str | None = None,
-    material_type: str | None = None,
-    **kwargs,
+    ork_path: Path, parent_name: str, type_name: str, name: str, **kwargs
 ) -> dict:
-    """Add a new component to an .ork file and save in-place."""
-    import jpype
-    import orhelper
+    """Create a new component and add it to a parent."""
+    from rocketsmith.openrocket.utils import get_openrocket_path
 
-    java_type_name = COMPONENT_TYPES.get(component_type)
-    if java_type_name is None:
-        raise ValueError(
-            f"Unknown component type '{component_type}'. "
-            f"Valid types: {', '.join(COMPONENT_TYPES)}"
-        )
+    jar_path = get_openrocket_path()
 
     with _or_context(jar_path) as instance:
+        import orhelper
+        import jpype
+
+        JFile = jpype.JClass("java.io.File")
         helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
+        path_str = os.path.abspath(str(ork_path))
+        try:
+            doc = helper.load_doc(path_str)
+        except Exception:
+            doc = helper.load_doc(JFile(path_str))
         rocket = doc.getRocket()
 
-        parent = (
-            _find_by_name(helper, rocket, parent_name)
-            if parent_name
-            else _find_default_parent(rocket, java_type_name)
-        )
+        parent = None
 
-        comp_cls = getattr(
-            jpype.JPackage("net").sf.openrocket.rocketcomponent, java_type_name
-        )
-        comp = comp_cls()
+        def _find(c):
+            nonlocal parent
+            if str(c.getName()) == parent_name:
+                parent = c
+                return True
+            for i in range(c.getChildCount()):
+                if _find(c.getChildAt(i)):
+                    return True
+            return False
 
-        # Load preset first — establishes baseline geometry and material
-        if preset_part_no is not None:
-            preset = _resolve_preset(
-                component_type, preset_part_no, preset_manufacturer
-            )
-            comp.loadPreset(preset)
+        _find(rocket)
 
-        # Apply explicit dimension overrides on top of preset (or standalone)
-        _apply_properties(comp, java_type_name, **kwargs)
+        if parent is None:
+            raise ValueError(f"Parent '{parent_name}' not found.")
 
-        # Apply explicit material override last — takes precedence over preset's material
-        if material_name is not None:
-            mat = _resolve_material(material_name, material_type)
-            comp.setMaterial(mat)
+        java_class_name = COMPONENT_TYPES.get(type_name)
+        if not java_class_name:
+            raise ValueError(f"Unsupported component type: {type_name}")
 
+        JClass = jpype.JClass(f"net.sf.openrocket.rocketcomponent.{java_class_name}")
+        comp = JClass()
+        comp.setName(str(name))
+
+        _apply_properties(comp, **kwargs)
         parent.addChild(comp)
-
-        result = {
-            "type": java_type_name,
-            "name": str(comp.getName()),
-            **_extract_properties(comp),
-        }
         _save_doc(doc, ork_path)
 
-    return result
+        return _extract_properties(comp)
 
 
-def update_component(
-    ork_path: Path,
-    component_name: str,
-    jar_path: Path,
-    preset_part_no: str | None = None,
-    preset_manufacturer: str | None = None,
-    material_name: str | None = None,
-    material_type: str | None = None,
-    **kwargs,
-) -> dict:
-    """Update properties of a named component and save in-place."""
-    import orhelper
+def delete_component(ork_path: Path, component_name: str) -> str:
+    """Delete a component by name."""
+    from rocketsmith.openrocket.utils import get_openrocket_path
+
+    jar_path = get_openrocket_path()
 
     with _or_context(jar_path) as instance:
+        import orhelper
+        import jpype
+
+        JFile = jpype.JClass("java.io.File")
         helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
-        comp = _find_by_name(helper, doc.getRocket(), component_name)
-        java_type_name = str(comp.getClass().getSimpleName())
+        path_str = os.path.abspath(str(ork_path))
+        try:
+            doc = helper.load_doc(path_str)
+        except Exception:
+            doc = helper.load_doc(JFile(path_str))
+        rocket = doc.getRocket()
 
-        # Load preset first — resets geometry and material to preset baseline
-        if preset_part_no is not None:
-            preset = _resolve_preset(
-                java_type_name, preset_part_no, preset_manufacturer
-            )
-            comp.loadPreset(preset)
+        comp = None
+        parent = None
 
-        # Apply explicit dimension overrides
-        _apply_properties(comp, java_type_name, **kwargs)
+        def _find(c, p):
+            nonlocal comp, parent
+            if str(c.getName()) == component_name:
+                comp = c
+                parent = p
+                return True
+            for i in range(c.getChildCount()):
+                if _find(c.getChildAt(i), c):
+                    return True
+            return False
 
-        # Apply explicit material override last
-        if material_name is not None:
-            mat = _resolve_material(material_name, material_type)
-            comp.setMaterial(mat)
+        _find(rocket, None)
 
-        result = {
-            "type": java_type_name,
-            "name": str(comp.getName()),
-            **_extract_properties(comp),
-        }
-        _save_doc(doc, ork_path)
-
-    return result
-
-
-def delete_component(ork_path: Path, component_name: str, jar_path: Path) -> str:
-    """Remove a named component from an .ork file and save in-place."""
-    import orhelper
-
-    with _or_context(jar_path) as instance:
-        helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
-        comp = _find_by_name(helper, doc.getRocket(), component_name)
-        parent = comp.getParent()
+        if comp is None:
+            raise ValueError(f"Component '{component_name}' not found.")
 
         if parent is None:
             raise ValueError(
@@ -578,3 +518,41 @@ def delete_component(ork_path: Path, component_name: str, jar_path: Path) -> str
         _save_doc(doc, ork_path)
 
     return name
+
+
+def lookup_material(name: str, material_type: str | None = None):
+    """Look up a Material object by name."""
+    import jpype
+
+    Database = jpype.JClass("net.sf.openrocket.database.ComponentPresetDatabase")
+    db = Database.getDefaultDatabase().getMaterialDatabase()
+
+    for mat in db:
+        if str(mat.getName()).lower() == name.lower():
+            return mat
+
+    return None
+
+
+def list_materials(material_type: str | None = None) -> list[dict]:
+    """List available materials from the OpenRocket database."""
+    from rocketsmith.openrocket.utils import get_openrocket_path
+
+    jar_path = get_openrocket_path()
+
+    with _or_context(jar_path):
+        import jpype
+
+        Database = jpype.JClass("net.sf.openrocket.database.ComponentPresetDatabase")
+        db = Database.getDefaultDatabase().getMaterialDatabase()
+
+        results = [
+            {
+                "name": str(mat.getName()),
+                "density": round(float(mat.getDensity()), 6),
+                "type": material_type,
+            }
+            for mat in db
+        ]
+
+        return sorted(results, key=lambda x: x["name"])

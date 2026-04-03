@@ -75,6 +75,20 @@ rocketsmith mcp install claude-desktop --project-path /path/to/RocketSmith
 
 Note: Restart Claude Desktop after installation for changes to take effect.
 
+### Gemini CLI
+
+```bash
+rocketsmith mcp install gemini-cli
+```
+
+This registers the MCP server and installs the rocketsmith subagent into `.gemini/agents/rocketsmith.md`.
+
+To use the subagent:
+
+```bash
+@rocketsmith Design me a stable rocket for a D12 motor
+```
+
 ## MCP Tools
 
 The following tools are exposed to agents via the MCP server.
