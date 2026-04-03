@@ -10,25 +10,34 @@ def register_openrocket_inspect(app: FastMCP):
 
     @app.tool(
         title="Inspect OpenRocket File",
-        description="Return the full component tree of an OpenRocket .ork file as a flat list.",
+        description=(
+            "Return the full component tree of an OpenRocket .ork file, "
+            "plus an ASCII side-profile of the rocket."
+        ),
         structured_output=True,
     )
     async def openrocket_inspect(
         ork_path: Path,
         openrocket_path: Path | None = None,
-    ) -> Union[ToolSuccess[list[dict]], ToolError]:
+    ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Inspect all components in an OpenRocket design file.
 
-        Returns a flat list of components in tree order. Each entry contains
-        'type', 'name', 'depth', and component-specific properties (length_m,
-        outer_diameter_m, etc.).
+        Returns a dict with two keys:
+          - ``components``: flat list of components in tree order.  Each entry
+            contains 'type', 'name', 'depth', 'position_x_m', and
+            component-specific properties (length_m, outer_diameter_m, etc.).
+          - ``ascii_art``: multi-line string with a horizontal ASCII side-profile
+            of the rocket (nose left, tail right).  Body walls use /, \\, and -
+            to show the profile shape.  Internal tubes appear as dashed (:) walls.
+            Fins are rendered as | protrusions above and below the body.
 
         Args:
             ork_path: Path to the OpenRocket .ork design file.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
         """
+        from rocketsmith.openrocket.ascii import render_rocket_ascii
         from rocketsmith.openrocket.components import inspect_ork
         from rocketsmith.openrocket.utils import get_openrocket_path
 
@@ -36,8 +45,23 @@ def register_openrocket_inspect(app: FastMCP):
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
 
-            components = inspect_ork(ork_path=ork_path, jar_path=openrocket_path)
-            return tool_success(components)
+            result = inspect_ork(ork_path=ork_path, jar_path=openrocket_path)
+            components = result["components"]
+            ascii_art = render_rocket_ascii(
+                components,
+                cg_x=result.get("cg_x"),
+                cp_x=result.get("cp_x"),
+                max_diameter=result.get("max_diameter_m"),
+            )
+            return tool_success(
+                {
+                    "components": components,
+                    "ascii_art": ascii_art,
+                    "cg_x": result.get("cg_x"),
+                    "cp_x": result.get("cp_x"),
+                    "max_diameter_m": result.get("max_diameter_m"),
+                }
+            )
 
         except FileNotFoundError as e:
             return tool_error(
