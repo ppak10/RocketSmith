@@ -45,8 +45,8 @@ def test_render_rocket_ascii_basic(sample_components):
     assert "1000mm" in output
     assert "100mm" in output
     # Stability markers
-    assert "(G)" in output
-    assert "(P)" in output
+    assert "(CG)" in output
+    assert "(CP)" in output
     assert "Stability:" in output
 
 
