@@ -11,6 +11,7 @@ from rocketsmith.openrocket.mcp import (
     register_openrocket_flight,
 )
 from rocketsmith.prusaslicer.mcp import register_prusaslicer_slice
+from rocketsmith.build123d.mcp import register_build123d_extract
 
 app = FastMCP(name="rocketsmith")
 
@@ -23,6 +24,7 @@ _ = register_openrocket_component(app)
 _ = register_openrocket_database(app)
 _ = register_openrocket_flight(app)
 _ = register_prusaslicer_slice(app)
+_ = register_build123d_extract(app)
 
 
 def main():
