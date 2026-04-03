@@ -61,7 +61,7 @@ def register_openrocket_inspect(app: typer.Typer):
             cp_x=result.get("cp_x"),
             max_diameter=result.get("max_diameter_m"),
         )
-        console.print(ascii_art)
+        console.print(ascii_art, markup=False)
         console.print()
 
         # ── Component tree ────────────────────────────────────────────────
