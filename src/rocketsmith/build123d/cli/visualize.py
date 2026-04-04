@@ -1,16 +1,21 @@
 import typer
 
-from pathlib import Path
 from typing_extensions import Annotated
+
+from wa.cli.options import WorkspaceOption
+from wa.cli.utils import get_workspace
 
 
 def register_build123d_visualize(app: typer.Typer):
     @app.command(name="visualize")
     def build123d_visualize(
-        step_path: Annotated[
-            Path,
-            typer.Argument(help="Path to the STEP file to render."),
+        step_filename: Annotated[
+            str,
+            typer.Argument(
+                help="Filename of the STEP file in the workspace parts/ folder."
+            ),
         ],
+        workspace_option: WorkspaceOption = None,
         wireframe: Annotated[
             bool,
             typer.Option(
@@ -48,6 +53,9 @@ def register_build123d_visualize(app: typer.Typer):
         """
         from rich import print as rprint
         from rocketsmith.build123d.ascii import render_step_ascii, animate_step_ascii
+
+        workspace = get_workspace(workspace_option)
+        step_path = workspace.path / "parts" / step_filename
 
         if not step_path.exists():
             rprint(f"[yellow]File not found: {step_path}[/yellow]")

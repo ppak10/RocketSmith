@@ -20,6 +20,7 @@ def register_openrocket_inspect(app: FastMCP):
         ork_filename: str,
         workspace_name: str | None = None,
         openrocket_path: Path | None = None,
+        width: int | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Inspect all components in an OpenRocket design file.
@@ -38,6 +39,8 @@ def register_openrocket_inspect(app: FastMCP):
             workspace_name: The workspace name.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
+            width: ASCII art output width in characters. Larger values zoom in and
+                   show more detail. Defaults to 120 if not provided.
         """
         from rocketsmith.openrocket.ascii import render_rocket_ascii
         from rocketsmith.openrocket.components import inspect_ork
@@ -68,6 +71,7 @@ def register_openrocket_inspect(app: FastMCP):
             components = result["components"]
             ascii_art = render_rocket_ascii(
                 components,
+                width=width,
                 cg_x=result.get("cg_x"),
                 cp_x=result.get("cp_x"),
                 max_diameter=result.get("max_diameter_m"),

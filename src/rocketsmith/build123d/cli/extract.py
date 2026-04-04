@@ -1,19 +1,24 @@
 import typer
 
-from pathlib import Path
 from typing_extensions import Annotated
 from rich import print as rprint
 from rich.table import Table
 from rich.console import Console
 
+from wa.cli.options import WorkspaceOption
+from wa.cli.utils import get_workspace
+
 
 def register_build123d_extract(app: typer.Typer):
     @app.command(name="extract")
     def build123d_extract(
-        step_path: Annotated[
-            Path,
-            typer.Argument(help="Path to the STEP file to analyse."),
+        step_filename: Annotated[
+            str,
+            typer.Argument(
+                help="Filename of the STEP file in the workspace parts/ folder."
+            ),
         ],
+        workspace_option: WorkspaceOption = None,
         density: Annotated[
             float | None,
             typer.Option(
@@ -24,6 +29,9 @@ def register_build123d_extract(app: typer.Typer):
     ) -> None:
         """Extract and display geometric properties from a STEP file."""
         from rocketsmith.build123d.extract import extract_geometry
+
+        workspace = get_workspace(workspace_option)
+        step_path = workspace.path / "parts" / step_filename
 
         if not step_path.exists():
             rprint(f"⚠️  [yellow]File not found: {step_path}[/yellow]")
