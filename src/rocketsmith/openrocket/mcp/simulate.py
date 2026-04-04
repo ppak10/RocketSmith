@@ -6,7 +6,7 @@ def register_openrocket_simulate(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
     from rocketsmith.openrocket.models import OpenRocketSimulationSummary
 
     @app.tool(
@@ -15,7 +15,8 @@ def register_openrocket_simulate(app: FastMCP):
         structured_output=True,
     )
     async def openrocket_simulate(
-        ork_path: Path,
+        ork_filename: str,
+        workspace_name: str | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[list[OpenRocketSimulationSummary]], ToolError]:
         """
@@ -33,13 +34,31 @@ def register_openrocket_simulate(app: FastMCP):
         equations directly from component dimensions.
 
         Args:
-            ork_path: Path to the OpenRocket .ork design file.
+            ork_filename: The .ork file in the workspace openrocket/ folder.
+            workspace_name: The workspace name.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
         """
         from orhelper import FlightDataType, FlightEvent
         from rocketsmith.openrocket.simulation import run_simulation
         from rocketsmith.openrocket.utils import get_openrocket_path
+
+        workspace_or_error = resolve_workspace(workspace_name)
+        if isinstance(workspace_or_error, ToolError):
+            return workspace_or_error
+        workspace = workspace_or_error
+
+        if not ork_filename.endswith(".ork"):
+            ork_filename += ".ork"
+
+        ork_path = workspace.path / "openrocket" / ork_filename
+
+        if not ork_path.exists():
+            return tool_error(
+                f"OpenRocket file not found: {ork_path}",
+                "FILE_NOT_FOUND",
+                ork_path=str(ork_path),
+            )
 
         try:
             if openrocket_path is None:

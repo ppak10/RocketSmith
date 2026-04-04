@@ -6,7 +6,7 @@ def register_openrocket_component(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
 
     @app.tool(
         title="OpenRocket Component",
@@ -22,7 +22,8 @@ def register_openrocket_component(app: FastMCP):
     )
     async def openrocket_component(
         action: Literal["create", "read", "update", "delete"],
-        ork_path: Path,
+        ork_filename: str,
+        workspace_name: str | None = None,
         component_name: str | None = None,
         component_type: str | None = None,
         parent: str | None = None,
@@ -94,7 +95,8 @@ def register_openrocket_component(app: FastMCP):
 
         Args:
             action: One of 'create', 'read', 'update', 'delete'.
-            ork_path: Path to the OpenRocket .ork design file.
+            ork_filename: The .ork file in the workspace openrocket/ folder.
+            workspace_name: The workspace name.
             component_name: Name of the component to read/update/delete.
             component_type: Type of component to create (e.g. 'nose-cone').
             parent: Named parent component for create (optional).
@@ -112,6 +114,23 @@ def register_openrocket_component(app: FastMCP):
             delete_component,
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
+
+        workspace_or_error = resolve_workspace(workspace_name)
+        if isinstance(workspace_or_error, ToolError):
+            return workspace_or_error
+        workspace = workspace_or_error
+
+        if not ork_filename.endswith(".ork"):
+            ork_filename += ".ork"
+
+        ork_path = workspace.path / "openrocket" / ork_filename
+
+        if not ork_path.exists():
+            return tool_error(
+                f"OpenRocket file not found: {ork_path}",
+                "FILE_NOT_FOUND",
+                ork_path=str(ork_path),
+            )
 
         try:
             if openrocket_path is None:

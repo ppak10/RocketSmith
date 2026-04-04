@@ -6,7 +6,7 @@ def register_openrocket_flight(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
 
     @app.tool(
         title="OpenRocket Flight",
@@ -20,7 +20,8 @@ def register_openrocket_flight(app: FastMCP):
     )
     async def openrocket_flight(
         action: Literal["create", "delete"],
-        ork_path: Path,
+        ork_filename: str,
+        workspace_name: str | None = None,
         motor_designation: str | None = None,
         sim_name: str | None = None,
         mount_name: str | None = None,
@@ -64,8 +65,28 @@ def register_openrocket_flight(app: FastMCP):
             wind_speed_ms: Average wind speed in m/s (default 0.0).
             openrocket_path: Optional path to the OpenRocket JAR file.
         """
-        from rocketsmith.openrocket.simulation import create_simulation, delete_simulation
+        from rocketsmith.openrocket.simulation import (
+            create_simulation,
+            delete_simulation,
+        )
         from rocketsmith.openrocket.utils import get_openrocket_path
+
+        workspace_or_error = resolve_workspace(workspace_name)
+        if isinstance(workspace_or_error, ToolError):
+            return workspace_or_error
+        workspace = workspace_or_error
+
+        if not ork_filename.endswith(".ork"):
+            ork_filename += ".ork"
+
+        ork_path = workspace.path / "openrocket" / ork_filename
+
+        if not ork_path.exists():
+            return tool_error(
+                f"OpenRocket file not found: {ork_path}",
+                "FILE_NOT_FOUND",
+                ork_path=str(ork_path),
+            )
 
         try:
             if openrocket_path is None:

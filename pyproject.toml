@@ -1,6 +1,6 @@
 [project]
 name = "rocketsmith"
-version = "0.0.9"
+version = "0.0.10"
 authors = [
   { name = "Peter Pak", email = "ppak10@gmail.com" },
   { name = "Jesse Barkley" },
@@ -50,3 +50,10 @@ dev = [
 
 [tool.pytest.ini_options]
 filterwarnings = []
+
+# build123d 0.10.0 pins cadquery-ocp<7.9, which pulls in vtk==9.3.1 — a version
+# that has no Python 3.13 wheels. This override forces cadquery-ocp>=7.9.3.1,
+# which depends on vtk==9.5.2 (3.13 compatible). Remove this once build123d
+# releases a version that officially supports cadquery-ocp>=7.9.
+[tool.uv]
+override-dependencies = ["cadquery-ocp>=7.9.3.1"]
