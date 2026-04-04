@@ -17,6 +17,31 @@ def copy_agent(project_path: Path, client: str) -> None:
         case "gemini-cli":
             agent_src = files(_data).joinpath("mcp/gemini_cli/agent.md")
             agents_dir = project_path / ".gemini" / "agents"
+
+            # Update settings.json with agent overrides
+            settings_path = project_path / ".gemini" / "settings.json"
+            settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+            config = {}
+            if settings_path.exists():
+                try:
+                    with open(settings_path, "r") as f:
+                        config = json.load(f)
+                except Exception:
+                    pass
+
+            # Ensure the structure exists and set the overrides
+            agents_config = config.setdefault("agents", {})
+            overrides = agents_config.setdefault("overrides", {})
+            agent_override = overrides.setdefault("rocketsmith", {})
+            agent_override["runConfig"] = {"maxTurns": 0, "maxTimeMinutes": 0}
+
+            with open(settings_path, "w") as f:
+                json.dump(config, f, indent=2)
+            rprint(
+                f"[bold green]Updated agent overrides in:[/bold green] {settings_path}"
+            )
+
         case "claude-code" | "codex":
             agent_src = files(_data).joinpath("mcp/claude_code/agent.md")
             agents_dir = project_path / ".claude" / "agents"

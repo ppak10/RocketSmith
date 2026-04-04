@@ -1,5 +1,7 @@
 ---
 name: rocketsmith
+max_turns: 0
+timeout_mins: 0
 description: >
   Use this agent when you need to design, simulate, or build rockets using the
   rocketsmith MCP server tools. Examples include:

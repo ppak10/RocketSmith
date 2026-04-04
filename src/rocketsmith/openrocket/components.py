@@ -545,8 +545,10 @@ def _apply_properties(comp, **kwargs):
         )
         comp.setAxialOffset(float(offset))
     if kwargs.get("axial_offset_method") is not None:
-        JComponent = jpype.JClass("net.sf.openrocket.rocketcomponent.RocketComponent")
-        method = JComponent.Position.valueOf(kwargs["axial_offset_method"].upper())
+        Position = jpype.JClass(
+            "net.sf.openrocket.rocketcomponent.RocketComponent$Position"
+        )
+        method = Position.valueOf(kwargs["axial_offset_method"].upper())
         comp.setAxialOffsetMethod(method)
 
 
