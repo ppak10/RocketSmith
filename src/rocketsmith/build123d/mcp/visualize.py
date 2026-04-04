@@ -6,7 +6,7 @@ def register_build123d_visualize(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
 
     @app.tool(
         name="build123d_visualize",
@@ -21,7 +21,8 @@ def register_build123d_visualize(app: FastMCP):
         structured_output=True,
     )
     async def build123d_visualize(
-        step_path: Path,
+        step_filename: str,
+        workspace_name: str | None = None,
         storyboard: bool = False,
         angle_deg: float = 0.0,
         wireframe: bool = False,
@@ -33,7 +34,8 @@ def register_build123d_visualize(app: FastMCP):
         Render a STEP file as isometric ASCII art.
 
         Args:
-            step_path: Path to the STEP file (typically inside a workspace).
+            step_filename: Name of the STEP file in the workspace parts/ folder.
+            workspace_name: The workspace name.
             storyboard: If true, render four views (0°/90°/180°/270°) in a 2×2
                 grid. Recommended for agents — gives a full 360° impression in
                 one call. Overrides angle_deg when set.
@@ -49,6 +51,20 @@ def register_build123d_visualize(app: FastMCP):
             tolerance: Tessellation tolerance in mm. Lower = finer mesh, slower.
         """
         from rocketsmith.build123d.ascii import render_step_ascii, render_storyboard
+
+        workspace_or_error = resolve_workspace(workspace_name)
+        if isinstance(workspace_or_error, ToolError):
+            return workspace_or_error
+        workspace = workspace_or_error
+
+        step_path = workspace.path / "parts" / step_filename
+
+        if not step_path.exists():
+            return tool_error(
+                f"STEP file not found: {step_path}",
+                "FILE_NOT_FOUND",
+                step_path=str(step_path),
+            )
 
         try:
             if storyboard:

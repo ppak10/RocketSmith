@@ -58,6 +58,7 @@ def load_step_mesh(
         # but since we don't know the vertices yet, we'll bound to the overall shape's valid faces?
         # A simpler robust approach: if the bounding box spans across 0 and is wildly asymmetric,
         # clamp to the smaller side, because physical rocket parts are symmetric.
+        clamp_r = None
         if (
             bb.min.X < 0
             and bb.max.X > 0
@@ -65,6 +66,7 @@ def load_step_mesh(
         ):
             clamp_x = min(abs(bb.min.X), bb.max.X)
             bb_min_X, bb_max_X = -clamp_x, clamp_x
+            clamp_r = clamp_x
         else:
             bb_min_X, bb_max_X = bb.min.X, bb.max.X
 
@@ -75,13 +77,13 @@ def load_step_mesh(
         ):
             clamp_y = min(abs(bb.min.Y), bb.max.Y)
             bb_min_Y, bb_max_Y = -clamp_y, clamp_y
+            if clamp_r is None:
+                clamp_r = clamp_y
         else:
             bb_min_Y, bb_max_Y = bb.min.Y, bb.max.Y
 
         bb_min = np.array([bb_min_X, bb_min_Y, bb.min.Z])
         bb_max = np.array([bb_max_X, bb_max_Y, bb.max.Z])
-        # Tolerance: 0.2% of each dimension, minimum 0.5 mm
-        tol_vec = np.maximum((bb_max - bb_min) * 0.002, 0.5)
 
         rv, rt = face.tessellate(tolerance, angular_tolerance)
         if not rv or not rt:
@@ -89,6 +91,23 @@ def load_step_mesh(
 
         fv = np.array([(v.X, v.Y, v.Z) for v in rv], dtype=np.float64)
         ft = np.array(rt, dtype=np.int32)
+
+        if clamp_r is not None:
+            # Degenerate torus artifacts often curve back into the valid X/Y region.
+            # We find the Z bound where the huge artifact begins, and clamp Z to it.
+            R = np.sqrt(fv[:, 0] ** 2 + fv[:, 1] ** 2)
+            artifact_mask = R > clamp_r * 1.5
+            if np.any(artifact_mask):
+                artifact_Z = fv[artifact_mask, 2]
+                if artifact_Z.mean() > fv[:, 2].mean():
+                    z_cap = artifact_Z.min()
+                    bb_max[2] = min(bb_max[2], z_cap)
+                else:
+                    z_cap = artifact_Z.max()
+                    bb_min[2] = max(bb_min[2], z_cap)
+
+        # Tolerance: 0.2% of each dimension, minimum 0.5 mm
+        tol_vec = np.maximum((bb_max - bb_min) * 0.002, 0.5)
 
         # Filter vertices outside this face's analytic bounding box
         valid_v = np.all((fv >= bb_min - tol_vec) & (fv <= bb_max + tol_vec), axis=1)

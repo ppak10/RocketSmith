@@ -39,7 +39,8 @@ async def test_jar_not_found_returns_error(mcp_app, tmp_path, monkeypatch):
 
     result = await tool.fn(
         name="TestRocket",
-        output_path=tmp_path / "test.ork",
+        workspace_name="test_ws",
+        ork_filename="test.ork",
     )
 
     assert result.success is False
@@ -54,17 +55,19 @@ async def test_creates_ork_file(mcp_app, tmp_path, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    output = tmp_path / "my_rocket.ork"
+    workspace_dir = tmp_path / "workspaces" / "test_ws" / "openrocket"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
     result = await tool.fn(
         name="My Rocket",
-        output_path=output,
+        workspace_name="test_ws",
+        ork_filename="test.ork",
         openrocket_path=openrocket_jar,
     )
 
     assert result.success is True
     assert result.data["name"] == "My Rocket"
-    assert output.exists()
-    assert output.stat().st_size > 0
+    ork_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
+    assert ork_path.stat().st_size > 0
 
 
 @pytest.mark.anyio
@@ -72,12 +75,17 @@ async def test_returns_path_in_data(mcp_app, tmp_path, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    output = tmp_path / "rocket.ork"
+    workspace_dir = tmp_path / "workspaces" / "test_ws" / "openrocket"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
     result = await tool.fn(
         name="Path Test",
-        output_path=output,
+        workspace_name="test_ws",
+        ork_filename="test.ork",
         openrocket_path=openrocket_jar,
     )
 
     assert result.success is True
-    assert str(output) == result.data["path"]
+    assert (
+        str(tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork")
+        == result.data["path"]
+    )

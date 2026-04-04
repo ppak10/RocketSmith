@@ -20,7 +20,8 @@ def mcp_app():
 def tmp_ork(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork
 
-    path = tmp_path / "test.ork"
+    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
+    path.parent.mkdir(parents=True, exist_ok=True)
     new_ork("Test Rocket", path, openrocket_jar)
     return path
 
@@ -43,7 +44,8 @@ async def test_ork_not_found_returns_error(mcp_app, tmp_path):
     tool = tools[0]
 
     result = await tool.fn(
-        ork_path=tmp_path / "missing.ork",
+        workspace_name="test_ws",
+        ork_filename="missing.ork",
         openrocket_path=tmp_path / "fake.jar",
     )
 
@@ -59,7 +61,11 @@ async def test_returns_component_list(mcp_app, tmp_ork, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
+    result = await tool.fn(
+        workspace_name="test_ws",
+        ork_filename="test.ork",
+        openrocket_path=openrocket_jar,
+    )
 
     assert result.success is True
     # result.data is now a dict with 'components' and 'ascii_art'
@@ -75,7 +81,11 @@ async def test_root_is_rocket(mcp_app, tmp_ork, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
+    result = await tool.fn(
+        workspace_name="test_ws",
+        ork_filename="test.ork",
+        openrocket_path=openrocket_jar,
+    )
 
     assert result.success is True
     assert result.data["components"][0]["type"] == "Rocket"
@@ -87,7 +97,11 @@ async def test_contains_axial_stage(mcp_app, tmp_ork, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
+    result = await tool.fn(
+        workspace_name="test_ws",
+        ork_filename="test.ork",
+        openrocket_path=openrocket_jar,
+    )
 
     assert result.success is True
     types = [c["type"] for c in result.data["components"]]
@@ -99,7 +113,11 @@ async def test_each_entry_has_depth_and_name(mcp_app, tmp_ork, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    result = await tool.fn(ork_path=tmp_ork, openrocket_path=openrocket_jar)
+    result = await tool.fn(
+        workspace_name="test_ws",
+        ork_filename="test.ork",
+        openrocket_path=openrocket_jar,
+    )
 
     assert result.success is True
     for entry in result.data["components"]:
