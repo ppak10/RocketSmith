@@ -10,17 +10,17 @@ def register_openrocket_simulate(app: FastMCP):
     from rocketsmith.openrocket.models import OpenRocketSimulationSummary
 
     @app.tool(
-        title="Run OpenRocket Simulation",
-        description="Run all simulations in an OpenRocket .ork file and return flight summaries.",
+        title="Run OpenRocket or RockSim Simulation",
+        description="Run all simulations in an OpenRocket .ork or RockSim .rkt file and return flight summaries.",
         structured_output=True,
     )
     async def openrocket_simulate(
-        ork_filename: str,
+        filename: str,
         workspace_name: str | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[list[OpenRocketSimulationSummary]], ToolError]:
         """
-        Run all simulations defined in an OpenRocket design file.
+        Run all simulations defined in an OpenRocket (.ork) or RockSim (.rkt) design file.
 
         Returns a summary per simulation including max_altitude_m, max_velocity_ms,
         time_to_apogee_s, flight_time_s, min_stability_cal, and max_stability_cal.
@@ -34,7 +34,7 @@ def register_openrocket_simulate(app: FastMCP):
         equations directly from component dimensions.
 
         Args:
-            ork_filename: The .ork file in the workspace openrocket/ folder.
+            filename: The .ork or .rkt file in the workspace openrocket/ folder.
             workspace_name: The workspace name.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
@@ -48,16 +48,16 @@ def register_openrocket_simulate(app: FastMCP):
             return workspace_or_error
         workspace = workspace_or_error
 
-        if not ork_filename.endswith(".ork"):
-            ork_filename += ".ork"
+        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
+            filename += ".ork"
 
-        ork_path = workspace.path / "openrocket" / ork_filename
+        file_path = workspace.path / "openrocket" / filename
 
-        if not ork_path.exists():
+        if not file_path.exists():
             return tool_error(
-                f"OpenRocket file not found: {ork_path}",
+                f"Design file not found: {file_path}",
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
             )
 
         try:
@@ -65,7 +65,7 @@ def register_openrocket_simulate(app: FastMCP):
                 openrocket_path = get_openrocket_path()
 
             simulations = run_simulation(
-                ork_path=ork_path,
+                path=file_path,
                 openrocket_path=openrocket_path,
             )
 
@@ -116,15 +116,15 @@ def register_openrocket_simulate(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
                 exception_type=type(e).__name__,
             )
 
         except Exception as e:
             return tool_error(
-                "Failed to run OpenRocket simulation",
+                "Failed to run design file simulation",
                 "SIMULATION_FAILED",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )

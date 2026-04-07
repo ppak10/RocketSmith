@@ -40,7 +40,7 @@ async def test_create_missing_motor_designation_returns_error(mcp_app, tmp_path)
     result = await tool.fn(
         action="create",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         # motor_designation intentionally omitted
     )
 
@@ -60,7 +60,7 @@ async def test_delete_missing_sim_name_returns_error(mcp_app, tmp_path):
     result = await tool.fn(
         action="create",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         # sim_name intentionally omitted
     )
 
@@ -83,7 +83,7 @@ async def test_motor_not_found_returns_error(mcp_app, tmp_path):
     result = await tool.fn(
         action="create",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=tmp_path / "fake.jar",
         motor_designation="ZZZ999",
     )
@@ -116,7 +116,7 @@ async def test_create_simulation(mcp_app, openrocket_jar, tmp_path):
     result = await tool.fn(
         action="create",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
         motor_designation="D12",
     )
@@ -144,7 +144,7 @@ async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
     create_result = await tool.fn(
         action="create",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
         motor_designation="D12",
         sim_name="My Sim",
@@ -154,7 +154,7 @@ async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
     delete_result = await tool.fn(
         action="delete",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
         sim_name="My Sim",
     )
@@ -176,7 +176,7 @@ async def test_delete_nonexistent_sim_returns_error(mcp_app, openrocket_jar, tmp
     result = await tool.fn(
         action="delete",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
         sim_name="NonExistent",
     )
@@ -221,7 +221,7 @@ async def test_create_then_simulate(mcp_app, openrocket_jar, tmp_path):
     result = await tool.fn(
         action="create",
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
         motor_designation="D12",
     )

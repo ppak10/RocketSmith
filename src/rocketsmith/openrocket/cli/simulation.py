@@ -13,9 +13,11 @@ from wa.cli.utils import get_workspace
 def register_openrocket_run_simulation(app: typer.Typer):
     @app.command(name="run-simulation")
     def openrocket_run_simulation(
-        ork_filename: Annotated[
+        filename: Annotated[
             str,
-            typer.Argument(help="Filename of the .ork design file in the workspace openrocket/ folder."),
+            typer.Argument(
+                help="Filename of the .ork or .rkt design file in the workspace openrocket/ folder."
+            ),
         ],
         workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
@@ -26,7 +28,7 @@ def register_openrocket_run_simulation(app: typer.Typer):
             ),
         ] = None,
     ) -> None:
-        """Run all simulations defined in an OpenRocket .ork file."""
+        """Run all simulations defined in an .ork or .rkt file."""
         from orhelper import FlightDataType, FlightEvent
         from rocketsmith.openrocket.simulation import run_simulation
 
@@ -37,21 +39,25 @@ def register_openrocket_run_simulation(app: typer.Typer):
             raise typer.Exit(1)
 
         workspace = get_workspace(workspace_option)
-        ork_path = workspace.path / "openrocket" / ork_filename
 
-        if not ork_path.exists():
-            rprint(f"⚠️  [yellow].ork file not found: {ork_path}[/yellow]")
+        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
+            filename += ".ork"
+
+        file_path = workspace.path / "openrocket" / filename
+
+        if not file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
             raise typer.Exit(1)
 
-        rprint(f"[blue]Running simulations in:[/blue] [cyan]{ork_path}[/cyan]")
+        rprint(f"[blue]Running simulations in:[/blue] [cyan]{file_path}[/cyan]")
 
         try:
-            results = run_simulation(ork_path, jar)
+            results = run_simulation(file_path, jar)
         except Exception as e:
             rprint(f"⚠️  [yellow]Simulation failed: {e}[/yellow]")
             raise typer.Exit(1)
 
-        table = Table(title=ork_filename)
+        table = Table(title=filename)
         table.add_column("Simulation", style="cyan")
         table.add_column("Max Altitude", justify="right")
         table.add_column("Max Velocity", justify="right")

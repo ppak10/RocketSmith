@@ -154,8 +154,8 @@ def new_ork(name: str, output_path: Path, jar_path: Path | None = None) -> Path:
     return output_path
 
 
-def inspect_ork(ork_path: Path, jar_path: Path | None = None) -> dict:
-    """Read component tree, CG, and CP from .ork file.
+def inspect_rocket_file(path: Path, jar_path: Path | None = None) -> dict:
+    """Read component tree, CG, and CP from an OpenRocket (.ork) or RockSim (.rkt) file.
 
     Returns a dict with:
       - 'components': list of dicts
@@ -173,7 +173,7 @@ def inspect_ork(ork_path: Path, jar_path: Path | None = None) -> dict:
         import jpype
 
         helper = orhelper.Helper(instance)
-        path_str = os.path.abspath(str(ork_path))
+        path_str = os.path.abspath(str(path))
         doc = helper.load_doc(path_str)
         rocket = doc.getRocket()
         config = doc.getSelectedConfiguration()
@@ -245,15 +245,20 @@ def inspect_ork(ork_path: Path, jar_path: Path | None = None) -> dict:
         }
 
 
-def read_components(ork_path: Path) -> list[dict]:
-    """Read component tree from .ork file."""
-    return inspect_ork(ork_path)
+def inspect_ork(ork_path: Path, jar_path: Path | None = None) -> dict:
+    """Read component tree, CG, and CP from .ork file (alias for inspect_rocket_file)."""
+    return inspect_rocket_file(ork_path, jar_path)
+
+
+def read_components(path: Path) -> list[dict]:
+    """Read component tree from an .ork or .rkt file."""
+    return inspect_rocket_file(path)["components"]
 
 
 def read_component(
-    ork_path: Path, component_name: str, jar_path: Path | None = None
+    path: Path, component_name: str, jar_path: Path | None = None
 ) -> dict:
-    """Read properties of a single component by name."""
+    """Read properties of a single component by name from an .ork or .rkt file."""
     from rocketsmith.openrocket.utils import get_openrocket_path
 
     if jar_path is None:
@@ -263,7 +268,7 @@ def read_component(
         import orhelper
 
         helper = orhelper.Helper(instance)
-        path_str = os.path.abspath(str(ork_path))
+        path_str = os.path.abspath(str(path))
         doc = helper.load_doc(path_str)
         rocket = doc.getRocket()
 
@@ -421,9 +426,9 @@ def _extract_properties(comp) -> dict:
 
 
 def update_component(
-    ork_path: Path, component_name: str, jar_path: Path | None = None, **kwargs
+    path: Path, component_name: str, jar_path: Path | None = None, **kwargs
 ) -> dict | None:
-    """Update properties of an existing component by name."""
+    """Update properties of an existing component by name in an .ork or .rkt file."""
     from rocketsmith.openrocket.utils import get_openrocket_path
 
     if jar_path is None:
@@ -433,7 +438,7 @@ def update_component(
         import orhelper
 
         helper = orhelper.Helper(instance)
-        path_str = os.path.abspath(str(ork_path))
+        path_str = os.path.abspath(str(path))
         doc = helper.load_doc(path_str)
         rocket = doc.getRocket()
 
@@ -454,7 +459,7 @@ def update_component(
             raise ValueError(f"Component '{component_name}' not found.")
 
         _apply_properties(comp, **kwargs)
-        _save_doc(doc, ork_path)
+        _save_doc(doc, path)
         return _extract_properties(comp)
 
 
@@ -579,13 +584,13 @@ def _apply_properties(comp, **kwargs):
 
 
 def create_component(
-    ork_path: Path,
+    path: Path,
     component_type: str,
     jar_path: Path | None = None,
     parent_name: str | None = None,
     **kwargs,
 ) -> dict:
-    """Create a new component and add it to a parent."""
+    """Create a new component and add it to a parent in an .ork or .rkt file."""
     from rocketsmith.openrocket.utils import get_openrocket_path
 
     if jar_path is None:
@@ -600,7 +605,7 @@ def create_component(
         import jpype
 
         helper = orhelper.Helper(instance)
-        path_str = os.path.abspath(str(ork_path))
+        path_str = os.path.abspath(str(path))
         doc = helper.load_doc(path_str)
         rocket = doc.getRocket()
 
@@ -661,14 +666,14 @@ def create_component(
         comp = JClass()
         _apply_properties(comp, **kwargs)
         parent_comp.addChild(comp)
-        _save_doc(doc, ork_path)
+        _save_doc(doc, path)
         return _extract_properties(comp)
 
 
 def delete_component(
-    ork_path: Path, component_name: str, jar_path: Path | None = None
+    path: Path, component_name: str, jar_path: Path | None = None
 ) -> str:
-    """Delete a component by name."""
+    """Delete a component by name from an .ork or .rkt file."""
     from rocketsmith.openrocket.utils import get_openrocket_path
 
     if jar_path is None:
@@ -678,7 +683,7 @@ def delete_component(
         import orhelper
 
         helper = orhelper.Helper(instance)
-        path_str = os.path.abspath(str(ork_path))
+        path_str = os.path.abspath(str(path))
         doc = helper.load_doc(path_str)
         rocket = doc.getRocket()
 
@@ -706,7 +711,7 @@ def delete_component(
 
         name = str(comp.getName())
         p_comp.removeChild(comp)
-        _save_doc(doc, ork_path)
+        _save_doc(doc, path)
         return name
 
 
