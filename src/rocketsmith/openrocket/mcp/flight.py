@@ -9,9 +9,9 @@ def register_openrocket_flight(app: FastMCP):
     from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
 
     @app.tool(
-        title="OpenRocket Flight",
+        title="OpenRocket or RockSim Flight",
         description=(
-            "Create or delete a simulation entry in an OpenRocket .ork file. "
+            "Create or delete a simulation entry in an OpenRocket .ork or RockSim .rkt file. "
             "Use 'create' to assign a motor to a mount and add a simulation ready to run. "
             "Use 'delete' to remove a simulation by name. "
             "Run simulations with the openrocket_simulate tool after creating them."
@@ -20,7 +20,7 @@ def register_openrocket_flight(app: FastMCP):
     )
     async def openrocket_flight(
         action: Literal["create", "delete"],
-        ork_filename: str,
+        filename: str,
         workspace_name: str | None = None,
         motor_designation: str | None = None,
         sim_name: str | None = None,
@@ -33,7 +33,7 @@ def register_openrocket_flight(app: FastMCP):
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
-        Create or delete a simulation entry in an .ork file.
+        Create or delete a simulation entry in an .ork or .rkt file.
 
         Actions:
             create: Assign a motor to a mount component, create a flight
@@ -53,7 +53,7 @@ def register_openrocket_flight(app: FastMCP):
 
         Args:
             action: 'create' or 'delete'.
-            ork_path: Path to the OpenRocket .ork design file.
+            filename: Filename of the .ork or .rkt design file.
             motor_designation: Motor common name or designation (required for create).
             sim_name: Name for the simulation (create: defaults to motor designation;
                       delete: name of the simulation to remove).
@@ -76,16 +76,16 @@ def register_openrocket_flight(app: FastMCP):
             return workspace_or_error
         workspace = workspace_or_error
 
-        if not ork_filename.endswith(".ork"):
-            ork_filename += ".ork"
+        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
+            filename += ".ork"
 
-        ork_path = workspace.path / "openrocket" / ork_filename
+        file_path = workspace.path / "openrocket" / filename
 
-        if not ork_path.exists():
+        if not file_path.exists():
             return tool_error(
-                f"OpenRocket file not found: {ork_path}",
+                f"Design file not found: {file_path}",
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
             )
 
         try:
@@ -99,7 +99,7 @@ def register_openrocket_flight(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = create_simulation(
-                    ork_path=ork_path,
+                    path=file_path,
                     openrocket_path=openrocket_path,
                     motor_designation=motor_designation,
                     sim_name=sim_name,
@@ -119,7 +119,7 @@ def register_openrocket_flight(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 deleted = delete_simulation(
-                    ork_path=ork_path,
+                    path=file_path,
                     openrocket_path=openrocket_path,
                     sim_name=sim_name,
                 )
@@ -129,7 +129,7 @@ def register_openrocket_flight(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
                 exception_type=type(e).__name__,
             )
 
@@ -144,7 +144,7 @@ def register_openrocket_flight(app: FastMCP):
             return tool_error(
                 f"Failed to {action} simulation",
                 "SIMULATION_FAILED",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
                 action=action,
                 exception_type=type(e).__name__,
                 exception_message=str(e),

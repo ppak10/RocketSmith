@@ -9,21 +9,21 @@ def register_openrocket_inspect(app: FastMCP):
     from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
 
     @app.tool(
-        title="Inspect OpenRocket File",
+        title="Inspect OpenRocket or RockSim File",
         description=(
-            "Return the full component tree of an OpenRocket .ork file, "
+            "Return the full component tree of an OpenRocket .ork or RockSim .rkt file, "
             "plus an ASCII side-profile of the rocket."
         ),
         structured_output=True,
     )
     async def openrocket_inspect(
-        ork_filename: str,
+        filename: str,
         workspace_name: str | None = None,
         openrocket_path: Path | None = None,
         width: int | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
-        Inspect all components in an OpenRocket design file.
+        Inspect all components in an OpenRocket (.ork) or RockSim (.rkt) design file.
 
         Returns a dict with two keys:
           - ``components``: flat list of components in tree order.  Each entry
@@ -35,7 +35,7 @@ def register_openrocket_inspect(app: FastMCP):
             Fins are rendered as | protrusions above and below the body.
 
         Args:
-            ork_filename: The .ork file in the workspace openrocket/ folder.
+            filename: The .ork or .rkt file in the workspace openrocket/ folder.
             workspace_name: The workspace name.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
@@ -43,7 +43,7 @@ def register_openrocket_inspect(app: FastMCP):
                    show more detail. Defaults to 120 if not provided.
         """
         from rocketsmith.openrocket.ascii import render_rocket_ascii
-        from rocketsmith.openrocket.components import inspect_ork
+        from rocketsmith.openrocket.components import inspect_rocket_file
         from rocketsmith.openrocket.utils import get_openrocket_path
 
         workspace_or_error = resolve_workspace(workspace_name)
@@ -51,23 +51,23 @@ def register_openrocket_inspect(app: FastMCP):
             return workspace_or_error
         workspace = workspace_or_error
 
-        if not ork_filename.endswith(".ork"):
-            ork_filename += ".ork"
+        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
+            filename += ".ork"
 
-        ork_path = workspace.path / "openrocket" / ork_filename
+        file_path = workspace.path / "openrocket" / filename
 
-        if not ork_path.exists():
+        if not file_path.exists():
             return tool_error(
-                f"OpenRocket file not found: {ork_path}",
+                f"Design file not found: {file_path}",
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
             )
 
         try:
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
 
-            result = inspect_ork(ork_path=ork_path, jar_path=openrocket_path)
+            result = inspect_rocket_file(path=file_path, jar_path=openrocket_path)
             components = result["components"]
             ascii_art = render_rocket_ascii(
                 components,
@@ -90,15 +90,15 @@ def register_openrocket_inspect(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
                 exception_type=type(e).__name__,
             )
 
         except Exception as e:
             return tool_error(
-                "Failed to inspect OpenRocket file",
+                "Failed to inspect design file",
                 "INSPECT_FAILED",
-                ork_path=str(ork_path),
+                file_path=str(file_path),
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )

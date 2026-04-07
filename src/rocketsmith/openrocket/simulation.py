@@ -75,7 +75,7 @@ def _find_motor_by_designation(designation: str):
 
 
 def create_simulation(
-    ork_path: Path,
+    path: Path,
     openrocket_path: Path,
     motor_designation: str,
     sim_name: str | None = None,
@@ -86,13 +86,13 @@ def create_simulation(
     launch_temperature_c: float | None = None,
     wind_speed_ms: float = 0.0,
 ) -> dict:
-    """Add a new simulation to an .ork file with a motor assignment.
+    """Add a new simulation to an .ork or .rkt file with a motor assignment.
 
     Finds or creates a flight configuration, assigns the given motor to the
     best available motor mount, creates a Simulation entry, and saves the file.
 
     Args:
-        ork_path: Path to the .ork design file (modified in-place).
+        path: Path to the .ork or .rkt design file (modified in-place).
         openrocket_path: Path to the OpenRocket JAR.
         motor_designation: Motor common name or designation (e.g. 'H128W', 'D12').
         sim_name: Name for the new simulation entry. Defaults to the motor designation.
@@ -115,7 +115,7 @@ def create_simulation(
 
     with _or_context(openrocket_path) as instance:
         helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
+        doc = helper.load_doc(str(path))
         rocket = doc.getRocket()
 
         motor = _find_motor_by_designation(motor_designation)
@@ -156,7 +156,7 @@ def create_simulation(
             opts.setISAAtmosphere(False)
 
         doc.addSimulation(sim)
-        _save_doc(doc, ork_path)
+        _save_doc(doc, path)
 
     return {
         "simulation_name": name,
@@ -169,39 +169,39 @@ def create_simulation(
     }
 
 
-def delete_simulation(ork_path: Path, openrocket_path: Path, sim_name: str) -> str:
-    """Remove a named simulation from an .ork file and save in-place."""
+def delete_simulation(path: Path, openrocket_path: Path, sim_name: str) -> str:
+    """Remove a named simulation from an .ork or .rkt file and save in-place."""
     import orhelper
     from rocketsmith.openrocket.components import _or_context, _save_doc
 
     with _or_context(openrocket_path) as instance:
         helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
+        doc = helper.load_doc(str(path))
         sims = doc.getSimulations()
 
         for i in range(sims.size()):
             sim = sims.get(i)
             if str(sim.getName()) == sim_name:
                 doc.removeSimulation(i)
-                _save_doc(doc, ork_path)
+                _save_doc(doc, path)
                 return sim_name
 
     raise ValueError(f"Simulation '{sim_name}' not found.")
 
 
 def run_simulation(
-    ork_path: Path,
+    path: Path,
     openrocket_path: Path,
 ) -> list[OpenRocketSimulation]:
     """
-    Load an .ork file and run all simulations defined within it.
+    Load an .ork or .rkt file and run all simulations defined within it.
 
     Args:
-        ork_path: Path to the OpenRocket .ork design file.
+        path: Path to the OpenRocket .ork or RockSim .rkt design file.
         openrocket_path: Path to the OpenRocket JAR file.
 
     Returns:
-        List of OpenRocketSimulation, one per simulation in the .ork file.
+        List of OpenRocketSimulation, one per simulation in the file.
     """
     import orhelper
     from orhelper import FlightDataType, FlightEvent
@@ -211,7 +211,7 @@ def run_simulation(
 
     with _or_context(openrocket_path) as instance:
         helper = orhelper.Helper(instance)
-        doc = helper.load_doc(str(ork_path))
+        doc = helper.load_doc(str(path))
 
         # Filter to FlightDataType members that exist in the installed OpenRocket JAR.
         # orhelper's Python enum may include entries added in later OpenRocket versions.
