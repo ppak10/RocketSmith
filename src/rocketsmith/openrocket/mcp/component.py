@@ -45,6 +45,7 @@ def register_openrocket_component(app: FastMCP):
         sweep: float | None = None,
         cd: float | None = None,
         mass: float | None = None,
+        motor_mount: bool | None = None,
         axial_offset_m: float | None = None,
         axial_offset_method: str | None = None,
         openrocket_path: Path | None = None,
@@ -153,6 +154,7 @@ def register_openrocket_component(app: FastMCP):
                     sweep=sweep,
                     cd=cd,
                     mass=mass,
+                    motor_mount=motor_mount,
                     axial_offset_m=axial_offset_m,
                     axial_offset_method=axial_offset_method,
                 ).items()

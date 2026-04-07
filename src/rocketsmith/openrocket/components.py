@@ -467,6 +467,18 @@ def _apply_properties(comp, **kwargs):
     if kwargs.get("name") is not None:
         comp.setName(str(kwargs["name"]))
 
+    # Preset loading — applied first as baseline; explicit params below override it
+    if kwargs.get("preset_part_no") is not None:
+        preset = lookup_preset(kwargs["preset_part_no"], kwargs.get("preset_manufacturer"))
+        if preset is not None:
+            try:
+                comp.loadPreset(preset)
+            except Exception:
+                try:
+                    comp.setPreset(preset)
+                except Exception:
+                    pass
+
     if java_type_name in ("NoseCone", "Transition"):
         if kwargs.get("length") is not None:
             comp.setLength(float(kwargs["length"]))
@@ -503,6 +515,10 @@ def _apply_properties(comp, **kwargs):
         ):
             comp.setMotorMount(bool(kwargs["motor_mount"]))
 
+    elif java_type_name == "MassComponent":
+        if kwargs.get("mass") is not None:
+            comp.setComponentMass(float(kwargs["mass"]))
+
     elif java_type_name == "TrapezoidFinSet":
         count = kwargs.get("fin_count") or kwargs.get("count")
         if count is not None:
@@ -529,8 +545,9 @@ def _apply_properties(comp, **kwargs):
         if kwargs.get("cd") is not None:
             comp.setCD(float(kwargs["cd"]))
 
-    if kwargs.get("material") is not None:
-        mat = lookup_material(kwargs["material"])
+    mat_name = kwargs.get("material_name") or kwargs.get("material")
+    if mat_name is not None:
+        mat = lookup_material(mat_name, kwargs.get("material_type"))
         if mat:
             comp.setMaterial(mat)
 
@@ -545,10 +562,19 @@ def _apply_properties(comp, **kwargs):
         )
         comp.setAxialOffset(float(offset))
     if kwargs.get("axial_offset_method") is not None:
-        Position = jpype.JClass(
-            "net.sf.openrocket.rocketcomponent.RocketComponent$Position"
-        )
-        method = Position.valueOf(kwargs["axial_offset_method"].upper())
+        method_str = kwargs["axial_offset_method"].upper()
+        try:
+            # OR 23.09+ uses AxialMethod
+            AxialMethod = jpype.JClass(
+                "net.sf.openrocket.rocketcomponent.position.AxialMethod"
+            )
+            method = AxialMethod.valueOf(method_str)
+        except Exception:
+            # Older OR versions use RocketComponent$Position
+            Position = jpype.JClass(
+                "net.sf.openrocket.rocketcomponent.RocketComponent$Position"
+            )
+            method = Position.valueOf(method_str)
         comp.setAxialOffsetMethod(method)
 
 
@@ -684,15 +710,37 @@ def delete_component(
         return name
 
 
-def lookup_material(name: str):
-    """Look up a Material object by name."""
+def lookup_material(name: str, material_type: str | None = None):
+    """Look up a Material object by name, optionally filtered by type (bulk/surface/line)."""
     import jpype
 
     Database = jpype.JClass("net.sf.openrocket.database.ComponentPresetDatabase")
     db = Database.getDefaultDatabase().getMaterialDatabase()
     for mat in db:
         if str(mat.getName()).lower() == name.lower():
-            return mat
+            if material_type is None or str(mat.getType()).lower() == material_type.lower():
+                return mat
+    return None
+
+
+def lookup_preset(part_no: str, manufacturer: str | None = None):
+    """Look up a ComponentPreset by part number, optionally filtered by manufacturer."""
+    import jpype
+
+    try:
+        Database = jpype.JClass("net.sf.openrocket.database.ComponentPresetDatabase")
+        db = Database.getDefaultDatabase()
+        CPType = jpype.JClass("net.sf.openrocket.preset.ComponentPreset$Type")
+        for ptype in CPType.values():
+            try:
+                for preset in db.getComponentPresets(ptype):
+                    if str(preset.getPartNo()).lower() == part_no.lower():
+                        if manufacturer is None or manufacturer.lower() in str(preset.getManufacturer()).lower():
+                            return preset
+            except Exception:
+                pass
+    except Exception:
+        pass
     return None
 
 

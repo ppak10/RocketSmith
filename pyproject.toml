@@ -56,4 +56,5 @@ filterwarnings = []
 # which depends on vtk==9.5.2 (3.13 compatible). Remove this once build123d
 # releases a version that officially supports cadquery-ocp>=7.9.
 [tool.uv]
+package = true
 override-dependencies = ["cadquery-ocp>=7.9.3.1"]
