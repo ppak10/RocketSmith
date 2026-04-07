@@ -13,10 +13,10 @@ from wa.cli.utils import get_workspace
 def register_openrocket_inspect(app: typer.Typer):
     @app.command(name="inspect")
     def openrocket_inspect(
-        ork_filename: Annotated[
+        filename: Annotated[
             str,
             typer.Argument(
-                help="Filename of the .ork file in the workspace openrocket/ folder."
+                help="Filename of the .ork or .rkt file in the workspace openrocket/ folder."
             ),
         ],
         workspace_option: WorkspaceOption = None,
@@ -28,8 +28,8 @@ def register_openrocket_inspect(app: typer.Typer):
             ),
         ] = None,
     ) -> None:
-        """Display the full component tree of an .ork file."""
-        from rocketsmith.openrocket.components import inspect_ork
+        """Display the full component tree of an .ork or .rkt file."""
+        from rocketsmith.openrocket.components import inspect_rocket_file
 
         try:
             jar = get_openrocket_path(openrocket_path)
@@ -38,17 +38,21 @@ def register_openrocket_inspect(app: typer.Typer):
             raise typer.Exit(1)
 
         workspace = get_workspace(workspace_option)
-        ork_path = workspace.path / "openrocket" / ork_filename
 
-        if not ork_path.exists():
-            rprint(f"⚠️  [yellow].ork file not found: {ork_path}[/yellow]")
+        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
+            filename += ".ork"
+
+        file_path = workspace.path / "openrocket" / filename
+
+        if not file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
-            result = inspect_ork(ork_path, jar)
+            result = inspect_rocket_file(file_path, jar)
             components = result["components"]
         except Exception as e:
-            rprint(f"⚠️  [yellow]Failed to inspect .ork: {e}[/yellow]")
+            rprint(f"⚠️  [yellow]Failed to inspect design file: {e}[/yellow]")
             raise typer.Exit(1)
 
         # ── ASCII side-profile ────────────────────────────────────────────
@@ -65,7 +69,7 @@ def register_openrocket_inspect(app: typer.Typer):
         console.print()
 
         # ── Component tree ────────────────────────────────────────────────
-        root_label = f"[bold]{ork_filename}[/bold]"
+        root_label = f"[bold]{filename}[/bold]"
         rich_tree = Tree(root_label)
         stack = [(rich_tree, -1)]  # (node, depth)
 

@@ -13,9 +13,11 @@ from wa.cli.utils import get_workspace
 def register_openrocket_read_component(app: typer.Typer):
     @app.command(name="read-component")
     def openrocket_read_component(
-        ork_filename: Annotated[
+        filename: Annotated[
             str,
-            typer.Argument(help="Filename of the .ork file in the workspace openrocket/ folder."),
+            typer.Argument(
+                help="Filename of the .ork or .rkt file in the workspace openrocket/ folder."
+            ),
         ],
         component_name: Annotated[
             str,
@@ -24,10 +26,13 @@ def register_openrocket_read_component(app: typer.Typer):
         workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
-            typer.Option("--openrocket-path", help="Path to OpenRocket JAR or its parent directory."),
+            typer.Option(
+                "--openrocket-path",
+                help="Path to OpenRocket JAR or its parent directory.",
+            ),
         ] = None,
     ) -> None:
-        """Display all properties of a single component by name."""
+        """Display all properties of a single component by name from an .ork or .rkt file."""
         from rocketsmith.openrocket.components import read_component
 
         try:
@@ -37,14 +42,18 @@ def register_openrocket_read_component(app: typer.Typer):
             raise typer.Exit(1)
 
         workspace = get_workspace(workspace_option)
-        ork_path = workspace.path / "openrocket" / ork_filename
 
-        if not ork_path.exists():
-            rprint(f"⚠️  [yellow].ork file not found: {ork_path}[/yellow]")
+        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
+            filename += ".ork"
+
+        file_path = workspace.path / "openrocket" / filename
+
+        if not file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
-            info = read_component(ork_path, component_name, jar)
+            info = read_component(file_path, component_name, jar)
         except ValueError as e:
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)

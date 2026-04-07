@@ -26,6 +26,26 @@ def tmp_ork(tmp_path, openrocket_jar):
     return path
 
 
+@pytest.fixture
+def tmp_rkt(tmp_path, openrocket_jar):
+    from rocketsmith.openrocket.components import new_ork, _or_context, _save_doc
+
+    ork_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
+    rkt_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.rkt"
+    rkt_path.parent.mkdir(parents=True, exist_ok=True)
+
+    new_ork("Test RockSim", ork_path, openrocket_jar)
+
+    with _or_context(openrocket_jar) as instance:
+        import orhelper
+
+        helper = orhelper.Helper(instance)
+        doc = helper.load_doc(str(ork_path))
+        _save_doc(doc, rkt_path)
+
+    return rkt_path
+
+
 # ── Registration ──────────────────────────────────────────────────────────────
 
 
@@ -45,7 +65,7 @@ async def test_ork_not_found_returns_error(mcp_app, tmp_path):
 
     result = await tool.fn(
         workspace_name="test_ws",
-        ork_filename="missing.ork",
+        filename="missing.ork",
         openrocket_path=tmp_path / "fake.jar",
     )
 
@@ -63,7 +83,7 @@ async def test_returns_component_list(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
     )
 
@@ -77,13 +97,28 @@ async def test_returns_component_list(mcp_app, tmp_ork, openrocket_jar):
 
 
 @pytest.mark.anyio
+async def test_inspect_rkt_file(mcp_app, tmp_rkt, openrocket_jar):
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    result = await tool.fn(
+        workspace_name="test_ws",
+        filename="test.rkt",
+        openrocket_path=openrocket_jar,
+    )
+
+    assert result.success is True
+    assert result.data["components"][0]["type"] == "Rocket"
+
+
+@pytest.mark.anyio
 async def test_root_is_rocket(mcp_app, tmp_ork, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
     result = await tool.fn(
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
     )
 
@@ -99,7 +134,7 @@ async def test_contains_axial_stage(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
     )
 
@@ -115,7 +150,7 @@ async def test_each_entry_has_depth_and_name(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         workspace_name="test_ws",
-        ork_filename="test.ork",
+        filename="test.ork",
         openrocket_path=openrocket_jar,
     )
 
