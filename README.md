@@ -355,3 +355,7 @@ rocketsmith openrocket list-materials <type>
 ```
 
 Valid types: `bulk` (density in kg/m³), `surface` (area density in kg/m²), `line` (linear density in kg/m)
+
+## Privacy Policy
+
+RocketSmith runs entirely on your local machine. No data is collected, transmitted, or stored by this plugin. All rocket design files and simulation results remain on your local filesystem.
