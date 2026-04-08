@@ -1,7 +1,7 @@
 {
-  "name": "rocketsmith",
+  "name": "rocketsmith-local",
   "interface": {
-    "displayName": "RocketSmith"
+    "displayName": "RocketSmith (Local)"
   },
   "plugins": [
     {

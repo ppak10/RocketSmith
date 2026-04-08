@@ -30,10 +30,12 @@
       "Write"
     ],
     "websiteURL": "https://github.com/ppak10/RocketSmith",
+    "privacyPolicyURL": "https://github.com/ppak10/RocketSmith/blob/main/LICENSE",
+    "termsOfServiceURL": "https://github.com/ppak10/RocketSmith/blob/main/LICENSE",
     "defaultPrompt": [
-      "Design me a stable rocket for a D12 motor.",
-      "Simulate my rocket and check its stability margin.",
-      "Generate build steps for the current RocketSmith design."
+      "Use RocketSmith to design a stable rocket for a D12 motor.",
+      "Use RocketSmith to simulate my rocket and check its stability margin.",
+      "Use RocketSmith to generate build steps for the current design."
     ],
     "brandColor": "#D9472B"
   }
