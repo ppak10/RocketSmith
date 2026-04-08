@@ -1,6 +1,6 @@
 {
   "name": "rocketsmith",
-  "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+  "description": "Use agents to design and build high powered rockets",
   "version": "0.0.11",
   "author": {
     "name": "Peter Pak, Jesse Barkley, Rumi Loghmani"

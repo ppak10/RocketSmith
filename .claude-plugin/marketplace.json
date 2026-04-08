@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "rocketsmith",
-  "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+  "description": "Use agents to design and build high powered rockets",
   "owner": {
     "name": "Peter Pak, Jesse Barkley, Rumi Loghmani",
     "email": "ppak10@gmail.com"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "rocketsmith",
-      "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+      "description": "Use agents to design and build high powered rockets",
       "version": "0.0.11",
       "author": {
         "name": "Peter Pak, Jesse Barkley, Rumi Loghmani"
