@@ -1,13 +1,26 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "rocketsmith",
   "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+  "owner": {
+    "name": "Peter Pak, Jesse Barkley, Rumi Loghmani",
+    "email": "ppak10@gmail.com"
+  },
   "plugins": [
     {
       "name": "rocketsmith",
       "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
       "version": "0.0.11",
-      "path": "./plugin.json",
-      "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"]
+      "author": {
+        "name": "Peter Pak, Jesse Barkley, Rumi Loghmani"
+      },
+      "category": "development",
+      "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
+      "homepage": "https://github.com/ppak10/RocketSmith",
+      "source": {
+        "source": "github",
+        "repo": "ppak10/RocketSmith"
+      }
     }
   ]
 }
