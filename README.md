@@ -89,6 +89,25 @@ To use the subagent:
 @rocketsmith Design me a stable rocket for a D12 motor
 ```
 
+### Codex (Plugin, local marketplace)
+
+This repo includes a local Codex plugin at `plugins/rocketsmith` and a repo
+marketplace at `.agents/plugins/marketplace.json`.
+
+Restart Codex, open the plugin directory, select the `RocketSmith Local`
+marketplace, and install `RocketSmith`.
+
+The plugin bundles the `rocketsmith` MCP server plus a RocketSmith skill for
+design, simulation, and build workflows.
+
+### Codex (manual MCP install)
+
+If you only want the MCP server without the plugin package:
+
+```bash
+rocketsmith mcp install codex
+```
+
 ## MCP Tools
 
 The following tools are exposed to agents via the MCP server.

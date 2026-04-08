@@ -1,0 +1,40 @@
+{
+  "name": "rocketsmith",
+  "version": "0.0.11",
+  "description": "Design, simulate, and build rockets with RocketSmith MCP tools.",
+  "author": {
+    "name": "Peter Pak, Jesse Barkley, Rumi Loghmani",
+    "email": "ppak10@gmail.com",
+    "url": "https://github.com/ppak10"
+  },
+  "homepage": "https://github.com/ppak10/RocketSmith",
+  "repository": "https://github.com/ppak10/RocketSmith",
+  "license": "MIT",
+  "keywords": [
+    "rocketry",
+    "openrocket",
+    "simulation",
+    "mcp",
+    "cad"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "RocketSmith",
+    "shortDescription": "Rocket design and simulation tools for Codex.",
+    "longDescription": "Bundles the RocketSmith MCP server and skill so Codex can design, simulate, and prepare model rocket builds.",
+    "developerName": "Peter Pak, Jesse Barkley, Rumi Loghmani",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/ppak10/RocketSmith",
+    "defaultPrompt": [
+      "Design me a stable rocket for a D12 motor.",
+      "Simulate my rocket and check its stability margin.",
+      "Generate build steps for the current RocketSmith design."
+    ],
+    "brandColor": "#D9472B"
+  }
+}
