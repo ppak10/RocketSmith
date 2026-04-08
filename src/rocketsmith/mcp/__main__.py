@@ -14,6 +14,7 @@ from rocketsmith.prusaslicer.mcp import register_prusaslicer_slice
 from rocketsmith.build123d.mcp import (
     register_build123d_extract,
     register_build123d_visualize,
+    register_build123d_render,
 )
 from rocketsmith.rag.mcp import register_rag_reference
 
@@ -30,6 +31,7 @@ _ = register_openrocket_flight(app)
 _ = register_prusaslicer_slice(app)
 _ = register_build123d_extract(app)
 _ = register_build123d_visualize(app)
+_ = register_build123d_render(app)
 _ = register_rag_reference(app)
 
 

@@ -1,0 +1,13 @@
+{
+  "name": "rocketsmith",
+  "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+  "plugins": [
+    {
+      "name": "rocketsmith",
+      "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
+      "version": "0.0.11",
+      "path": "./plugin.json",
+      "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"]
+    }
+  ]
+}

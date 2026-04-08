@@ -20,19 +20,18 @@ def create_rocketsmith_workspace(
         workspace_name=workspace_name, workspaces_path=workspaces_path, force=force
     )
 
-    if include_examples:
-        _create_workspace_openrocket_folder(
-            workspace_name=workspace_name,
-            workspaces_path=workspaces_path,
-            force=force,
-            include_examples=include_examples,
-        )
-        _create_workspace_parts_folder(
-            workspace_name=workspace_name,
-            workspaces_path=workspaces_path,
-            force=force,
-            include_examples=include_examples,
-        )
+    _create_workspace_openrocket_folder(
+        workspace_name=workspace_name,
+        workspaces_path=workspaces_path,
+        force=force,
+        include_examples=include_examples,
+    )
+    _create_workspace_parts_folder(
+        workspace_name=workspace_name,
+        workspaces_path=workspaces_path,
+        force=force,
+        include_examples=include_examples,
+    )
 
     return workspace
 
