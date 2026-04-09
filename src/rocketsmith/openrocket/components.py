@@ -474,7 +474,9 @@ def _apply_properties(comp, **kwargs):
 
     # Preset loading — applied first as baseline; explicit params below override it
     if kwargs.get("preset_part_no") is not None:
-        preset = lookup_preset(kwargs["preset_part_no"], kwargs.get("preset_manufacturer"))
+        preset = lookup_preset(
+            kwargs["preset_part_no"], kwargs.get("preset_manufacturer")
+        )
         if preset is not None:
             try:
                 comp.loadPreset(preset)
@@ -556,16 +558,7 @@ def _apply_properties(comp, **kwargs):
         if mat:
             comp.setMaterial(mat)
 
-    if (
-        kwargs.get("axial_offset") is not None
-        or kwargs.get("axial_offset_m") is not None
-    ):
-        offset = (
-            kwargs.get("axial_offset_m")
-            if kwargs.get("axial_offset_m") is not None
-            else kwargs.get("axial_offset")
-        )
-        comp.setAxialOffset(float(offset))
+    # Set method BEFORE offset — OR interprets the offset value using the current method.
     if kwargs.get("axial_offset_method") is not None:
         method_str = kwargs["axial_offset_method"].upper()
         try:
@@ -580,7 +573,22 @@ def _apply_properties(comp, **kwargs):
                 "net.sf.openrocket.rocketcomponent.RocketComponent$Position"
             )
             method = Position.valueOf(method_str)
-        comp.setAxialOffsetMethod(method)
+        # OR 23.09 uses setAxialMethod; older versions used setAxialOffsetMethod
+        if hasattr(comp, "setAxialMethod"):
+            comp.setAxialMethod(method)
+        else:
+            comp.setAxialOffsetMethod(method)
+
+    if (
+        kwargs.get("axial_offset") is not None
+        or kwargs.get("axial_offset_m") is not None
+    ):
+        offset = (
+            kwargs.get("axial_offset_m")
+            if kwargs.get("axial_offset_m") is not None
+            else kwargs.get("axial_offset")
+        )
+        comp.setAxialOffset(float(offset))
 
 
 def create_component(
@@ -665,7 +673,26 @@ def create_component(
         JClass = jpype.JClass(f"net.sf.openrocket.rocketcomponent.{java_class_name}")
         comp = JClass()
         _apply_properties(comp, **kwargs)
-        parent_comp.addChild(comp)
+        try:
+            parent_comp.addChild(comp)
+        except Exception as e:
+            parent_type = str(parent_comp.getClass().getSimpleName())
+            raise ValueError(
+                f"Cannot add {component_type} as a child of {parent_type} "
+                f"('{str(parent_comp.getName())}'). "
+                f"Valid parents for {component_type}: "
+                + {
+                    "nose-cone": "AxialStage",
+                    "body-tube": "AxialStage",
+                    "transition": "AxialStage",
+                    "inner-tube": "BodyTube, Transition",
+                    "fin-set": "BodyTube, Transition",
+                    "parachute": "BodyTube, NoseCone, Transition",
+                    "tube-coupler": "BodyTube",
+                    "mass": "BodyTube, NoseCone, Transition, InnerTube",
+                }.get(component_type, "see OpenRocket docs")
+                + f". Original error: {e}"
+            ) from e
         _save_doc(doc, path)
         return _extract_properties(comp)
 
@@ -723,7 +750,10 @@ def lookup_material(name: str, material_type: str | None = None):
     db = Database.getDefaultDatabase().getMaterialDatabase()
     for mat in db:
         if str(mat.getName()).lower() == name.lower():
-            if material_type is None or str(mat.getType()).lower() == material_type.lower():
+            if (
+                material_type is None
+                or str(mat.getType()).lower() == material_type.lower()
+            ):
                 return mat
     return None
 
@@ -740,7 +770,11 @@ def lookup_preset(part_no: str, manufacturer: str | None = None):
             try:
                 for preset in db.getComponentPresets(ptype):
                     if str(preset.getPartNo()).lower() == part_no.lower():
-                        if manufacturer is None or manufacturer.lower() in str(preset.getManufacturer()).lower():
+                        if (
+                            manufacturer is None
+                            or manufacturer.lower()
+                            in str(preset.getManufacturer()).lower()
+                        ):
                             return preset
             except Exception:
                 pass

@@ -67,7 +67,7 @@ You are an expert rocket design engineer specializing in OpenRocket simulation. 
   - `presets`: Manufacturer component presets (body tubes, nose cones, parachutes, etc.)
   - `materials`: Structural materials with densities (`bulk` in kg/m³, `surface` in kg/m², `line` in kg/m)
   - Use `limit` (default 50, pass `None` for all) to control result size
-  - Filter motors by `impulse_class`, `diameter_mm`, `manufacturer`, or `motor_type`
+  - Filter motors by `impulse_class`, `diameter_mm`, `manufacturer`, `motor_type`, or `name` (substring, e.g. `name="H100"` matches `H100W-DMS`, `H100T`, etc.)
 
 **Flight Simulation:**
 - `openrocket_flight` — Create or delete a simulation entry (`action`: create/delete, `rocket_file_path`)
