@@ -208,3 +208,15 @@ async def test_create_then_simulate(mcp_app, openrocket_jar, tmp_path):
 
     sims = run_simulation(ork_path, openrocket_jar)
     assert len(sims) == 1
+
+    # Verify the motor actually fired — a zero/tiny altitude would indicate
+    # the motor was not persisted to the saved .ork file ("No motors defined"
+    # class of bug). A D12 in a small test rocket should easily clear 50 m.
+    from orhelper import FlightDataType
+
+    altitude = sims[0].timeseries.get(FlightDataType.TYPE_ALTITUDE)
+    assert altitude is not None, "No altitude timeseries returned"
+    assert float(altitude.max()) > 50.0, (
+        f"Motor did not fire: max altitude was {float(altitude.max()):.2f} m. "
+        "This suggests the motor was not persisted to the .ork file."
+    )

@@ -359,3 +359,168 @@ async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_
     assert result.success is True
     assert result.data["type"] == "TrapezoidFinSet"
     assert result.data["fin_count"] == 3
+
+
+# ── Mass override ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_mass_override_set_and_enabled(mcp_app, tmp_ork, openrocket_jar):
+    """Setting override_mass_kg alone should implicitly enable the flag."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Upper",
+        length=0.4,
+        diameter=0.064,
+    )
+
+    result = await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+        override_mass_kg=0.125,
+    )
+    assert result.success is True
+    assert result.data["override_mass_enabled"] is True
+    assert abs(result.data["override_mass_kg"] - 0.125) < 1e-6
+
+
+@pytest.mark.anyio
+async def test_mass_override_persists_across_reload(mcp_app, tmp_ork, openrocket_jar):
+    """Override value and flag should survive a save + reload cycle."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Upper",
+        length=0.4,
+        diameter=0.064,
+    )
+    await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+        override_mass_kg=0.250,
+    )
+
+    # Read in a fresh load
+    result = await tool.fn(
+        action="read",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+    )
+    assert result.success is True
+    assert result.data["override_mass_enabled"] is True
+    assert abs(result.data["override_mass_kg"] - 0.250) < 1e-6
+
+
+@pytest.mark.anyio
+async def test_mass_override_affects_simulation(mcp_app, tmp_ork, openrocket_jar):
+    """A heavy mass override should reduce simulated apogee."""
+    from rocketsmith.openrocket.simulation import (
+        create_simulation,
+        run_simulation,
+    )
+    from orhelper import FlightDataType
+
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="nose-cone",
+        diameter=0.064,
+        length=0.12,
+        shape="ogive",
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Body",
+        diameter=0.064,
+        length=0.4,
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="inner-tube",
+        diameter=0.029,
+        length=0.1,
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="fin-set",
+        count=3,
+        root_chord=0.08,
+        tip_chord=0.04,
+        span=0.06,
+    )
+
+    create_simulation(tmp_ork, openrocket_jar, "D12", sim_name="s")
+    base = run_simulation(tmp_ork, openrocket_jar)[0]
+    base_alt = float(base.timeseries.get(FlightDataType.TYPE_ALTITUDE).max())
+
+    # Slam the body tube with a 500 g override — flight should be much shorter
+    await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Body",
+        override_mass_kg=0.500,
+    )
+
+    heavy = run_simulation(tmp_ork, openrocket_jar)[0]
+    heavy_alt = float(heavy.timeseries.get(FlightDataType.TYPE_ALTITUDE).max())
+
+    assert heavy_alt < base_alt * 0.5, (
+        f"Mass override did not affect simulation: baseline {base_alt:.1f} m "
+        f"vs overridden {heavy_alt:.1f} m"
+    )
+
+
+@pytest.mark.anyio
+async def test_mass_override_toggle_off(mcp_app, tmp_ork, openrocket_jar):
+    """override_mass_enabled=False should disable the override flag."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Upper",
+        length=0.4,
+        diameter=0.064,
+        override_mass_kg=0.300,
+    )
+
+    result = await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+        override_mass_enabled=False,
+    )
+    assert result.success is True
+    assert result.data["override_mass_enabled"] is False

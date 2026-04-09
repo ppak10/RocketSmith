@@ -6,7 +6,7 @@ def register_openrocket_new(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
         title="New OpenRocket File",
@@ -33,6 +33,8 @@ def register_openrocket_new(app: FastMCP):
 
         if out_path is None:
             out_path = Path.cwd() / f"{name}.ork"
+
+        out_path = resolve_path(out_path)
 
         if not str(out_path).endswith(".ork"):
             out_path = out_path.with_suffix(".ork")

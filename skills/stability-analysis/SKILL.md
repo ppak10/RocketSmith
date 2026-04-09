@@ -17,6 +17,7 @@ Stability margin = (CP − CG) / reference diameter, measured in calibers. The t
 - `min_stability_cal` > 1.5 (over-stable)
 - `min_stability_cal` is `null` after simulation
 - User reports unexpected flight path or weathercocking
+- Stability was in range before `rocketsmith:mass-calibration` but fell out after applying real printed part weights — this is the expected failure mode when printed PLA/PETG is significantly heavier than OpenRocket's material defaults
 
 ## Steps
 

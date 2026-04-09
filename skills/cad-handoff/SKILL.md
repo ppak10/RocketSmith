@@ -23,17 +23,19 @@ The CAD handoff converts confirmed OpenRocket dimensions (metres) into build123d
 
 Do not begin CAD until `min_stability_cal` is between 1.0 and 1.5. If not confirmed, use the `rocketsmith:stability-analysis` skill first.
 
-### 2. Run Final Inspect
+### 2. Run the CAD Handoff Tool
 
 ```
-openrocket_inspect(rocket_file_path=<path>)
+openrocket_cad_handoff(rocket_file_path=<path>)
 ```
 
-Read every component's dimensions from the output. These are the source of truth.
+This is the preferred entry point. It reads the design, converts every length from metres to millimetres, identifies the motor mount, and returns a `components` list plus a `derived` block (`body_tube_id_mm`, `max_diameter_mm`, `cg_x_mm`, `cp_x_mm`) ready to feed into build123d scripts. It also returns a `handoff_notes` list with unit reminders and the fin-integration rule.
 
-### 3. Convert Units
+If you need the raw OpenRocket component tree (e.g. for ASCII inspection), fall back to `openrocket_inspect`. The manual conversion table below is preserved as a reference for deriving non-trivial values by hand, but `openrocket_cad_handoff` should do the heavy lifting.
 
-All OpenRocket dimensions are in **metres**. All build123d parameters are in **millimetres**.
+### 3. Convert Units (Reference)
+
+All OpenRocket dimensions are in **metres**. All build123d parameters are in **millimetres**. `openrocket_cad_handoff` does this automatically; the mapping below is for manual derivation.
 
 Multiply every measurement by 1000.
 
@@ -123,3 +125,7 @@ Do not proceed to the next part if the current one looks wrong.
 ## Coordinate Convention
 
 Z = 0 at fore face (nose tip direction), Z increases aft. This matches OpenRocket's axis.
+
+## Next Step — Mass Calibration
+
+Once all STEP files are generated, rendered, and verified, the next step is to slice each printed part and feed the real filament weights back into OpenRocket. Printed PLA/PETG parts can weigh 2–4× the material defaults — simulation stability must be re-verified against the measured weights before committing to a build. Use the `rocketsmith:mass-calibration` skill once the first slices land.

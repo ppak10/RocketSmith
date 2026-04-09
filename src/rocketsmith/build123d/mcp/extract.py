@@ -6,7 +6,7 @@ def register_build123d_extract(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
     from rocketsmith.build123d.models import Build123dGeometry
 
     @app.tool(
@@ -35,6 +35,7 @@ def register_build123d_extract(app: FastMCP):
         """
         from rocketsmith.build123d.extract import extract_geometry
 
+        step_file_path = resolve_path(step_file_path)
         if not step_file_path.exists():
             return tool_error(
                 f"STEP file not found: {step_file_path}",

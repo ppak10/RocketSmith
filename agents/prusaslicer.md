@@ -64,6 +64,8 @@ Slice a 3D model file and return print metadata (time, filament usage, layer cou
 - `material`: `"pla"` | `"petg"` | `"abs"` — used for weight calculation when no filament profile is set (default `"pla"`)
 - `prusaslicer_path`: optional path to the PrusaSlicer executable
 
+The returned `filament_used_g` is the **input to `rocketsmith:mass-calibration`** — see the Calibration Handoff section below.
+
 ### `rocketsmith_setup`
 Check or install dependencies.
 
@@ -92,8 +94,44 @@ Check or install dependencies.
 1. rocketsmith_setup(action="check")        → verify PrusaSlicer is installed (if uncertain)
 2. prusaslicer_config(action="list")        → find the relevant config file path
 3. prusaslicer_slice(model_file_path=..., config_path=...) ×N  → slice each part
-4. Report gcode paths and print metadata    → time, filament usage, layer count
+4. Build a {component_name: filament_used_g} mapping as you go
+5. Report gcode paths, print metadata, AND the calibration mapping
 ```
+
+## Calibration Handoff
+
+When slicing rocket parts, you are not just producing gcode — you are also producing the **measured mass** of each printed part. That mass is the input to the `rocketsmith:mass-calibration` skill, which feeds the real weights back into OpenRocket as component mass overrides to re-verify stability.
+
+**Your responsibilities:**
+
+1. **Preserve the component-name mapping.** Each STEP file corresponds to a specific OpenRocket component (e.g. `upper_airframe.step` → `"Upper Airframe"` component). As you slice each part, record:
+
+   ```
+   {
+     "Nose Cone":       <filament_used_g>,
+     "Upper Airframe":  <filament_used_g>,
+     "Lower Airframe":  <filament_used_g>,   # includes integrated fins
+     "Motor Mount":     <filament_used_g>,
+     "Centering Ring":  <filament_used_g>,   # if printed ×N, sum all copies
+     ...
+   }
+   ```
+
+2. **Sum multi-copy parts.** Centering rings are printed ×2; fore and aft count as one OpenRocket component. Sum the weights before reporting.
+
+3. **Keep grams, not kilograms.** Report `filament_used_g` exactly as PrusaSlicer returned it. The downstream calibration step will divide by 1000 — do not pre-convert.
+
+4. **Include the mapping in your response.** The orchestrator (or the openrocket subagent on a calibration handoff) will read this mapping directly and convert each entry into an `openrocket_component(action="update", override_mass_kg=<g>/1000)` call.
+
+**If `filament_used_g` is null in a slice result**, it means no filament profile was configured and the fallback density calculation could not run. Fall back to `filament_used_cm3 × density`:
+
+| Material | Density (g/cm³) |
+|----------|----------------|
+| PLA      | 1.24           |
+| PETG     | 1.27           |
+| ABS      | 1.04           |
+
+Report the computed value and note that it was derived rather than measured.
 
 ## FDM Print Settings for Rocket Parts
 

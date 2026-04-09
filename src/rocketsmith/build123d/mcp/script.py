@@ -6,7 +6,7 @@ def register_build123d_script(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
         name="build123d_script",
@@ -37,6 +37,9 @@ def register_build123d_script(app: FastMCP):
         # names if any are found, before uv run is ever called.
         """
         import subprocess
+
+        script_path = resolve_path(script_path)
+        out_dir = resolve_path(out_dir)
 
         if not script_path.exists():
             return tool_error(

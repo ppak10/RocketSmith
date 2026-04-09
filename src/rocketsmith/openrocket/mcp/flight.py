@@ -6,7 +6,7 @@ def register_openrocket_flight(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
         title="OpenRocket or RockSim Flight",
@@ -70,6 +70,7 @@ def register_openrocket_flight(app: FastMCP):
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
 
+        rocket_file_path = resolve_path(rocket_file_path)
         if not rocket_file_path.exists():
             return tool_error(
                 f"Design file not found: {rocket_file_path}",

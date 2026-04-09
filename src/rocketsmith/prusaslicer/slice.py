@@ -29,10 +29,16 @@ def slice(
     Returns:
         PrusaSlicerResult with the gcode path and parsed print metadata.
     """
-    model_path = Path(model_path)
+    model_path = Path(model_path).expanduser()
+    if not model_path.is_absolute():
+        model_path = (Path.cwd() / model_path).resolve()
 
     if output_path is None:
         output_path = model_path.with_suffix(".gcode")
+    else:
+        output_path = Path(output_path).expanduser()
+        if not output_path.is_absolute():
+            output_path = (Path.cwd() / output_path).resolve()
 
     exe = get_prusaslicer_path(prusaslicer_path)
 
@@ -41,13 +47,37 @@ def slice(
         cmd += ["--load", str(config_path)]
     cmd.append(str(model_path))
 
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+    # PrusaSlicer can exit 0 even when it refuses to slice (e.g. "All objects
+    # are outside of the print volume", malformed mesh, missing print config).
+    # If the output file is missing we would fail downstream with a confusing
+    # FileNotFoundError pointing at the .gcode path; surface the real reason
+    # from PrusaSlicer's own stdout/stderr instead.
+    if not output_path.exists():
+        detail_lines = []
+        if proc.stderr and proc.stderr.strip():
+            detail_lines.append(f"stderr: {proc.stderr.strip()}")
+        if proc.stdout and proc.stdout.strip():
+            detail_lines.append(f"stdout: {proc.stdout.strip()}")
+        detail = "\n".join(detail_lines) if detail_lines else "(no output)"
+        raise RuntimeError(
+            "PrusaSlicer exited 0 but produced no G-code at "
+            f"{output_path}. This usually means the model is outside the "
+            "print volume, the mesh is invalid, or no print profile was "
+            f"supplied via config_path.\n{detail}"
+        )
 
     metadata = _parse_gcode_metadata(output_path)
 
     # Calculate grams from volume when PrusaSlicer reports 0 (no filament profile)
-    if metadata.get("filament_used_g") is None and metadata.get("filament_used_cm3") is not None:
-        metadata["filament_used_g"] = metadata["filament_used_cm3"] * MATERIAL_DENSITY[material]
+    if (
+        metadata.get("filament_used_g") is None
+        and metadata.get("filament_used_cm3") is not None
+    ):
+        metadata["filament_used_g"] = (
+            metadata["filament_used_cm3"] * MATERIAL_DENSITY[material]
+        )
 
     return PrusaSlicerResult(
         gcode_path=output_path,
@@ -83,7 +113,9 @@ def _parse_gcode_metadata(gcode_path: Path) -> dict:
                 if value > 0:
                     metadata["filament_used_g"] = value
 
-            elif m := re.match(r"; estimated printing time \(normal mode\) = (.+)", line):
+            elif m := re.match(
+                r"; estimated printing time \(normal mode\) = (.+)", line
+            ):
                 metadata["print_time_seconds"] = _parse_time(m.group(1).strip())
 
     if layer_count:

@@ -6,7 +6,7 @@ def register_openrocket_component(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
         title="OpenRocket or RockSim Component",
@@ -47,6 +47,8 @@ def register_openrocket_component(app: FastMCP):
         motor_mount: bool | None = None,
         axial_offset_m: float | None = None,
         axial_offset_method: str | None = None,
+        override_mass_kg: float | None = None,
+        override_mass_enabled: bool | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
@@ -93,6 +95,29 @@ def register_openrocket_component(app: FastMCP):
             should protrude half its length past the aft end of its parent, use
             axial_offset_method="bottom" and axial_offset_m=+(coupler_length / 2).
 
+            Coupler sign gotcha: when ``axial_offset_method="bottom"``,
+            ``axial_offset_m`` must be **positive** to push the coupler past
+            the parent's aft end. A negative value will pull it back inside
+            the parent and produce an invalid geometry that may still save
+            without error.
+
+        Mass overrides (create and update):
+            override_mass_kg: Pin this component's mass to a measured value
+                in **kilograms** (NOT grams — divide filament_used_g by 1000
+                when feeding in a prusaslicer_slice result). Setting this
+                implicitly enables the override unless
+                override_mass_enabled=False is also passed.
+            override_mass_enabled: Toggle the override flag. When
+                override_mass_kg is set, this defaults to True.
+
+            Persistence gotcha: OpenRocket only serializes the
+            ``<overridemass>`` tag when the override is enabled. Disabling
+            with override_mass_enabled=False and saving will drop the stored
+            value on the next reload. To keep a calibration around while
+            comparing a baseline vs. overridden simulation, either leave the
+            override enabled and re-enable it each run, or track the
+            measured weight outside the .ork file.
+
         Args:
             action: One of 'create', 'read', 'update', 'delete'.
             rocket_file_path: Path to the .ork or .rkt design file.
@@ -114,6 +139,7 @@ def register_openrocket_component(app: FastMCP):
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
 
+        rocket_file_path = resolve_path(rocket_file_path)
         if not rocket_file_path.exists():
             return tool_error(
                 f"Design file not found: {rocket_file_path}",
@@ -145,6 +171,8 @@ def register_openrocket_component(app: FastMCP):
                     motor_mount=motor_mount,
                     axial_offset_m=axial_offset_m,
                     axial_offset_method=axial_offset_method,
+                    override_mass_kg=override_mass_kg,
+                    override_mass_enabled=override_mass_enabled,
                 ).items()
                 if v is not None
             }

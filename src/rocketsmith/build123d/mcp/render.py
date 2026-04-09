@@ -6,7 +6,7 @@ def register_build123d_render(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
         name="build123d_render",
@@ -36,6 +36,9 @@ def register_build123d_render(app: FastMCP):
         """
         from rocketsmith.build123d.png import render_step_png
 
+        step_file_path = resolve_path(step_file_path)
+        if out_path is not None:
+            out_path = resolve_path(out_path)
         if not step_file_path.exists():
             return tool_error(
                 f"STEP file not found: {step_file_path}",

@@ -41,22 +41,31 @@ Phase 1 — Simulation (openrocket subagent)
 
 Phase 2 — CAD Generation (build123d subagent)
   5. Extract confirmed dimensions from the .ork file
+     (prefer openrocket_cad_handoff for mm-scaled parameters)
   6. Generate build123d scripts for all parts
   7. Execute scripts, render and verify each STEP file
 
 Phase 3 — Slicing (prusaslicer subagent)
   8. Slice each STEP file to gcode
-  9. Report all output file paths to the user
+  9. Capture filament_used_g for every printed part
+
+Phase 4 — Mass Calibration (openrocket subagent, rocketsmith:mass-calibration)
+ 10. Apply each filament weight as override_mass_kg on the matching component
+ 11. Re-run openrocket_simulate and verify stability is still 1.0–1.5 cal
+ 12. If stability fell out of range, fix with ballast or geometry — not by
+     disabling the override — then re-simulate
+ 13. Report the final calibrated mass budget and stability margin to the user
 ```
 
-Proceed through all phases automatically once stability is confirmed — do not stop to ask permission between phases unless the user has a specific constraint.
+Proceed through all phases automatically once stability is confirmed — do not stop to ask permission between phases unless the user has a specific constraint. Phase 4 is mandatory: a design is not flight-ready until simulation has been re-verified against real printed part weights. Printed PLA/PETG parts routinely weigh 2–4× OpenRocket's material defaults, and a design that was stable with defaults can become unstable once built.
 
 ## Handoff Protocol
 
 When handing off between phases, pass the key outputs explicitly:
 
-- **openrocket → build123d**: provide the `.ork` file path and the final `openrocket_inspect` output (component tree with all dimensions in metres)
+- **openrocket → build123d**: provide the `.ork` file path and the final `openrocket_cad_handoff` output (components in mm, plus the derived motor mount and body tube ID). Fall back to `openrocket_inspect` only if raw metre values are needed.
 - **build123d → prusaslicer**: provide the list of generated STEP file paths in `<project_dir>/parts/`
+- **prusaslicer → openrocket (calibration)**: provide a mapping of component name → `filament_used_g` for every printed part. Each entry becomes an `override_mass_kg` update on the corresponding `openrocket_component` (divide grams by 1000).
 
 ## Project Directory
 

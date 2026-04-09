@@ -6,7 +6,7 @@ def register_openrocket_inspect(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
         title="Inspect OpenRocket or RockSim File",
@@ -33,6 +33,12 @@ def register_openrocket_inspect(app: FastMCP):
             to show the profile shape.  Internal tubes appear as dashed (:) walls.
             Fins are rendered as | protrusions above and below the body.
 
+        The ASCII art is a *sanity check* for overall shape — it is not
+        dimensionally precise and should not be used to derive coordinates
+        for CAD generation. For exact positions, lengths, and diameters use
+        the ``components`` list (all values are in metres, measured from the
+        nose tip along the rocket axis).
+
         Args:
             rocket_file_path: Path to the .ork or .rkt design file.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
@@ -44,6 +50,7 @@ def register_openrocket_inspect(app: FastMCP):
         from rocketsmith.openrocket.components import inspect_rocket_file
         from rocketsmith.openrocket.utils import get_openrocket_path
 
+        rocket_file_path = resolve_path(rocket_file_path)
         if not rocket_file_path.exists():
             return tool_error(
                 f"Design file not found: {rocket_file_path}",

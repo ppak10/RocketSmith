@@ -6,7 +6,7 @@ from typing import Union
 
 def register_prusaslicer_slice(app: FastMCP):
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
     from rocketsmith.prusaslicer.models import Material, PrusaSlicerResult
 
     @app.tool(
@@ -34,6 +34,12 @@ def register_prusaslicer_slice(app: FastMCP):
                       Defaults to pla.
         """
         from rocketsmith.prusaslicer.slice import slice as prusaslicer_slice_fn
+
+        model_file_path = resolve_path(model_file_path)
+        if out_path is not None:
+            out_path = resolve_path(out_path)
+        if config_path is not None:
+            config_path = resolve_path(config_path)
 
         if not model_file_path.exists():
             return tool_error(

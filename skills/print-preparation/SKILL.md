@@ -52,6 +52,10 @@ ls <project_dir>/parts/*.gcode
 
 Report the file path and estimated print time/mass to the user if PrusaSlicer returns that information.
 
+### 5. Calibrate the Design Against Real Weights
+
+Once every part is sliced, the `filament_used_g` values are the *real* printed weights. Feed them back into the OpenRocket design as mass overrides and re-run the simulation to confirm stability still holds — printed parts routinely weigh 2–4× OpenRocket's material defaults. Use the `rocketsmith:mass-calibration` skill to close this loop. Do not treat the design as flight-ready until this step passes.
+
 ## Material Guidance
 
 **PETG** (recommended for all structural parts):

@@ -139,6 +139,14 @@ def create_simulation(
         motor_config.setMotor(motor)
         mount.setMotorConfig(motor_config, fcid)
 
+        # Mark this configuration as the active one. Belt-and-suspenders:
+        # any code path that reads the "current" config (including some
+        # serialization helpers) will see a config with a motor attached.
+        try:
+            rocket.setSelectedConfiguration(fcid)
+        except Exception:
+            pass
+
         # Create simulation  (constructor is (OpenRocketDocument, Rocket))
         Simulation = OR.document.Simulation
         sim = Simulation(doc, rocket)
@@ -158,6 +166,17 @@ def create_simulation(
         doc.addSimulation(sim)
         _save_doc(doc, path)
 
+    # Post-save verification: reload the file and confirm the motor actually
+    # persisted. This catches the "flight saved but simulate reports 'No
+    # motors defined'" class of bugs at creation time rather than surfacing
+    # them later in a downstream simulate call.
+    _verify_motor_persisted(
+        path=path,
+        openrocket_path=openrocket_path,
+        sim_name=name,
+        mount_component_name=str(mount.getName()),
+    )
+
     return {
         "simulation_name": name,
         "motor_designation": motor_designation,
@@ -167,6 +186,78 @@ def create_simulation(
         "launch_altitude_m": launch_altitude_m,
         "wind_speed_ms": wind_speed_ms,
     }
+
+
+def _verify_motor_persisted(
+    path: Path,
+    openrocket_path: Path,
+    sim_name: str,
+    mount_component_name: str,
+) -> None:
+    """Reload the saved file and confirm the motor mount for the new sim has a motor.
+
+    Raises:
+        RuntimeError: If the simulation is present but no motor is assigned to
+            its flight configuration on the expected mount. This fails loudly at
+            create time rather than silently producing a sim with zero thrust.
+    """
+    import jpype
+    import orhelper
+    from rocketsmith.openrocket.components import _or_context
+
+    MotorMount = jpype.JPackage("net").sf.openrocket.rocketcomponent.MotorMount
+
+    with _or_context(openrocket_path) as instance:
+        helper = orhelper.Helper(instance)
+        doc = helper.load_doc(str(path))
+
+        sims = doc.getSimulations()
+        target_sim = None
+        for i in range(sims.size()):
+            s = sims.get(i)
+            if str(s.getName()) == sim_name:
+                target_sim = s
+                break
+        if target_sim is None:
+            raise RuntimeError(f"Simulation '{sim_name}' was not persisted to {path}.")
+
+        fcid = target_sim.getFlightConfigurationId()
+        rocket = doc.getRocket()
+
+        def _walk(comp):
+            yield comp
+            for i in range(comp.getChildCount()):
+                yield from _walk(comp.getChild(i))
+
+        found_mount = False
+        has_motor = False
+        for comp in _walk(rocket):
+            if not MotorMount.class_.isInstance(comp):
+                continue
+            if str(comp.getName()) != mount_component_name:
+                continue
+            found_mount = True
+            try:
+                mc = comp.getMotorConfig(fcid)
+                if mc is not None and mc.getMotor() is not None:
+                    has_motor = True
+            except Exception:
+                pass
+            break
+
+        if not found_mount:
+            raise RuntimeError(
+                f"Motor mount '{mount_component_name}' missing after save."
+            )
+        if not has_motor:
+            raise RuntimeError(
+                f"Motor was not persisted for simulation '{sim_name}' on mount "
+                f"'{mount_component_name}'. The saved .ork file would report "
+                "'No motors defined' when simulated. This usually means the "
+                "mount component's motor configuration did not serialize — "
+                "check that the mount is a real InnerTube or that "
+                "setMotorMount(True) succeeded on the chosen BodyTube."
+            )
 
 
 def delete_simulation(path: Path, openrocket_path: Path, sim_name: str) -> str:

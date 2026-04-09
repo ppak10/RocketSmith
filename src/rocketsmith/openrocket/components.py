@@ -403,6 +403,12 @@ def _extract_properties(comp) -> dict:
         pass
 
     try:
+        props["override_mass_enabled"] = bool(comp.isMassOverridden())
+        props["override_mass_kg"] = round(float(comp.getOverrideMass()), 6)
+    except Exception:
+        pass
+
+    try:
         props["position_x_m"] = round(float(comp.getPositionX()), 4)
     except:
         try:
@@ -557,6 +563,21 @@ def _apply_properties(comp, **kwargs):
         mat = lookup_material(mat_name, kwargs.get("material_type"))
         if mat:
             comp.setMaterial(mat)
+
+    # Mass override: let the user pin a component's mass to a measured value
+    # (e.g. the filament weight reported by prusaslicer_slice). Setting
+    # override_mass_kg implicitly enables the override unless the caller
+    # explicitly passes override_mass_enabled=False. Passing
+    # override_mass_enabled alone toggles the flag without changing the
+    # stored value, which is useful for temporarily disabling a calibration.
+    override_mass_kg = kwargs.get("override_mass_kg")
+    override_mass_enabled = kwargs.get("override_mass_enabled")
+    if override_mass_kg is not None:
+        comp.setOverrideMass(float(override_mass_kg))
+        if override_mass_enabled is None:
+            comp.setMassOverridden(True)
+    if override_mass_enabled is not None:
+        comp.setMassOverridden(bool(override_mass_enabled))
 
     # Set method BEFORE offset — OR interprets the offset value using the current method.
     if kwargs.get("axial_offset_method") is not None:
