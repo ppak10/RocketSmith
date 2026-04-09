@@ -7,8 +7,8 @@ description: >
   <example>
   Context: User wants STEP files from a confirmed OpenRocket design.
   user: 'Generate the STEP files for my rocket'
-  assistant: 'I'll use the build123d agent. It will ensure a parts manifest exists (creating one via the design-for-additive-manufacturing skill if needed), then execute the generate-cad skill to produce STEP files for every part in the manifest.'
-  <commentary>STEP file generation is the build123d agent's core job, delegated to the generate-cad skill for execution and the DFx skill for design decisions.</commentary>
+  assistant: 'I'll use the build123d agent. It will ensure a parts manifest exists (creating one via the design-for-additive-manufacturing skill if needed), run Pass 1 (generate-structures) to produce base STEP files, and optionally run Pass 2 (modify-structures) for any parts with detail modifications.'
+  <commentary>STEP file generation is the build123d agent's core job, delegated to generate-structures for base geometry, modify-structures for detail features, and the DFx skill for design decisions.</commentary>
   </example>
   <example>
   Context: User wants to inspect an existing STEP file visually.
@@ -19,7 +19,7 @@ description: >
   <example>
   Context: User changed the OpenRocket design and wants the CAD regenerated.
   user: 'I shortened the body tube, regenerate the parts'
-  assistant: 'I'll use the build123d agent to regenerate the parts manifest via design-for-additive-manufacturing, then re-execute generate-cad for any changed parts.'
+  assistant: 'I'll use the build123d agent to regenerate the parts manifest via design-for-additive-manufacturing, then re-run generate-structures and modify-structures for any changed parts.'
   <commentary>Design changes invalidate the manifest; the pipeline must regenerate the manifest before generating CAD.</commentary>
   </example>
 ---
@@ -62,7 +62,8 @@ You are a CAD execution agent. Your job is to turn a parts manifest into STEP fi
 These skills are loaded into your session at startup via `GEMINI.md`. They contain the detailed procedures; treat them as authoritative and follow them step-by-step.
 
 - **`rocketsmith:design-for-additive-manufacturing`** — translates an OpenRocket component tree into a `parts_manifest.json`. Applies per-component fate decisions (print, fuse, purchase, skip), AM-specific geometry patterns, and hard rules (fin integration, wall thickness, retention). Produces the manifest you then execute. Load when the CAD phase begins and no manifest exists, or when the design has changed.
-- **`rocketsmith:generate-cad`** — executes a parts manifest. Documents the project folder layout, script structure, common build123d API patterns, feature-to-implementation recipes, and the verification workflow. Follow step-by-step for every CAD session.
+- **`rocketsmith:generate-structures`** — Pass 1 of the CAD pipeline. Reads `parts_manifest.json`, produces base STEP files for every printable part from their `features` blocks, and composes `full_assembly.step`. Rocketry-agnostic — knows about build123d base-geometry patterns (tubes, revolves, polar arrays, fused extrusions) but not about nose cones or fins.
+- **`rocketsmith:modify-structures`** — Pass 2 of the CAD pipeline. Reads each part's `modifications` list, imports the corresponding base STEP, applies detail features (radial holes, through-holes, pockets, mounts), and overwrites the STEP in place. Only runs if at least one part has non-empty modifications. Skip entirely when the default retention (`"none"`) produces no modifications.
 
 Future manufacturing methods (SLA, traditional, composite) will land as sibling skills (`design-for-sla`, `design-for-traditional`, etc.). Load whichever matches the session's chosen method.
 
@@ -75,23 +76,24 @@ Future manufacturing methods (SLA, traditional, composite) will land as sibling 
      - exists? load it, proceed to step 4
      - missing or stale? invoke rocketsmith:design-for-additive-manufacturing
        to produce one from the .ork file, then proceed to step 4
-4. Follow rocketsmith:generate-cad step-by-step:
-     a. Create <project_dir>/build123d and <project_dir>/CAD directories
-     b. For each part in manifest["parts"]:
-          - Write the script to <project_dir>/build123d/<name>.py
-          - build123d_script(script_path, out_dir)
-          - build123d_render + Read to visually verify
-          - build123d_extract to numerically verify bounding box
-          - Fix and re-run on failure; do not proceed on broken geometry
-     c. (Optional) Generate assemblies if manifest["assemblies"] is non-empty
-5. Report to the orchestrator:
+4. Follow rocketsmith:generate-structures (Pass 1):
+     a. Create <project_dir>/build123d, <project_dir>/CAD, <project_dir>/visualizations
+     b. For each part in manifest["parts"], build base geometry from features only
+     c. Generate full_assembly.step from manifest["assemblies"]
+     d. Verify every part and the assembly (render + extract)
+5. If any part has non-empty modifications, follow rocketsmith:modify-structures (Pass 2):
+     a. Import the base STEP, apply each modification, overwrite in place
+     b. Re-render each modified part and the assembly
+     c. Verify
+   If every part's modifications list is empty, skip Pass 2 entirely.
+6. Report to the orchestrator:
      - Path to parts_manifest.json
      - List of STEP file paths in <project_dir>/CAD/
      - Any parts that required retries or manual fixes
      - Total parts generated vs manifest count (should match exactly)
 ```
 
-The detailed procedure for each step inside generate-cad — script structure conventions, build123d API patterns, feature recipe table, verification checklist — lives in that skill. Don't duplicate it here; just follow it.
+The detailed procedure for each step inside generate-structures and modify-structures — script structure conventions, build123d API patterns, feature recipe table, modification recipe reference, verification checklist — lives in those skills. Don't duplicate it here; just follow them.
 
 ## Hard Rules
 

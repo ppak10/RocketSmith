@@ -9,7 +9,7 @@ description: Use when translating an OpenRocket logical design into a physical p
 
 OpenRocket describes a rocket as a **logical design** — a tree of abstract components (nose cone, body tubes, inner tubes, couplers, fin sets, centering rings) that captures aerodynamic and mass properties. That description is manufacturing-agnostic.
 
-The physical parts list — what actually gets produced and assembled — is a function of the chosen manufacturing method applied to that logical design. This skill handles the **additive manufacturing** case: converting OpenRocket components into a printable parts manifest that the `generate-cad` skill and `build123d` subagent use as their authoritative source.
+The physical parts list — what actually gets produced and assembled — is a function of the chosen manufacturing method applied to that logical design. This skill handles the **additive manufacturing** case: converting OpenRocket components into a printable parts manifest that the `generate-structures` skill and `build123d` subagent use as their authoritative source.
 
 **Core principle:** OpenRocket components don't map 1:1 to printed parts. A centering ring in OR becomes "localised wall thickening" in AM. A tube coupler in OR becomes "integral shoulder on the forward section" in AM. A fin set in OR becomes "fused geometry on the lower airframe" in AM. The translation is the whole point of this skill.
 
@@ -28,61 +28,28 @@ The physical parts list — what actually gets produced and assembled — is a f
 
 ## Output
 
-A single JSON file written to `<project_dir>/parts_manifest.json` using the `Write` tool. The schema is documented at the end of this skill. This file is the authoritative handoff to `generate-cad` and `build123d` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
+A single JSON file written to `<project_dir>/parts_manifest.json` by the **`manufacturing_manifest` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `build123d` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
 
 ## Steps
 
-### 1. Load the Component Tree
+### 1. Decide the Fusion Overrides (If Any)
 
-```
-handoff = openrocket_cad_handoff(rocket_file_path="<project_dir>/<rocket_name>.ork")
-```
+For most designs, the tool's defaults are correct and you can call it with no overrides. Review the design to identify whether any of the following ask-user conditions apply:
 
-The `handoff` result has `components` (mm-scaled), `derived` (cg, cp, max diameter, body tube ID, motor mount block), and `handoff_notes`. Every length in the manifest will come from this dict.
+**Motor mount fate** — default is `fuse` (as local wall thickening).
+- **Ask user to confirm `separate`** if: motor total impulse ≥ 320 Ns (H-class+) **AND** the design has a payload bay or dual-deploy configuration suggesting the user might want motor swap-outs between flights.
 
-### 2. Enumerate Translation Candidates
+**Coupler fate** — default is `fuse` (as integral aft shoulder).
+- **Ask user to confirm `separate`** if: the design has a dedicated payload bay, dual-deploy, or any suggestion that the user plans to disassemble between flights.
 
-Walk the `components` list and categorise each OR component by type:
+**Retention mechanism** — default is `m4_heat_set` for body diameters ≥ 38 mm, `friction_fit` below.
+- **Ask the user** when the design is borderline (38–54 mm) to pick between heat-set and friction fit.
 
-| OR component type | Default fate (additive policy) | Notes |
-|---|---|---|
-| `NoseCone` | `print` | One standalone part. Shoulder is always integral to the nose cone itself; retention mechanism is a separate decision. |
-| `BodyTube` (upper/middle) | `print` | One part per section. Integrated features come from children (see step 3). |
-| `BodyTube` (lower / aft) | `print` | The fin-bearing section. Always receives fused fins. |
-| `TubeCoupler` | `fuse` into forward section | Default fuse; ask-user only for dual-deploy designs (see fusion decisions below). |
-| `InnerTube` acting as motor mount | `fuse` into parent body tube | Default fuse as local wall thickening; ask-user for H-class and above. |
-| `CenteringRing` | `absorb` into wall thickening | If motor mount is fused, centering rings vanish entirely. If motor mount is separate, rings become standalone parts. |
-| `TrapezoidFinSet` | `fuse` into parent body tube | **Always fused for AM. This is non-negotiable** — separate fin parts have poor layer adhesion at the root and fail structurally. |
-| `Parachute` | `skip` | Non-structural assembly item. |
-| `MassComponent` | `skip` | Ballast, added at assembly time. |
-| `LaunchLug` / `RailButton` | `skip` (default) | Adhesive rail buttons added at assembly time. Advanced users may integrate as print features. |
+If the user has answered any of these, collect the answers into a `fusion_overrides` dict. Otherwise skip to step 2 and pass nothing.
 
-### 3. Apply Fusion Decision Rules
+### 2. Check the Reference Collection for Edge Cases
 
-Default policy is **aggressive fusion** — fewer parts, fewer glue joints, stronger assemblies. Overrides when the design calls for it:
-
-#### Motor mount fate
-- **Default: fuse** as local wall thickening in the parent body tube. The body tube wall steps inward in the motor mount region, forming the motor bore directly. Both centering rings are absorbed.
-- **Ask user to confirm separate** if: motor total impulse ≥ 320 Ns (H-class+) **AND** the design has a payload bay or dual-deploy configuration suggesting the user might want motor swap-outs between flights.
-- **Override to purchased** if: policy is `"hybrid"` AND the motor mount is near-motor (recommend BlueTube or cardboard for thermal tolerance).
-
-#### Coupler fate
-- **Default: fuse** into the aft end of the forward section as an integral shoulder.
-- **Ask user to confirm separate** if: the design has a dedicated payload bay, dual-deploy, or any suggestion that the user plans to disassemble between flights.
-- **Override to purchased** if: policy is `"hybrid"` AND the user wants traditional-style swappable sections.
-
-#### Retention mechanism (for any mated sections)
-- **Default: M4 heat-set inserts + screws** for body diameters ≥ 38 mm. Four holes at 90° spacing at the shoulder mid-length.
-- **Friction fit only** for LPR body diameters < 38 mm AND motor class ≤ D.
-- **Shear pins** only if the user explicitly requests dual-deploy.
-- **Ask user** when the design is borderline (38–54 mm) to pick between heat-set and friction fit.
-
-#### Fin integration
-- **No decision to make.** Always fused for AM. See rules block below.
-
-### 4. Check the Reference Collection for Edge Cases
-
-Before finalising the manifest for non-standard designs (transitions, boattails, multi-stage, cluster mounts, unusual nose cone shapes), query the reference collection:
+Before generating the manifest for non-standard designs (transitions, boattails, multi-stage, cluster mounts, unusual nose cone shapes), query the reference collection:
 
 ```
 rag_reference(
@@ -93,21 +60,51 @@ rag_reference(
 )
 ```
 
-Hits may surface fusion decisions other users have made for similar designs. **If no results**, fall through to the defaults above.
+Hits may surface fusion decisions other users have made for similar designs. **If no results**, fall through to the defaults. **If the search errors** (collection not indexed), proceed silently.
 
-### 5. Write the Parts Manifest
+### 3. Generate the Manifest
 
-Use the `Write` tool to produce `<project_dir>/parts_manifest.json` conforming to the schema at the end of this skill. Include:
+Call the `manufacturing_manifest` MCP tool with `action="generate"`:
 
-- One `parts` entry per printable part, with `features` capturing all geometry-relevant parameters
-- `purchased_items` for anything the policy says to source externally
-- `skipped_components` for parachutes, ballast, and non-printed assembly items
-- `decisions` recording every per-component fate choice **with a reason** so the manifest is auditable
-- `component_to_part_map` — the inverse lookup that mass-calibration will use
+```
+manufacturing_manifest(
+    action="generate",
+    project_root="<project_dir>",
+    rocket_file_path="<project_dir>/<rocket_name>.ork",
+    method="additive",
+    fusion_overrides=<dict if any, else omit>,
+)
+```
 
-### 6. Summarise for the User
+The tool:
 
-Report the manifest at a glance before handing off to `generate-cad`:
+1. Calls `openrocket_cad_handoff` internally to get the mm-scaled component tree
+2. Walks the tree, applies the DFAM fusion rules (defaults + any overrides you passed), and builds the part list
+3. Validates the result against the `PartsManifest` Pydantic schema
+4. Writes `<project_root>/parts_manifest.json`
+5. Returns the manifest dict
+
+**Do not use the `Write` tool to hand-craft the manifest.** The Python implementation is the source of truth for the fusion rules; hand-writing is both slower (more context tokens) and error-prone (schema drift, typos, missing fields). The `manufacturing_manifest` tool is the only way to produce a manifest.
+
+### 4. Translation Rules Reference
+
+These are the rules the tool applies. Documented here for understanding — do not re-implement them in the agent's reasoning. If you think the tool has applied a rule incorrectly, regenerate with a corrected `fusion_overrides` rather than post-editing the JSON.
+
+| OR component type | Default fate (additive policy) | Notes |
+|---|---|---|
+| `NoseCone` | `print` | One standalone part. Shoulder is always integral to the nose cone itself; retention mechanism is a separate decision. |
+| `BodyTube` | `print` | One part per section. Integrated features come from children (see below). |
+| `TubeCoupler` | `fuse` into parent section | Default fuse; overridable via `coupler_fate: "separate"`. |
+| `InnerTube` (motor mount) | `fuse` into parent body tube | Default fuse as local wall thickening; overridable via `motor_mount_fate: "separate"`. |
+| `CenteringRing` | `absorb` into wall thickening | When motor mount is fused, centering rings vanish entirely. When motor mount is separate, they become standalone parts. |
+| `TrapezoidFinSet` | `fuse` into parent body tube | **Always fused for AM.** Non-overridable; separate fin parts have poor layer adhesion. |
+| `Parachute` | `skip` | Non-structural assembly item. |
+| `MassComponent` | `skip` | Ballast, added at assembly time. |
+| `LaunchLug` / `RailButton` | `skip` | Adhesive-mounted at assembly time. |
+
+### 5. Summarise for the User
+
+Report the manifest at a glance before handing off to `generate-structures`:
 
 ```
 Parts manifest for <rocket_name>:
@@ -135,7 +132,7 @@ Stop and ask the user to confirm before generating CAD if any fusion decision wa
 
 ## AM-Specific Geometry Patterns
 
-These are the building blocks the `generate-cad` skill will use when writing each part's script. The DFAM skill's job is to specify them in the `features` block of each part; the CAD skill's job is to implement them in build123d.
+These are the building blocks the `generate-structures` skill will use when writing each part's script. The DFAM skill's job is to specify them in the `features` block of each part; the CAD skill's job is to implement them in build123d.
 
 ### Local wall thickening (replaces centering rings)
 The body tube has a base wall thickness; in the motor mount region, the inner wall steps inward to form the motor bore directly. Outer wall unchanged, inner wall variable along Z. One solid body, no glue joints.
@@ -312,7 +309,7 @@ openrocket_cad_handoff → {components, derived, handoff_notes}
                       ↓
               parts_manifest.json at project root
                       ↓
-          generate-cad skill → build123d scripts → STEP files
+          generate-structures skill → build123d scripts → STEP files
                       ↓
               prusaslicer → gcode → filament_used_g
                       ↓

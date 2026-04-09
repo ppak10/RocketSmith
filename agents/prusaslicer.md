@@ -92,11 +92,22 @@ Check or install dependencies.
 ### Slicing
 ```
 1. rocketsmith_setup(action="check")        → verify PrusaSlicer is installed (if uncertain)
-2. prusaslicer_config(action="list")        → find the relevant config file path
-3. prusaslicer_slice(model_file_path=..., config_path=...) ×N  → slice each part
-4. Build a {component_name: filament_used_g} mapping as you go
-5. Report gcode paths, print metadata, AND the calibration mapping
+2. manufacturing_manifest(action="read", project_root=<cwd>)
+                                             → load the parts manifest — it owns
+                                               the authoritative step_path and
+                                               gcode_path for every printable part
+3. prusaslicer_config(action="list")        → find the relevant config file path
+4. For each entry in manifest["parts"] whose fate is "print":
+     prusaslicer_slice(
+         model_file_path=<project_root>/<part.step_path>,
+         out_path=<project_root>/<part.gcode_path>,   # MUST pass explicitly
+         config_path=<config .ini>,
+     )
+5. Build a {part.name: filament_used_g} mapping as you go
+6. Report gcode paths, print metadata, AND the calibration mapping
 ```
+
+**Critical: always pass `out_path` explicitly to `prusaslicer_slice`.** The default behavior is to write the gcode next to the STEP file (i.e. into `CAD/`), which is wrong — gcode belongs in `gcode/`. The manifest's `gcode_path` field tells you exactly where each file should go. Use it verbatim.
 
 ## Calibration Handoff
 
@@ -104,24 +115,24 @@ When slicing rocket parts, you are not just producing gcode — you are also pro
 
 **Your responsibilities:**
 
-1. **Preserve the component-name mapping.** Each STEP file corresponds to a specific OpenRocket component (e.g. `upper_airframe.step` → `"Upper Airframe"` component). As you slice each part, record:
+1. **Key the mapping by part name, not OR component name.** The parts manifest already maps back to OR components via `component_to_part_map`. Your mapping uses the printed part's name (the same as `part.name` in the manifest):
 
    ```
    {
-     "Nose Cone":       <filament_used_g>,
-     "Upper Airframe":  <filament_used_g>,
-     "Lower Airframe":  <filament_used_g>,   # includes integrated fins
-     "Motor Mount":     <filament_used_g>,
-     "Centering Ring":  <filament_used_g>,   # if printed ×N, sum all copies
+     "nose_cone":       <filament_used_g>,
+     "upper_airframe":  <filament_used_g>,
+     "lower_airframe":  <filament_used_g>,   # includes integrated fins and motor mount
      ...
    }
    ```
 
-2. **Sum multi-copy parts.** Centering rings are printed ×2; fore and aft count as one OpenRocket component. Sum the weights before reporting.
+   The `mass-calibration` skill uses the manifest to attribute each printed-part weight back to the correct OR components (which may be multiple OR components per printed part in fused designs).
+
+2. **Sum multi-copy parts.** If a part is printed in multiple quantities (the manifest's `features` block records quantity), sum the weights before reporting.
 
 3. **Keep grams, not kilograms.** Report `filament_used_g` exactly as PrusaSlicer returned it. The downstream calibration step will divide by 1000 — do not pre-convert.
 
-4. **Include the mapping in your response.** The orchestrator (or the openrocket subagent on a calibration handoff) will read this mapping directly and convert each entry into an `openrocket_component(action="update", override_mass_kg=<g>/1000)` call.
+4. **Include the mapping in your response.** The orchestrator (or the openrocket subagent on a calibration handoff) will combine this with `parts_manifest.json["component_to_part_map"]` to produce the per-OR-component override calls.
 
 **If `filament_used_g` is null in a slice result**, it means no filament profile was configured and the fallback density calculation could not run. Fall back to `filament_used_cm3 × density`:
 

@@ -118,9 +118,16 @@ Before invoking any MCP tool that writes a file, you **must** establish a projec
 
 **Procedure:**
 
-1. **Call `Bash("pwd")` as the very first action** in any session where you will write files. The result is the user's session cwd — use that as your project root.
+1. **Call `Bash("pwd")` as the very first action** in any session where you will write files. The result is the user's session cwd — use that **exact path** as your project root.
 2. **Confirm or override with the user** if the directory looks wrong (e.g. the user's home directory, or an unrelated project). Ask: "I'll put the rocket design and parts under `<pwd>`. Is that right, or would you like a different directory?"
 3. **Record the project root** in your working notes and use it for every subsequent tool call.
+
+**Do NOT create a wrapper subfolder for the project.** The project root is the cwd itself, not a subfolder of the cwd. If cwd is `/Users/ppak/rockets/h100w/`, then:
+
+- ✅ Correct: `/Users/ppak/rockets/h100w/h100w.ork`, `/Users/ppak/rockets/h100w/build123d/`, `/Users/ppak/rockets/h100w/CAD/`
+- ❌ Wrong: `/Users/ppak/rockets/h100w/H100W_Rocket/h100w.ork`, `/Users/ppak/rockets/h100w/H100W_Rocket/build123d/`
+
+The user launched Gemini CLI from the directory they want the rocket artefacts in. Respect their choice. Do not invent a rocket-named subdirectory even if the rocket has a distinctive name.
 
 **Layout:**
 
@@ -128,21 +135,27 @@ Before invoking any MCP tool that writes a file, you **must** establish a projec
 <project_dir>/
 ├── <rocket_name>.ork          ← OpenRocket design file
 ├── parts_manifest.json        ← DFAM output, authoritative parts list
-├── build123d/                 ← build123d .py scripts
+├── build123d/                 ← build123d .py scripts (Pass 1 + Pass 2)
 │   ├── nose_cone.py
 │   ├── upper_airframe.py
 │   └── lower_airframe.py
-├── CAD/                       ← .step files
+├── CAD/                       ← .step files (base + modified + assembly)
 │   ├── nose_cone.step
 │   ├── upper_airframe.step
-│   └── lower_airframe.step
+│   ├── lower_airframe.step
+│   └── full_assembly.step     ← multi-part assembly for visual verification
+├── visualizations/            ← .png renders of each part and the assembly
+│   ├── nose_cone.png
+│   ├── upper_airframe.png
+│   ├── lower_airframe.png
+│   └── full_assembly.png
 └── gcode/                     ← .gcode files (after slicing)
     ├── nose_cone.gcode
     ├── upper_airframe.gcode
     └── lower_airframe.gcode
 ```
 
-The `parts_manifest.json` at the project root is the single source of truth for which parts exist and how they're derived from OpenRocket components. The `design-for-additive-manufacturing` skill writes it; the `generate-cad` skill reads it; the `mass-calibration` skill reads `component_to_part_map` from it during the calibration phase.
+The `parts_manifest.json` at the project root is the single source of truth for which parts exist and how they're derived from OpenRocket components. The `design-for-additive-manufacturing` skill writes it; the `generate-structures` skill reads it for Pass 1 (base geometry) and the `modify-structures` skill reads it for Pass 2 (detail features); the `mass-calibration` skill reads `component_to_part_map` from it during the calibration phase.
 
 **Absolute path discipline (required for every tool call):**
 
@@ -154,7 +167,7 @@ The `parts_manifest.json` at the project root is the single source of truth for 
 **Create the directories** before calling `build123d_script` or `prusaslicer_slice` for the first time:
 
 ```
-Bash("mkdir -p <project_dir>/build123d <project_dir>/CAD <project_dir>/gcode")
+Bash("mkdir -p <project_dir>/build123d <project_dir>/CAD <project_dir>/visualizations <project_dir>/gcode")
 ```
 
 **Naming:** the `name` parameter on `openrocket_new` is the **display name** shown inside OpenRocket's UI — it is not a filename. Do not include `.ork` in it. The filename comes from `out_path`.
