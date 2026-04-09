@@ -133,32 +133,11 @@ When slicing rocket parts, you are not just producing gcode — you are also pro
 
 Report the computed value and note that it was derived rather than measured.
 
-## FDM Print Settings for Rocket Parts
+## Print Settings for Rocket Parts
 
-Use `prusaslicer_config` to create and manage project-specific profiles rather than relying on PrusaSlicer defaults. Recommended settings for rocket parts:
+Per-part orientation, infill, perimeter count, and material selection are documented in the `rocketsmith:print-preparation` skill. That skill also queries the `print_gotchas` reference collection for edge cases (thin-walled nose cones, overhanging fin tips, bridge-heavy centering rings) that the generic table cannot capture.
 
-| Setting | Structural parts | Fairings / nose cones |
-|---------|-----------------|----------------------|
-| `infill_density` | `100%` | `20%`–`40%` |
-| `infill_pattern` | `gyroid` | `gyroid` |
-| `perimeters` | `4`–`6` | `3`–`4` |
-| `layer_height` | `0.2` | `0.2` |
-| `support_material` | `0` (design for no-support) | `1` as needed |
-
-### Part-specific notes
-
-- **Body tubes and motor mounts**: Print vertically (Z-axis = rocket axis) for best layer adhesion along the stress axis. 100% infill.
-- **Nose cone**: Print tip-up or tip-down depending on overhang geometry. No supports needed if the shoulder is at the bottom. 20–40% infill acceptable.
-- **Centering rings**: Print flat (ring in XY plane). 100% infill.
-- **Fins / lower airframe**: Print vertically. Layer lines perpendicular to aerodynamic loads are acceptable at model scale.
-
-### Material notes
-
-| Material | `filament_density` | Nozzle temp | Bed temp | Notes |
-|----------|--------------------|-------------|----------|-------|
-| PETG | `1.27` | 230–245 °C | 70–85 °C | Preferred — UV/temp resistant, impact resilient |
-| PLA | `1.24` | 195–220 °C | 50–60 °C | Easier to print, less heat resistant |
-| ABS | `1.04` | 240–260 °C | 90–110 °C | Enclosed printer preferred, strong but brittle |
+This subagent's job is to **execute** the slicing call with whatever config the skill specifies — it does not make the orientation or infill decision. Use `prusaslicer_config(action="set")` to apply the skill's chosen settings to a project-local config before calling `prusaslicer_slice`.
 
 ### Vendor preset notes
 

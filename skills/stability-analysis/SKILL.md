@@ -35,6 +35,25 @@ stability_cal = (cp_x - cg_x) / max_diameter_m
 
 A positive result means CP is aft of CG — stable. A negative or zero result means unstable.
 
+### 1.5. Consult the Reference Collection
+
+Before applying the generic heuristic, check whether a similar case has a known fix in the `stability_notes` reference collection:
+
+```
+rag_reference(
+    action="search",
+    collection="stability_notes",
+    query=f"stability {round(current_cal, 2)} cal {symptom}",
+    n_results=3,
+)
+```
+
+Build the query from whatever facts you have: the observed stability value, the direction of the problem (under/over), the rocket's diameter class, and any distinctive features (e.g. "3-fin LPR D-class" or "high fineness ratio H-class"). Cite any hit that closely matches the current situation and weigh its recommendation against the generic heuristic below.
+
+**If the search returns no results**, the collection may be empty or no indexed case matches. Proceed to the heuristic — the reference collection is an enrichment, not a prerequisite. Do not block on empty results.
+
+**If the search errors** (e.g. `COLLECTION_NOT_FOUND`), the collection has not been indexed yet. Proceed to the heuristic silently.
+
 ### 2. Diagnose the Direction
 
 **Under-stable (< 1.0 cal):** CP is too close to CG, or forward of it.

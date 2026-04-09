@@ -147,45 +147,37 @@ Call `openrocket_inspect` after each section to verify placement before continui
 
 ## Domain Knowledge
 
-**Stability:**
-- Stability margin = (CP − CG) / reference diameter, measured in calibers
-- Target: 1.0–1.5 calibers
-- Below 1.0 cal: unstable — increase fin area, move fins aft, or add nose weight
-- Above 1.5 cal: over-stable — reduces weathercocking tolerance; reduce fin area or add aft mass
-- `min_stability_cal` is the stability-critical number — check this first
-- **If `min_stability_cal` returns null**: compute manually from `openrocket_inspect` output:
+**Stability (hard rules only — see `rocketsmith:stability-analysis` skill for diagnosis and fixes):**
+- Stability margin = (CP − CG) / reference diameter, in calibers
+- `min_stability_cal` is the stability-critical number — check it first
+- If `min_stability_cal` returns null, compute manually:
   `stability_cal = (CP_from_nose_m − CG_from_nose_m) / reference_diameter_m`
-  Estimate CG from mass distribution; derive CP using Barrowman equations
+- For "my stability is X, how do I fix it?" questions, load the `stability-analysis` skill — it queries the `stability_notes` reference collection and applies case-specific fixes rather than generic rules of thumb
 
-**Motor Selection:**
-- Match motor diameter to inner-tube inner diameter
-- Impulse classes: A=2.5 Ns, B=5, C=10, D=20, E=40, F=80, G=160, H=320, I=640, J=1280 Ns
-- Rule of thumb: ~30–50 m apogee per newton-second (varies with mass and drag)
-- Filter with `openrocket_database(action="motors", impulse_class="D", diameter_mm=18)`
-- Always verify the motor designation exists in the database before assigning it
+**Motor Selection (hard rules only — see `rocketsmith:motor-selection` skill for sizing and thrust-to-weight analysis):**
+- Match motor diameter to the motor mount inner-tube ID
+- Filter candidates with `openrocket_database(action="motors", impulse_class=..., diameter_mm=...)`
+- Always verify the motor designation exists in the database before assigning it (a typo becomes a silent sim failure, not an error)
+- For "what motor should I use?" questions, load the `motor-selection` skill — it queries the `motor_reviews` collection for real-world reports and runs thrust-to-weight checks
 
-**Component Sizing:**
-- Nose cone length: 3–5× body diameter; ogive gives good aerodynamics
-- Fin span: 1–1.5× body diameter; taper ratio 0.3–0.5 is common
-- Motor mount: length ≥ motor length; OD = motor diameter + small clearance
+**Component Geometry (hard rules only):**
+- Motor mount length ≥ motor length; OD = motor diameter + small clearance (typically 0.25–0.5 mm radial)
 - Body tube wall: 1.5–3 mm for cardboard/fiberglass; 3–6 mm for 3D-printed PETG
+- Nose cone, fin, and coupler sizing heuristics have moved to `rocketsmith:cad-handoff` and the skill's `cad_examples` reference collection — consult those when the user asks for specific dimensions
 
 **Mass Assumptions (printed rockets):**
 - OpenRocket's default material for new components is cardboard (~680 kg/m³)
-- Real printed PLA/PETG parts routinely weigh **2–4×** the cardboard default at typical wall/infill settings (40–60% gyroid, 4 perimeters)
-- A design that passes stability analysis with defaults is **not** flight-ready — it needs re-verification against real printed weights via the mass calibration workflow above
-- If the user asks "will this fly stable once printed?" the answer is "only after calibration" — defer the guarantee until real weights are in place
+- Real printed PLA/PETG parts routinely weigh **2–4×** the cardboard default at typical wall/infill settings — a design that passes stability with defaults is **not** flight-ready until the mass calibration workflow above has run
+- If the user asks "will this fly stable once printed?" the answer is "only after calibration"
 
-**Segmented Airframes and Couplers:**
-- Coupler OD = body tube ID
-- Coupler wall: 2–3 mm; length 1.0–1.5× body diameter
-- Positioning: `axial_offset_method="bottom"`, `axial_offset_m=+(coupler_length/2)`
+**Segmented Airframes and Couplers (operational rule — kept here because it's how you *place* a coupler, not how you *size* one):**
+- A coupler is an `inner-tube` child of the forward section
+- Use `axial_offset_method="bottom"` with `axial_offset_m=+(coupler_length/2)` so half the coupler protrudes into the aft section
+- Coupler sizing (OD, wall, length) lives in `rocketsmith:cad-handoff` — do not duplicate here
 
 **Recovery:**
-- Target descent rate: 5–7 m/s
-- Parachute diameter: `d = sqrt(8·m·g / (π·CD·ρ·v²))` where ρ = 1.225 kg/m³
-  - Flat circular: CD ≈ 0.75–1.0; toroidal (e.g. Fruity Chutes): CD ≈ 1.5–2.2
-- Shock cord: 2–3× rocket length
+- Parachute diameter formula (physics): `d = sqrt(8·m·g / (π·CD·ρ·v²))` where ρ = 1.225 kg/m³
+- Target descent rate and CD values are design choices that depend on the specific chute — when the user asks for recommendations, consult the `flight_logs` reference collection via `rag_reference` for real-world descent-rate reports rather than citing a single generic range
 
 ## Approach
 

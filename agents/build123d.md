@@ -82,27 +82,11 @@ Each script ends with `export_step(part, OUTPUT)` where `OUTPUT` is the absolute
 > assembled safely. Generate holes in both the shoulder part (heat-set inserts) and the mating tube (clearance
 > holes, diameter 4.5 mm through the tube wall).
 
-### Mapping OpenRocket Dimensions → build123d (fallback reference)
+### OpenRocket → build123d Parameters
 
-**Prefer `openrocket_cad_handoff`** — it emits every field already in mm, identifies the motor mount, and provides a `derived.body_tube_id_mm` for sizing couplers and centering rings. The table below is a fallback for when you need to derive something by hand from a raw `openrocket_inspect` (metres) output:
+**Always call `openrocket_cad_handoff(rocket_file_path=...)` for the parameter dict** — it emits every field in mm, identifies the motor mount, and provides `derived.body_tube_id_mm` for sizing couplers and centering rings. The return value is the authoritative input to your build123d scripts.
 
-| OpenRocket field | build123d parameter |
-|-----------------|-------------------|
-| body tube `outer_diameter_m` | `TUBE_OD` (mm) |
-| body tube `inner_diameter_m` | `TUBE_ID` = OD − 2×wall (mm) |
-| body tube `length_m` | `TUBE_LEN` (mm) |
-| nose cone `length_m` | `NOSE_LEN` (mm); base OD = body tube OD |
-| nose cone `shape` = ogive | use tangent ogive formula |
-| fin set `root_chord_m` | `ROOT_CHORD` (mm) |
-| fin set `tip_chord_m` | `TIP_CHORD` (mm) |
-| fin set `span_m` | `SPAN` (mm, radial from body surface) |
-| fin set `sweep_length_m` | `SWEEP` (mm, LE sweep) |
-| fin set `thickness_m` | `FIN_THICK` (mm) |
-| fin set `fin_count` | `FIN_COUNT` |
-| inner tube `outer_diameter_m` (motor mount) | `TUBE_OD` (mm); `MOTOR_OD` = motor case diameter |
-| inner tube `length_m` (motor mount) | `TUBE_LEN` (mm) |
-| centering ring | `RING_OD` = body tube ID − 0.2 mm; `RING_ID` = motor tube OD + 0.2 mm |
-| coupler | OD = body tube ID, wall 2–3 mm, length = 1.0–1.5× body diameter |
+Coupler sizing, centering ring clearances, and part-specific heuristics live in the `rocketsmith:cad-handoff` skill (which queries the `cad_examples` reference collection for non-trivial parts). Do not duplicate sizing rules here — if you need a specific value, check the skill and the reference collection rather than a static table in this subagent.
 
 **Coordinate convention:** Z = 0 at fore face (top), Z increases aft. Same axis as OpenRocket.
 
@@ -263,10 +247,13 @@ After each successful run:
 3. If anything looks wrong, fix the script and re-run. Do not accept broken geometry.
 4. Call `build123d_extract` to verify exact bounding box and volume.
 
-## 3D Printed Rockets (FDM) Domain Knowledge
+## 3D Printed Rockets (FDM) — Hard Rules
 
-- Wall thickness: 2–6 mm depending on structural requirements. 6.35 mm (0.25 in) is heavy-duty for large-diameter tubes; 3–4 mm is typical for 100 mm OD tubes
-- Material: PETG preferred for outdoor/UV-exposed parts (better temperature resistance than PLA). Density at 100% infill ≈ 1250 kg/m³
-- Infill: 100% for structural components (body tubes, motor mounts, couplers); 20–40% acceptable for fairings and nose cones where mass matters
-- Mass penalty: thick PETG walls carry 3–4× the mass of a comparable fiberglass kit — account for this when selecting motor impulse class
-- Coupler OD = body tube ID (slides inside cleanly); wall thickness 2–3 mm; length 1.0–1.5× body diameter
+This subagent generates STEP files; it does not make print setting decisions. The material, infill, orientation, and slicer-side sizing rules live in `rocketsmith:print-preparation` (loaded when the user actually prepares a part for printing).
+
+Hard rules that must be baked into the CAD geometry regardless of slicer settings:
+
+- Wall thickness must match the load path. 3–4 mm is typical for ~100 mm OD tubes; 6+ mm for high-power or large-diameter airframes. When in doubt, query the `cad_examples` reference collection for similar parts rather than picking a static default.
+- The lower airframe is a single solid body with integrated fins. **Never emit a separate `fins.step`.** This rule is repeated because it's the single most common CAD mistake.
+- Every coupler shoulder needs 4× M4 radial heat-set holes at 90° spacing; every mating body tube needs 4× clearance holes (4.5 mm Ø through-the-wall) aligned with them.
+- Printed PLA/PETG parts routinely weigh **2–4× OpenRocket's default material estimate**. After generating all parts, the pipeline must continue into `rocketsmith:mass-calibration` before the design is considered flight-ready. This is a pipeline constraint, not a geometry rule.

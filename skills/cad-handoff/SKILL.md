@@ -76,6 +76,25 @@ Each script's `OUTPUT` variable is the absolute path to the STEP file:
 OUTPUT = "/absolute/path/to/parts/<name>.step"
 ```
 
+### 5.5. Check the Reference Collection for Known Templates
+
+Before writing a script from scratch for a non-trivial part (transition sections, compound fins, unusual nose cone shapes, multi-stage couplers), check the `cad_examples` reference collection for a known-good template:
+
+```
+rag_reference(
+    action="search",
+    collection="cad_examples",
+    query=f"{part_type} {distinctive_feature}",
+    n_results=3,
+)
+```
+
+Example queries: `"transition section conical"`, `"swept fin build123d"`, `"tangent ogive shoulder"`, `"compound fin root fillet"`. Use a hit as a starting template rather than writing from scratch — it avoids rediscovering build123d API quirks and coordinate mistakes.
+
+**If the search returns no results**, write the script from scratch using the templates in the build123d subagent. **If the search errors**, proceed silently.
+
+For standard parts (plain body tubes, simple ogive nose cones, trapezoidal fins), skip this step — the subagent's built-in templates are sufficient.
+
 ### 6. Generate Scripts — One Per Part
 
 Write each script with the `Write` tool, then execute it with the `build123d_script` tool:
