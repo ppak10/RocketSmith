@@ -2,5 +2,11 @@
   "name": "rocketsmith",
   "description": "Use agents to design and build high powered rockets",
   "version": "0.0.11",
-  "contextFileName": "GEMINI.md"
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "rocketsmith": {
+      "command": "uv",
+      "args": ["run", "--directory", "${extensionPath}", "python", "-m", "rocketsmith.mcp"]
+    }
+  }
 }
