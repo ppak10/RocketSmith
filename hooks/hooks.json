@@ -4,7 +4,7 @@
       {
         "name": "rocketsmith-dep-check",
         "type": "command",
-        "command": "uv run --directory ${extensionPath} rocketsmith setup check",
+        "command": "${extensionPath}/hooks/check-deps.sh",
         "timeout": 10000
       }
     ]
