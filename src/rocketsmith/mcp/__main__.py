@@ -1,3 +1,10 @@
+import logging
+import sys
+
+# MCP communicates over stdio. Redirect all logging to stderr so nothing
+# from this process or its dependencies can corrupt the JSON-RPC stream on stdout.
+logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
+
 from mcp.server.fastmcp import FastMCP
 
 from rocketsmith.mcp.setup import register_setup

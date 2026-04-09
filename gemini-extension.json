@@ -6,7 +6,10 @@
   "mcpServers": {
     "rocketsmith": {
       "command": "uv",
-      "args": ["run", "--directory", "${extensionPath}", "python", "-m", "rocketsmith.mcp"]
+      "args": ["run", "--directory", "${extensionPath}", "python", "-m", "rocketsmith.mcp"],
+      "env": {
+        "PYTHONPATH": "${extensionPath}/src"
+      }
     }
   }
 }
