@@ -23,45 +23,115 @@ Mass calibration closes the loop: slice each printed part, read the filament wei
 ## Preconditions
 
 1. The design has already passed an initial stability check in the 1.0–1.5 cal range with default masses. If not, run `rocketsmith:stability-analysis` first — calibrating on an already-unstable design just obscures the root cause.
-2. Each printed part has a sliced `.gcode` file with a `filament_used_g` reading. If any part is missing, slice it first.
+2. `<project_dir>/parts_manifest.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
+3. Each printed part listed in the manifest has a sliced `.gcode` file with a `filament_used_g` reading. If any part is missing, slice it first.
 
 ## Steps
 
-### 1. Collect Measured Weights
+### 1. Load the Parts Manifest
 
-For every part that will be printed, read the `filament_used_g` field from the corresponding `prusaslicer_slice` result. Build a mapping:
+```
+manifest = read_json("<project_dir>/parts_manifest.json")
+```
+
+The two sections you care about are:
+
+- **`parts`** — each entry has a `name`, a `gcode_path`, and a `derived_from` list of the OR components the part was assembled from (post-fusion)
+- **`component_to_part_map`** — the inverse lookup: for every OR component in the `.ork` file, it tells you which printed part absorbed it, or that the component was `"skipped"` or `"purchased"` and does not need calibration
+
+If the manifest is missing, stop and ask the build123d subagent to regenerate it. Do not guess the mapping from filenames.
+
+### 2. Collect Measured Weights
+
+For each entry in `manifest["parts"]`, read the `filament_used_g` value from the gcode (returned by `prusaslicer_slice`) and associate it with the `derived_from` list:
 
 ```
 {
-  "Nose Cone":       18.4,   # grams
-  "Upper Airframe":  62.1,
-  "Lower Airframe":  89.7,   # includes integrated fins
-  "Motor Mount":     14.2,
-  "Centering Ring":  4.1,    # ×2 → 8.2 total
-  ...
+  "nose_cone":       {"grams": 18.4, "derived_from": ["NoseCone"]},
+  "upper_airframe":  {"grams": 62.1, "derived_from": ["BodyTube:Upper", "TubeCoupler:UpperAft"]},
+  "lower_airframe":  {"grams": 89.7, "derived_from": ["BodyTube:Lower", "TrapezoidFinSet",
+                                                       "InnerTube:MotorMount",
+                                                       "CenteringRing:Fore", "CenteringRing:Aft"]}
 }
 ```
 
-If a part is printed as multiple copies (e.g. centering rings ×2), sum them before applying the override — OpenRocket only has one component per instance.
+If a part is printed as multiple copies (centering rings printed ×2, booster fins printed ×3), the manifest's `features` block records the quantity — sum the weights before applying.
 
-### 2. Apply Each Override
+### 3. Apply the Overrides — Fused Parts Need Special Handling
 
-For each measured weight, call `openrocket_component` with **action="update"** and `override_mass_kg` in **kilograms** (divide grams by 1000):
+Because the DFAM skill fuses components aggressively, one printed part often corresponds to **multiple OR components**. The override strategy depends on how many components a part was derived from.
+
+#### Case A: One printed part → one OR component (simple)
 
 ```
 openrocket_component(
     action="update",
     rocket_file_path=<path>,
-    component_name="Upper Airframe",
-    override_mass_kg=0.0621,   # 62.1 g → 0.0621 kg
+    component_name="Nose Cone",
+    override_mass_kg=0.0184,   # 18.4 g → 0.0184 kg
 )
 ```
 
-Setting `override_mass_kg` implicitly enables the override flag. You do not need to pass `override_mass_enabled=True` separately.
+#### Case B: One printed part → multiple OR components (fused)
 
-**Units gotcha:** If you pass grams (62.1) instead of kilograms (0.0621), OpenRocket will treat the component as weighing 62 kg and simulated apogee will collapse to near zero. Always divide by 1000.
+When the `derived_from` list has more than one entry, the printed weight covers the combined mass of all of them. You have two options:
 
-### 3. Re-Run the Simulation
+**Option B1 (recommended — pin all, distribute proportionally):**
+For each OR component in `derived_from`, compute its share of the original OR-estimated mass, then apply that share of the measured printed weight:
+
+```
+# Read each OR component's default (OR-estimated) mass via openrocket_component(action="read")
+defaults = {
+    "BodyTube:Lower":           0.0541,   # 54.1 g
+    "TrapezoidFinSet":           0.0082,   # 8.2 g
+    "InnerTube:MotorMount":      0.0089,   # 8.9 g
+    "CenteringRing:Fore":        0.0031,
+    "CenteringRing:Aft":         0.0031,
+}
+total_default = sum(defaults.values())      # 0.0774 kg
+measured = 0.0897                            # 89.7 g printed
+
+# Distribute the measured weight proportionally
+for component, default_mass in defaults.items():
+    share = (default_mass / total_default) * measured
+    openrocket_component(
+        action="update",
+        rocket_file_path=<path>,
+        component_name=component,
+        override_mass_kg=share,
+    )
+```
+
+This preserves the CG distribution within the printed part, which matters for the fin set's position affecting stability.
+
+**Option B2 (simpler — pin primary, zero the rest):**
+Apply the full measured weight to the first (primary) component in `derived_from` and zero out the others:
+
+```
+openrocket_component(
+    action="update",
+    rocket_file_path=<path>,
+    component_name="BodyTube:Lower",
+    override_mass_kg=0.0897,   # full 89.7 g
+)
+for secondary in ["TrapezoidFinSet", "InnerTube:MotorMount", "CenteringRing:Fore", "CenteringRing:Aft"]:
+    openrocket_component(
+        action="update",
+        rocket_file_path=<path>,
+        component_name=secondary,
+        override_mass_kg=0.0,
+    )
+```
+
+Option B2 is simpler but collapses the mass to a single point, which can shift CG compared to option B1. Use B2 only when the printed part is short enough that intra-part CG shift is negligible (small LPR parts). **Default to option B1 for mid-power and above.**
+
+#### Case C: OR component → skipped or purchased
+
+Components marked `"skipped"` or `"purchased"` in `component_to_part_map` are not printed. For **skipped** components (parachutes, ballast), leave their OR-default mass alone — it reflects the actual physical item. For **purchased** components (COTS body tubes, motor tubes in hybrid builds), apply the vendor's published mass as an override if available, otherwise leave the OR-default in place and flag it.
+
+**Units gotcha (always):** If you pass grams (62.1) instead of kilograms (0.0621), OpenRocket will treat the component as weighing 62 kg and simulated apogee will collapse to near zero. Always divide by 1000.
+
+### 4. Re-Run the Simulation
 
 ```
 openrocket_simulate(rocket_file_path=<path>)
@@ -69,7 +139,7 @@ openrocket_simulate(rocket_file_path=<path>)
 
 Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
 
-### 4. Compare Before and After
+### 5. Compare Before and After
 
 | Metric | Baseline | Calibrated | Action |
 |--------|---------|-----------|--------|
@@ -80,7 +150,7 @@ Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
 
 Apply fixes one at a time. After each fix, re-run `openrocket_simulate` (the overrides are already in place — you don't need to re-apply them).
 
-### 5. Confirm and Record
+### 6. Confirm and Record
 
 Once stability is back in range, report the final mass budget to the user:
 
@@ -98,9 +168,11 @@ Final calibrated mass budget:
 ## Red Flags — Stop and Fix
 
 - A filament weight was passed in grams instead of kilograms (apogee will drop to near zero — obvious in the simulation output)
-- Only some printed parts had overrides applied, not all of them — mixing real and default masses skews CG
-- Override was applied to a component that will not actually be printed (e.g. a parachute or cardboard component that stays as-default)
-- Stability fell below 1.0 after calibration and the fix was to add override_mass_kg on the nose cone rather than adding a real nose weight mass component — the override pins the nose cone mass, it does not add ballast that moves CG forward in a physically meaningful way. Add a `mass` component with the required ballast and a realistic position.
+- The parts manifest was ignored and the mapping was guessed from filenames — always use `component_to_part_map`, never improvise
+- A fused part's mass was pinned entirely to a single OR component when `derived_from` has multiple entries — use Option B1 (proportional distribution) for mid-power and above, or Option B2 (pin primary, zero secondaries) only for small LPR parts
+- Only some parts in the manifest had overrides applied — every printed part in the manifest must be covered, otherwise you're mixing real and default masses and skewing CG
+- An override was applied to a component whose `component_to_part_map` entry is `"skipped"` or `"purchased"` — these should not receive mass overrides from printed-part weights
+- Stability fell below 1.0 after calibration and the fix was to add `override_mass_kg` on the nose cone rather than adding a real nose-weight `mass` component — the override pins the nose cone mass, it does not add ballast that moves CG forward. Add a `mass` component with the required ballast and a realistic position.
 - The override was disabled with `override_mass_enabled=False` and the file was saved — OpenRocket does not persist the stored value when the override is disabled, so the calibration is lost on the next reload. Either keep overrides enabled, or track measured weights externally (in a project note) so they can be re-applied.
 
 ## Quick Reference

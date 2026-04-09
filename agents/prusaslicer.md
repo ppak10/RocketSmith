@@ -14,7 +14,7 @@ description: >
   <example>
   Context: User wants to slice all rocket parts in one go.
   user: 'Slice all the parts'
-  assistant: 'I'll use the prusaslicer agent to slice each STEP file in the parts/ directory.'
+  assistant: 'I'll use the prusaslicer agent to slice each STEP file in the CAD/ directory and write gcode to gcode/.'
   <commentary>Batch slicing requires calling prusaslicer_slice once per part file.</commentary>
   </example>
   <example>

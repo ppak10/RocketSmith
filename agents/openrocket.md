@@ -164,7 +164,7 @@ Call `openrocket_inspect` after each section to verify placement before continui
 **Component Geometry (hard rules only):**
 - Motor mount length ≥ motor length; OD = motor diameter + small clearance (typically 0.25–0.5 mm radial)
 - Body tube wall: 1.5–3 mm for cardboard/fiberglass; 3–6 mm for 3D-printed PETG
-- Nose cone, fin, and coupler sizing heuristics have moved to `rocketsmith:cad-handoff` and the skill's `cad_examples` reference collection — consult those when the user asks for specific dimensions
+- Nose cone, fin, and coupler sizing heuristics have moved to `rocketsmith:design-for-additive-manufacturing` and the `cad_examples` reference collection — consult those when the user asks for specific dimensions
 
 **Mass Assumptions (printed rockets):**
 - OpenRocket's default material for new components is cardboard (~680 kg/m³)
@@ -174,7 +174,7 @@ Call `openrocket_inspect` after each section to verify placement before continui
 **Segmented Airframes and Couplers (operational rule — kept here because it's how you *place* a coupler, not how you *size* one):**
 - A coupler is an `inner-tube` child of the forward section
 - Use `axial_offset_method="bottom"` with `axial_offset_m=+(coupler_length/2)` so half the coupler protrudes into the aft section
-- Coupler sizing (OD, wall, length) lives in `rocketsmith:cad-handoff` — do not duplicate here
+- Coupler sizing (OD, wall, length) lives in `rocketsmith:design-for-additive-manufacturing` — do not duplicate here
 
 **Recovery:**
 - Parachute diameter formula (physics): `d = sqrt(8·m·g / (π·CD·ρ·v²))` where ρ = 1.225 kg/m³

@@ -21,7 +21,7 @@ Slicing converts STEP files into printer-ready gcode. Settings vary significantl
 
 ### 1. Confirm STEP Files Exist
 
-Verify all parts are present in `<project_dir>/parts/` before slicing. If any are missing, use the `rocketsmith:cad-handoff` skill to generate them.
+Verify all parts listed in `<project_dir>/parts_manifest.json` have corresponding STEP files in `<project_dir>/CAD/`. If any are missing, use the `rocketsmith:generate-cad` skill to produce them from the manifest.
 
 ### 2. Choose Settings Per Part
 

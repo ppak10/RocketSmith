@@ -1,7 +1,7 @@
 {
   "name": "rocketsmith",
   "description": "Use agents to design and build high powered rockets",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "rocketsmith": {
@@ -9,7 +9,7 @@
       "args": ["run", "--directory", "${extensionPath}", "python", "-m", "rocketsmith.mcp"],
       "env": {
         "PYTHONPATH": "${extensionPath}/src",
-        "ROCKETSMITH_PROJECT_DIR": "${cwd}"
+        "ROCKETSMITH_PROJECT_DIR": "${workspacePath}"
       }
     }
   }
