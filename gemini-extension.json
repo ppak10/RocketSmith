@@ -11,5 +11,15 @@
         "PYTHONPATH": "${extensionPath}/src"
       }
     }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "name": "rocketsmith-dep-check",
+        "type": "command",
+        "command": "uv run --directory ${extensionPath} rocketsmith setup check",
+        "timeout": 10000
+      }
+    ]
   }
 }
