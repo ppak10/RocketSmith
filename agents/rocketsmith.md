@@ -67,9 +67,45 @@ When handing off between phases, pass the key outputs explicitly:
 - **build123d → prusaslicer**: provide the list of generated STEP file paths in `<project_dir>/parts/`
 - **prusaslicer → openrocket (calibration)**: provide a mapping of component name → `filament_used_g` for every printed part. Each entry becomes an `override_mass_kg` update on the corresponding `openrocket_component` (divide grams by 1000).
 
-## Project Directory
+## Project Directory (MANDATORY STEP 0)
 
-Use the user's current working directory (or a directory they specify) as the project root:
-- `.ork` design file: `<project_dir>/<name>.ork`
-- STEP files: `<project_dir>/parts/<part_name>.step`
-- Gcode files: `<project_dir>/parts/<part_name>.gcode`
+Before invoking any MCP tool that writes a file, you **must** establish a project directory and pass absolute paths to every tool. Do not rely on default paths.
+
+**Why this matters:** the `rocketsmith` MCP server runs as a subprocess spawned by Gemini CLI with `uv run --directory ${extensionPath}`. Inside that subprocess, `Path.cwd()` is the extension's install directory (e.g. `~/.gemini/extensions/rocketsmith/`), not the user's project. If you let a tool default its output path, the file will end up inside the extension directory — invisible to the user and not adjacent to the rest of the project artefacts.
+
+**Procedure:**
+
+1. **Call `Bash("pwd")` as the very first action** in any session where you will write files. The result is the user's session cwd — use that as your project root.
+2. **Confirm or override with the user** if the directory looks wrong (e.g. the user's home directory, or an unrelated project). Ask: "I'll put the rocket design and parts under `<pwd>`. Is that right, or would you like a different directory?"
+3. **Record the project root** in your working notes and use it for every subsequent tool call.
+
+**Layout:**
+
+```
+<project_dir>/
+├── <rocket_name>.ork          ← OpenRocket design file
+└── parts/
+    ├── nose_cone.step         ← CAD outputs
+    ├── upper_airframe.step
+    ├── lower_airframe.step
+    ├── motor_mount.step
+    ├── centering_ring.step
+    ├── nose_cone.gcode        ← slicer outputs
+    ├── upper_airframe.gcode
+    └── ...
+```
+
+**Absolute path discipline (required for every tool call):**
+
+- `openrocket_new(name="H100W", out_path="<project_dir>/H100W.ork")` — never omit `out_path`
+- `openrocket_cad_handoff(rocket_file_path="<project_dir>/H100W.ork")` — absolute
+- `build123d_script(script_path="<project_dir>/parts/nose_cone.py", out_dir="<project_dir>/parts")` — absolute
+- `prusaslicer_slice(model_file_path="<project_dir>/parts/nose_cone.step")` — absolute
+
+**Create the `parts/` subdirectory** before calling `build123d_script` for the first time:
+
+```
+Bash("mkdir -p <project_dir>/parts")
+```
+
+**Naming:** the `name` parameter on `openrocket_new` is the **display name** shown inside OpenRocket's UI — it is not a filename. Do not include `.ork` in it. The filename comes from `out_path`.

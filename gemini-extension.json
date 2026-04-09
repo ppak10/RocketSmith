@@ -8,7 +8,8 @@
       "command": "uv",
       "args": ["run", "--directory", "${extensionPath}", "python", "-m", "rocketsmith.mcp"],
       "env": {
-        "PYTHONPATH": "${extensionPath}/src"
+        "PYTHONPATH": "${extensionPath}/src",
+        "ROCKETSMITH_PROJECT_DIR": "${cwd}"
       }
     }
   }
