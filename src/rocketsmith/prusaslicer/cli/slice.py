@@ -8,18 +8,22 @@ from typing_extensions import Annotated
 
 from rocketsmith.prusaslicer.models import Material
 from rocketsmith.prusaslicer.utils import get_prusaslicer_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_prusaslicer_slice(app: typer.Typer):
     @app.command(name="slice")
     def prusaslicer_slice(
-        model_filename: Annotated[
-            str,
-            typer.Argument(help="Filename of the model in the workspace parts/ folder."),
+        model_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the model file (.stl, .step, .3mf, .obj)."),
         ],
-        workspace_option: WorkspaceOption = None,
+        out_path: Annotated[
+            Path | None,
+            typer.Option(
+                "--out",
+                help="Path to save the .gcode output. Defaults to model file with .gcode extension.",
+            ),
+        ] = None,
         material: Annotated[
             Material,
             typer.Option(
@@ -42,7 +46,7 @@ def register_prusaslicer_slice(app: typer.Typer):
             ),
         ] = None,
     ) -> None:
-        """Slice a model file from the workspace parts/ folder."""
+        """Slice a 3D model file using PrusaSlicer."""
         from rocketsmith.prusaslicer.slice import slice as ps_slice
 
         try:
@@ -51,20 +55,19 @@ def register_prusaslicer_slice(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-        model_path = workspace.path / "parts" / model_filename
-
-        if not model_path.exists():
-            rprint(f"⚠️  [yellow]Model file not found: {model_path}[/yellow]")
+        if not model_file_path.exists():
+            rprint(f"⚠️  [yellow]Model file not found: {model_file_path}[/yellow]")
             raise typer.Exit(1)
 
-        output_path = workspace.path / "parts" / model_path.with_suffix(".gcode").name
+        output_path = (
+            out_path if out_path is not None else model_file_path.with_suffix(".gcode")
+        )
 
-        rprint(f"[blue]Slicing:[/blue] [cyan]{model_path}[/cyan]")
+        rprint(f"[blue]Slicing:[/blue] [cyan]{model_file_path}[/cyan]")
 
         try:
             result = ps_slice(
-                model_path=model_path,
+                model_path=model_file_path,
                 output_path=output_path,
                 config_path=config_path,
                 prusaslicer_path=exe,
@@ -74,7 +77,7 @@ def register_prusaslicer_slice(app: typer.Typer):
             rprint(f"⚠️  [yellow]Slicing failed: {e}[/yellow]")
             raise typer.Exit(1)
 
-        table = Table(title=model_filename)
+        table = Table(title=model_file_path.name)
         table.add_column("G-code", style="cyan")
         table.add_column("Material", justify="right")
         table.add_column("Print Time", justify="right")

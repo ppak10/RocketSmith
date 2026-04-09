@@ -1,21 +1,18 @@
 import typer
 
+from pathlib import Path
 from rich import print as rprint
 from typing_extensions import Annotated
 
 from rocketsmith.openrocket.utils import get_openrocket_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_openrocket_delete_component(app: typer.Typer):
     @app.command(name="delete-component")
     def openrocket_delete_component(
-        filename: Annotated[
-            str,
-            typer.Argument(
-                help="Filename of the .ork or .rkt file in the workspace openrocket/ folder."
-            ),
+        rocket_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the .ork or .rkt design file."),
         ],
         component_name: Annotated[
             str,
@@ -23,7 +20,6 @@ def register_openrocket_delete_component(app: typer.Typer):
                 help="Name of the component to delete (as shown by inspect)."
             ),
         ],
-        workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
             typer.Option(
@@ -41,19 +37,12 @@ def register_openrocket_delete_component(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
-            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
+        if not rocket_file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
-            deleted = delete_component(file_path, component_name, jar)
+            deleted = delete_component(rocket_file_path, component_name, jar)
         except ValueError as e:
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
@@ -61,6 +50,8 @@ def register_openrocket_delete_component(app: typer.Typer):
             rprint(f"⚠️  [yellow]Failed to delete component: {e}[/yellow]")
             raise typer.Exit(1)
 
-        rprint(f"✅ Deleted [cyan]{deleted}[/cyan] from [cyan]{file_path.name}[/cyan]")
+        rprint(
+            f"✅ Deleted [cyan]{deleted}[/cyan] from [cyan]{rocket_file_path.name}[/cyan]"
+        )
 
     return openrocket_delete_component

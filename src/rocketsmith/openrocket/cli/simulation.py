@@ -1,25 +1,21 @@
 import typer
 
+from pathlib import Path
 from rich import print as rprint
 from rich.table import Table
 from rich.console import Console
 from typing_extensions import Annotated
 
 from rocketsmith.openrocket.utils import get_openrocket_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_openrocket_run_simulation(app: typer.Typer):
     @app.command(name="run-simulation")
     def openrocket_run_simulation(
-        filename: Annotated[
-            str,
-            typer.Argument(
-                help="Filename of the .ork or .rkt design file in the workspace openrocket/ folder."
-            ),
+        rocket_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the .ork or .rkt design file."),
         ],
-        workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
             typer.Option(
@@ -38,26 +34,19 @@ def register_openrocket_run_simulation(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
-            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
+        if not rocket_file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
-        rprint(f"[blue]Running simulations in:[/blue] [cyan]{file_path}[/cyan]")
+        rprint(f"[blue]Running simulations in:[/blue] [cyan]{rocket_file_path}[/cyan]")
 
         try:
-            results = run_simulation(file_path, jar)
+            results = run_simulation(rocket_file_path, jar)
         except Exception as e:
             rprint(f"⚠️  [yellow]Simulation failed: {e}[/yellow]")
             raise typer.Exit(1)
 
-        table = Table(title=filename)
+        table = Table(title=rocket_file_path.name)
         table.add_column("Simulation", style="cyan")
         table.add_column("Max Altitude", justify="right")
         table.add_column("Max Velocity", justify="right")

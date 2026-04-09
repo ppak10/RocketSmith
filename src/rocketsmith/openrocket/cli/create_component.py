@@ -1,5 +1,6 @@
 import typer
 
+from pathlib import Path
 from rich import print as rprint
 from rich.table import Table
 from rich.console import Console
@@ -7,18 +8,14 @@ from typing_extensions import Annotated
 
 from rocketsmith.openrocket.components import COMPONENT_TYPES
 from rocketsmith.openrocket.utils import get_openrocket_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_openrocket_create_component(app: typer.Typer):
     @app.command(name="create-component")
     def openrocket_create_component(
-        filename: Annotated[
-            str,
-            typer.Argument(
-                help="Filename of the .ork or .rkt file in the workspace openrocket/ folder."
-            ),
+        rocket_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the .ork or .rkt design file."),
         ],
         component_type: Annotated[
             str,
@@ -26,7 +23,6 @@ def register_openrocket_create_component(app: typer.Typer):
                 help=f"Component type to add. One of: {', '.join(COMPONENT_TYPES)}."
             ),
         ],
-        workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
             typer.Option(
@@ -135,20 +131,13 @@ def register_openrocket_create_component(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
-            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
+        if not rocket_file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
             info = create_component(
-                path=file_path,
+                path=rocket_file_path,
                 component_type=component_type,
                 jar_path=jar,
                 parent_name=parent,
@@ -184,6 +173,6 @@ def register_openrocket_create_component(app: typer.Typer):
             table.add_row(key, str(value))
 
         Console().print(table)
-        rprint(f"✅ Saved [cyan]{file_path.name}[/cyan]")
+        rprint(f"✅ Saved [cyan]{rocket_file_path.name}[/cyan]")
 
     return openrocket_create_component

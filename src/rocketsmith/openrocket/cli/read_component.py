@@ -1,29 +1,25 @@
 import typer
 
+from pathlib import Path
 from rich import print as rprint
 from rich.table import Table
 from rich.console import Console
 from typing_extensions import Annotated
 
 from rocketsmith.openrocket.utils import get_openrocket_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_openrocket_read_component(app: typer.Typer):
     @app.command(name="read-component")
     def openrocket_read_component(
-        filename: Annotated[
-            str,
-            typer.Argument(
-                help="Filename of the .ork or .rkt file in the workspace openrocket/ folder."
-            ),
+        rocket_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the .ork or .rkt design file."),
         ],
         component_name: Annotated[
             str,
             typer.Argument(help="Name of the component to read (as shown by inspect)."),
         ],
-        workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
             typer.Option(
@@ -41,19 +37,12 @@ def register_openrocket_read_component(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
-            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
+        if not rocket_file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
-            info = read_component(file_path, component_name, jar)
+            info = read_component(rocket_file_path, component_name, jar)
         except ValueError as e:
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)

@@ -1,24 +1,19 @@
 import typer
 
+from pathlib import Path
 from typing_extensions import Annotated
 from rich import print as rprint
 from rich.table import Table
 from rich.console import Console
 
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
-
 
 def register_build123d_extract(app: typer.Typer):
     @app.command(name="extract")
     def build123d_extract(
-        step_filename: Annotated[
-            str,
-            typer.Argument(
-                help="Filename of the STEP file in the workspace parts/ folder."
-            ),
+        step_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the STEP file."),
         ],
-        workspace_option: WorkspaceOption = None,
         density: Annotated[
             float | None,
             typer.Option(
@@ -30,23 +25,20 @@ def register_build123d_extract(app: typer.Typer):
         """Extract and display geometric properties from a STEP file."""
         from rocketsmith.build123d.extract import extract_geometry
 
-        workspace = get_workspace(workspace_option)
-        step_path = workspace.path / "parts" / step_filename
-
-        if not step_path.exists():
-            rprint(f"⚠️  [yellow]File not found: {step_path}[/yellow]")
+        if not step_file_path.exists():
+            rprint(f"⚠️  [yellow]File not found: {step_file_path}[/yellow]")
             raise typer.Exit(1)
 
-        rprint(f"[dim]Analysing [cyan]{step_path.name}[/cyan]...[/dim]")
+        rprint(f"[dim]Analysing [cyan]{step_file_path.name}[/cyan]...[/dim]")
 
         try:
-            geo = extract_geometry(step_path, material_density_kg_m3=density)
+            geo = extract_geometry(step_file_path, material_density_kg_m3=density)
         except Exception as e:
             rprint(f"⚠️  [yellow]Failed to extract geometry: {e}[/yellow]")
             raise typer.Exit(1)
 
         table = Table(
-            title=str(step_path.name), show_header=False, box=None, padding=(0, 2)
+            title=str(step_file_path.name), show_header=False, box=None, padding=(0, 2)
         )
         table.add_column("Property", style="dim")
         table.add_column("Value", style="cyan")

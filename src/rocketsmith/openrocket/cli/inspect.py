@@ -1,25 +1,21 @@
 import typer
 
+from pathlib import Path
 from rich import print as rprint
 from rich.tree import Tree
 from rich.console import Console
 from typing_extensions import Annotated
 
 from rocketsmith.openrocket.utils import get_openrocket_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_openrocket_inspect(app: typer.Typer):
     @app.command(name="inspect")
     def openrocket_inspect(
-        filename: Annotated[
-            str,
-            typer.Argument(
-                help="Filename of the .ork or .rkt file in the workspace openrocket/ folder."
-            ),
+        rocket_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the .ork or .rkt design file."),
         ],
-        workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
             typer.Option(
@@ -37,19 +33,12 @@ def register_openrocket_inspect(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
-            rprint(f"⚠️  [yellow]Design file not found: {file_path}[/yellow]")
+        if not rocket_file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
-            result = inspect_rocket_file(file_path, jar)
+            result = inspect_rocket_file(rocket_file_path, jar)
             components = result["components"]
         except Exception as e:
             rprint(f"⚠️  [yellow]Failed to inspect design file: {e}[/yellow]")
@@ -69,7 +58,7 @@ def register_openrocket_inspect(app: typer.Typer):
         console.print()
 
         # ── Component tree ────────────────────────────────────────────────
-        root_label = f"[bold]{filename}[/bold]"
+        root_label = f"[bold]{rocket_file_path.name}[/bold]"
         rich_tree = Tree(root_label)
         stack = [(rich_tree, -1)]  # (node, depth)
 
