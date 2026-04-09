@@ -2,10 +2,14 @@
   "hooks": {
     "SessionStart": [
       {
-        "name": "rocketsmith-dep-check",
-        "type": "command",
-        "command": "${extensionPath}/hooks/check-deps.sh",
-        "timeout": 10000
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${extensionPath}/hooks/run-hook.cmd\" session-start",
+            "async": false
+          }
+        ]
       }
     ]
   }
