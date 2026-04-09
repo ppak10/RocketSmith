@@ -6,7 +6,7 @@ def register_openrocket_new(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
+    from rocketsmith.mcp.utils import tool_success, tool_error
 
     @app.tool(
         title="New OpenRocket File",
@@ -15,8 +15,7 @@ def register_openrocket_new(app: FastMCP):
     )
     async def openrocket_new(
         name: str,
-        workspace_name: str | None = None,
-        ork_filename: str | None = None,
+        out_path: Path | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
@@ -24,33 +23,26 @@ def register_openrocket_new(app: FastMCP):
 
         Args:
             name: Display name for the rocket (stored inside the .ork file).
-            workspace_name: Name of the workspace to create the file in.
-            ork_filename: Name of the .ork file to save in the workspace's openrocket folder (defaults to {name}.ork).
+            out_path: Path to save the .ork file. Defaults to {name}.ork in the
+                      current working directory. The .ork extension is added if absent.
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
         """
         from rocketsmith.openrocket.components import new_ork
         from rocketsmith.openrocket.utils import get_openrocket_path
 
-        workspace_or_error = resolve_workspace(workspace_name)
-        if isinstance(workspace_or_error, ToolError):
-            return workspace_or_error
-        workspace = workspace_or_error
+        if out_path is None:
+            out_path = Path.cwd() / f"{name}.ork"
 
-        if not ork_filename:
-            ork_filename = f"{name}.ork"
-
-        if not ork_filename.endswith(".ork"):
-            ork_filename += ".ork"
-
-        output_path = workspace.path / "openrocket" / ork_filename
+        if not str(out_path).endswith(".ork"):
+            out_path = out_path.with_suffix(".ork")
 
         try:
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
 
             result_path = new_ork(
-                name=name, output_path=output_path, jar_path=openrocket_path
+                name=name, output_path=out_path, jar_path=openrocket_path
             )
             return tool_success({"path": str(result_path), "name": name})
 
@@ -68,7 +60,5 @@ def register_openrocket_new(app: FastMCP):
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )
-
-    _ = openrocket_new
 
     _ = openrocket_new

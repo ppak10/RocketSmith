@@ -33,14 +33,12 @@ async def test_create_missing_motor_designation_returns_error(mcp_app, tmp_path)
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         # motor_designation intentionally omitted
     )
 
@@ -53,14 +51,12 @@ async def test_delete_missing_sim_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         # sim_name intentionally omitted
     )
 
@@ -73,17 +69,12 @@ async def test_motor_not_found_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    from unittest.mock import patch
-    from rocketsmith.openrocket.components import new_ork
-
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         motor_designation="ZZZ999",
     )
@@ -103,9 +94,7 @@ async def test_motor_not_found_returns_error(mcp_app, tmp_path):
 async def test_create_simulation(mcp_app, openrocket_jar, tmp_path):
     from rocketsmith.openrocket.components import new_ork, create_component
 
-    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    ork_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    ork_path.parent.mkdir(parents=True, exist_ok=True)
+    ork_path = tmp_path / "test.ork"
     new_ork("Test Rocket", ork_path, openrocket_jar)
     create_component(ork_path, "body-tube", openrocket_jar, diameter=0.064, length=0.4)
     create_component(ork_path, "inner-tube", openrocket_jar, diameter=0.029, length=0.1)
@@ -115,8 +104,7 @@ async def test_create_simulation(mcp_app, openrocket_jar, tmp_path):
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=ork_path,
         openrocket_path=openrocket_jar,
         motor_designation="D12",
     )
@@ -131,9 +119,7 @@ async def test_create_simulation(mcp_app, openrocket_jar, tmp_path):
 async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
     from rocketsmith.openrocket.components import new_ork, create_component
 
-    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    ork_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    ork_path.parent.mkdir(parents=True, exist_ok=True)
+    ork_path = tmp_path / "test.ork"
     new_ork("Test Rocket", ork_path, openrocket_jar)
     create_component(ork_path, "body-tube", openrocket_jar, diameter=0.064, length=0.4)
     create_component(ork_path, "inner-tube", openrocket_jar, diameter=0.029, length=0.1)
@@ -143,8 +129,7 @@ async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
 
     create_result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=ork_path,
         openrocket_path=openrocket_jar,
         motor_designation="D12",
         sim_name="My Sim",
@@ -153,8 +138,7 @@ async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
 
     delete_result = await tool.fn(
         action="delete",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=ork_path,
         openrocket_path=openrocket_jar,
         sim_name="My Sim",
     )
@@ -166,8 +150,7 @@ async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
 async def test_delete_nonexistent_sim_returns_error(mcp_app, openrocket_jar, tmp_path):
     from rocketsmith.openrocket.components import new_ork
 
-    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = tmp_path / "test.ork"
     new_ork("Test Rocket", path, openrocket_jar)
 
     tools = mcp_app._tool_manager.list_tools()
@@ -175,8 +158,7 @@ async def test_delete_nonexistent_sim_returns_error(mcp_app, openrocket_jar, tmp
 
     result = await tool.fn(
         action="delete",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=path,
         openrocket_path=openrocket_jar,
         sim_name="NonExistent",
     )
@@ -191,9 +173,7 @@ async def test_create_then_simulate(mcp_app, openrocket_jar, tmp_path):
     from rocketsmith.openrocket.components import new_ork, create_component
     from rocketsmith.openrocket.simulation import run_simulation
 
-    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    ork_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    ork_path.parent.mkdir(parents=True, exist_ok=True)
+    ork_path = tmp_path / "test.ork"
     new_ork("Test Rocket", ork_path, openrocket_jar)
     create_component(
         ork_path,
@@ -220,8 +200,7 @@ async def test_create_then_simulate(mcp_app, openrocket_jar, tmp_path):
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=ork_path,
         openrocket_path=openrocket_jar,
         motor_designation="D12",
     )

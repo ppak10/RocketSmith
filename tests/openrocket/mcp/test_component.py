@@ -20,8 +20,7 @@ def mcp_app():
 def tmp_ork(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork
 
-    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = tmp_path / "test.ork"
     new_ork("Test Rocket", path, openrocket_jar)
     return path
 
@@ -43,14 +42,12 @@ async def test_create_missing_component_type_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_type intentionally omitted
     )
@@ -64,14 +61,12 @@ async def test_read_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="read",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_name intentionally omitted
     )
@@ -85,14 +80,12 @@ async def test_update_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="update",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_name intentionally omitted
     )
@@ -106,14 +99,12 @@ async def test_delete_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="delete",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_name intentionally omitted
     )
@@ -127,14 +118,12 @@ async def test_create_unknown_type_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
-    p = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "test.ork"
     p.touch()
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         component_type="laser-cannon",
     )
@@ -153,8 +142,7 @@ async def test_create_nose_cone(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="TestNose",
@@ -177,8 +165,7 @@ async def test_create_body_tube(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="body-tube",
         name="MainTube",
@@ -199,8 +186,7 @@ async def test_read_component(mcp_app, tmp_ork, openrocket_jar):
     # Create first
     await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="ReadMe",
@@ -209,8 +195,7 @@ async def test_read_component(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="read",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="ReadMe",
     )
@@ -230,8 +215,7 @@ async def test_read_nonexistent_component_returns_error(
 
     result = await tool.fn(
         action="read",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="NoSuchComponent",
     )
@@ -247,8 +231,7 @@ async def test_update_component(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="UpdateMe",
@@ -257,8 +240,7 @@ async def test_update_component(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="update",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="UpdateMe",
         length=0.45,
@@ -275,8 +257,7 @@ async def test_update_preserves_other_properties(mcp_app, tmp_ork, openrocket_ja
 
     await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="Preserve",
@@ -286,8 +267,7 @@ async def test_update_preserves_other_properties(mcp_app, tmp_ork, openrocket_ja
 
     result = await tool.fn(
         action="update",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="Preserve",
         length=0.35,
@@ -304,8 +284,7 @@ async def test_delete_component(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="DeleteMe",
@@ -313,8 +292,7 @@ async def test_delete_component(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="delete",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="DeleteMe",
     )
@@ -333,8 +311,7 @@ async def test_delete_persists(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="Gone",
@@ -342,8 +319,7 @@ async def test_delete_persists(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="delete",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="Gone",
     )
@@ -360,8 +336,7 @@ async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_
 
     await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="body-tube",
         name="Tube",
@@ -371,8 +346,7 @@ async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_
 
     result = await tool.fn(
         action="create",
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="fin-set",
         parent="Tube",

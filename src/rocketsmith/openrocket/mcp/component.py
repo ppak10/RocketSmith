@@ -6,7 +6,7 @@ def register_openrocket_component(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
+    from rocketsmith.mcp.utils import tool_success, tool_error
 
     @app.tool(
         title="OpenRocket or RockSim Component",
@@ -22,8 +22,7 @@ def register_openrocket_component(app: FastMCP):
     )
     async def openrocket_component(
         action: Literal["create", "read", "update", "delete"],
-        filename: str,
-        workspace_name: str | None = None,
+        rocket_file_path: Path,
         component_name: str | None = None,
         component_type: str | None = None,
         parent: str | None = None,
@@ -96,8 +95,7 @@ def register_openrocket_component(app: FastMCP):
 
         Args:
             action: One of 'create', 'read', 'update', 'delete'.
-            filename: The .ork or .rkt file in the workspace openrocket/ folder.
-            workspace_name: The workspace name.
+            rocket_file_path: Path to the .ork or .rkt design file.
             component_name: Name of the component to read/update/delete.
             component_type: Type of component to create (e.g. 'nose-cone').
             parent: Named parent component for create (optional).
@@ -116,21 +114,11 @@ def register_openrocket_component(app: FastMCP):
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
 
-        workspace_or_error = resolve_workspace(workspace_name)
-        if isinstance(workspace_or_error, ToolError):
-            return workspace_or_error
-        workspace = workspace_or_error
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
+        if not rocket_file_path.exists():
             return tool_error(
-                f"Design file not found: {file_path}",
+                f"Design file not found: {rocket_file_path}",
                 "FILE_NOT_FOUND",
-                file_path=str(file_path),
+                file_path=str(rocket_file_path),
             )
 
         try:
@@ -168,7 +156,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = create_component(
-                    path=file_path,
+                    path=rocket_file_path,
                     component_type=component_type,
                     jar_path=openrocket_path,
                     parent_name=parent,
@@ -187,7 +175,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = read_component(
-                    path=file_path,
+                    path=rocket_file_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
                 )
@@ -200,7 +188,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = update_component(
-                    path=file_path,
+                    path=rocket_file_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
                     preset_part_no=preset_part_no,
@@ -218,7 +206,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 deleted_name = delete_component(
-                    path=file_path,
+                    path=rocket_file_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
                 )
@@ -228,7 +216,7 @@ def register_openrocket_component(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                file_path=str(file_path),
+                file_path=str(rocket_file_path),
                 exception_type=type(e).__name__,
             )
 
@@ -243,7 +231,7 @@ def register_openrocket_component(app: FastMCP):
             return tool_error(
                 f"Failed to {action} component",
                 "COMPONENT_FAILED",
-                file_path=str(file_path),
+                file_path=str(rocket_file_path),
                 action=action,
                 exception_type=type(e).__name__,
                 exception_message=str(e),

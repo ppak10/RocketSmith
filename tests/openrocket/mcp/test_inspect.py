@@ -20,8 +20,7 @@ def mcp_app():
 def tmp_ork(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork
 
-    path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = tmp_path / "test.ork"
     new_ork("Test Rocket", path, openrocket_jar)
     return path
 
@@ -30,9 +29,8 @@ def tmp_ork(tmp_path, openrocket_jar):
 def tmp_rkt(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork, _or_context, _save_doc
 
-    ork_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.ork"
-    rkt_path = tmp_path / "workspaces" / "test_ws" / "openrocket" / "test.rkt"
-    rkt_path.parent.mkdir(parents=True, exist_ok=True)
+    ork_path = tmp_path / "test.ork"
+    rkt_path = tmp_path / "test.rkt"
 
     new_ork("Test RockSim", ork_path, openrocket_jar)
 
@@ -64,8 +62,7 @@ async def test_ork_not_found_returns_error(mcp_app, tmp_path):
     tool = tools[0]
 
     result = await tool.fn(
-        workspace_name="test_ws",
-        filename="missing.ork",
+        rocket_file_path=tmp_path / "missing.ork",
         openrocket_path=tmp_path / "fake.jar",
     )
 
@@ -82,13 +79,11 @@ async def test_returns_component_list(mcp_app, tmp_ork, openrocket_jar):
     tool = tools[0]
 
     result = await tool.fn(
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
     )
 
     assert result.success is True
-    # result.data is now a dict with 'components' and 'ascii_art'
     assert isinstance(result.data, dict)
     assert "components" in result.data
     assert "ascii_art" in result.data
@@ -102,8 +97,7 @@ async def test_inspect_rkt_file(mcp_app, tmp_rkt, openrocket_jar):
     tool = tools[0]
 
     result = await tool.fn(
-        workspace_name="test_ws",
-        filename="test.rkt",
+        rocket_file_path=tmp_rkt,
         openrocket_path=openrocket_jar,
     )
 
@@ -117,8 +111,7 @@ async def test_root_is_rocket(mcp_app, tmp_ork, openrocket_jar):
     tool = tools[0]
 
     result = await tool.fn(
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
     )
 
@@ -133,8 +126,7 @@ async def test_contains_axial_stage(mcp_app, tmp_ork, openrocket_jar):
     tool = tools[0]
 
     result = await tool.fn(
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
     )
 
@@ -149,8 +141,7 @@ async def test_each_entry_has_depth_and_name(mcp_app, tmp_ork, openrocket_jar):
     tool = tools[0]
 
     result = await tool.fn(
-        workspace_name="test_ws",
-        filename="test.ork",
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
     )
 

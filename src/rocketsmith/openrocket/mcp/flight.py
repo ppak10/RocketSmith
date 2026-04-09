@@ -6,7 +6,7 @@ def register_openrocket_flight(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
+    from rocketsmith.mcp.utils import tool_success, tool_error
 
     @app.tool(
         title="OpenRocket or RockSim Flight",
@@ -20,8 +20,7 @@ def register_openrocket_flight(app: FastMCP):
     )
     async def openrocket_flight(
         action: Literal["create", "delete"],
-        filename: str,
-        workspace_name: str | None = None,
+        rocket_file_path: Path,
         motor_designation: str | None = None,
         sim_name: str | None = None,
         mount_name: str | None = None,
@@ -53,7 +52,7 @@ def register_openrocket_flight(app: FastMCP):
 
         Args:
             action: 'create' or 'delete'.
-            filename: Filename of the .ork or .rkt design file.
+            rocket_file_path: Path to the .ork or .rkt design file.
             motor_designation: Motor common name or designation (required for create).
             sim_name: Name for the simulation (create: defaults to motor designation;
                       delete: name of the simulation to remove).
@@ -71,21 +70,11 @@ def register_openrocket_flight(app: FastMCP):
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
 
-        workspace_or_error = resolve_workspace(workspace_name)
-        if isinstance(workspace_or_error, ToolError):
-            return workspace_or_error
-        workspace = workspace_or_error
-
-        if not (filename.endswith(".ork") or filename.endswith(".rkt")):
-            filename += ".ork"
-
-        file_path = workspace.path / "openrocket" / filename
-
-        if not file_path.exists():
+        if not rocket_file_path.exists():
             return tool_error(
-                f"Design file not found: {file_path}",
+                f"Design file not found: {rocket_file_path}",
                 "FILE_NOT_FOUND",
-                file_path=str(file_path),
+                file_path=str(rocket_file_path),
             )
 
         try:
@@ -99,7 +88,7 @@ def register_openrocket_flight(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = create_simulation(
-                    path=file_path,
+                    path=rocket_file_path,
                     openrocket_path=openrocket_path,
                     motor_designation=motor_designation,
                     sim_name=sim_name,
@@ -119,7 +108,7 @@ def register_openrocket_flight(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 deleted = delete_simulation(
-                    path=file_path,
+                    path=rocket_file_path,
                     openrocket_path=openrocket_path,
                     sim_name=sim_name,
                 )
@@ -129,7 +118,7 @@ def register_openrocket_flight(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                file_path=str(file_path),
+                file_path=str(rocket_file_path),
                 exception_type=type(e).__name__,
             )
 
@@ -144,7 +133,7 @@ def register_openrocket_flight(app: FastMCP):
             return tool_error(
                 f"Failed to {action} simulation",
                 "SIMULATION_FAILED",
-                file_path=str(file_path),
+                file_path=str(rocket_file_path),
                 action=action,
                 exception_type=type(e).__name__,
                 exception_message=str(e),

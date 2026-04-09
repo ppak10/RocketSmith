@@ -6,13 +6,13 @@ def register_build123d_visualize(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
+    from rocketsmith.mcp.utils import tool_success, tool_error
 
     @app.tool(
         name="build123d_visualize",
         title="Visualize STEP as ASCII",
         description=(
-            "Render a STEP file from a workspace as isometric ASCII art. "
+            "Render a STEP file as isometric ASCII art. "
             "Use storyboard=true to show four 90°-apart views in a grid — "
             "the best option for agents since MCP cannot animate. "
             "For a single static frame use angle_deg. "
@@ -21,8 +21,7 @@ def register_build123d_visualize(app: FastMCP):
         structured_output=True,
     )
     async def build123d_visualize(
-        step_filename: str,
-        workspace_name: str | None = None,
+        step_file_path: Path,
         storyboard: bool = False,
         angle_deg: float = 0.0,
         wireframe: bool = False,
@@ -34,8 +33,7 @@ def register_build123d_visualize(app: FastMCP):
         Render a STEP file as isometric ASCII art.
 
         Args:
-            step_filename: Name of the STEP file in the workspace parts/ folder.
-            workspace_name: The workspace name.
+            step_file_path: Path to the STEP file.
             storyboard: If true, render four views (0°/90°/180°/270°) in a 2×2
                 grid. Recommended for agents — gives a full 360° impression in
                 one call. Overrides angle_deg when set.
@@ -52,24 +50,17 @@ def register_build123d_visualize(app: FastMCP):
         """
         from rocketsmith.build123d.ascii import render_step_ascii, render_storyboard
 
-        workspace_or_error = resolve_workspace(workspace_name)
-        if isinstance(workspace_or_error, ToolError):
-            return workspace_or_error
-        workspace = workspace_or_error
-
-        step_path = workspace.path / "parts" / step_filename
-
-        if not step_path.exists():
+        if not step_file_path.exists():
             return tool_error(
-                f"STEP file not found: {step_path}",
+                f"STEP file not found: {step_file_path}",
                 "FILE_NOT_FOUND",
-                step_path=str(step_path),
+                step_file_path=str(step_file_path),
             )
 
         try:
             if storyboard:
                 ascii_art = render_storyboard(
-                    step_path,
+                    step_file_path,
                     total_width=width,
                     total_height=height,
                     wireframe=wireframe,
@@ -77,7 +68,7 @@ def register_build123d_visualize(app: FastMCP):
                 )
             else:
                 ascii_art = render_step_ascii(
-                    step_path,
+                    step_file_path,
                     angle_deg=angle_deg,
                     width=width,
                     height=height,
@@ -90,7 +81,7 @@ def register_build123d_visualize(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                step_path=str(step_path),
+                step_file_path=str(step_file_path),
                 exception_type=type(e).__name__,
             )
 
@@ -98,7 +89,7 @@ def register_build123d_visualize(app: FastMCP):
             return tool_error(
                 "Failed to render STEP file as ASCII",
                 "RENDER_FAILED",
-                step_path=str(step_path),
+                step_file_path=str(step_file_path),
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )

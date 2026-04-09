@@ -6,7 +6,7 @@ from typing import Union
 
 def register_prusaslicer_slice(app: FastMCP):
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error, resolve_workspace
+    from rocketsmith.mcp.utils import tool_success, tool_error
     from rocketsmith.prusaslicer.models import Material, PrusaSlicerResult
 
     @app.tool(
@@ -15,8 +15,8 @@ def register_prusaslicer_slice(app: FastMCP):
         structured_output=True,
     )
     async def prusaslicer_slice(
-        model_filename: str,
-        workspace_name: str | None = None,
+        model_file_path: Path,
+        out_path: Path | None = None,
         config_path: Path | None = None,
         prusaslicer_path: Path | None = None,
         material: Material = Material.PLA,
@@ -25,8 +25,9 @@ def register_prusaslicer_slice(app: FastMCP):
         Slice a 3D model using PrusaSlicer.
 
         Args:
-            model_filename: Name of the input model file (.stl, .step, .3mf, .obj) in the workspace parts/ folder.
-            workspace_name: The workspace name.
+            model_file_path: Path to the input model file (.stl, .step, .3mf, .obj).
+            out_path: Path to save the .gcode output. Defaults to the same directory
+                      as model_file_path with a .gcode extension.
             config_path: Optional path to a PrusaSlicer .ini config file to load.
             prusaslicer_path: Optional path to the PrusaSlicer executable.
             material: Filament material for weight calculation (pla, petg, abs).
@@ -34,25 +35,20 @@ def register_prusaslicer_slice(app: FastMCP):
         """
         from rocketsmith.prusaslicer.slice import slice as prusaslicer_slice_fn
 
-        workspace_or_error = resolve_workspace(workspace_name)
-        if isinstance(workspace_or_error, ToolError):
-            return workspace_or_error
-        workspace = workspace_or_error
-
-        model_path = workspace.path / "parts" / model_filename
-
-        if not model_path.exists():
+        if not model_file_path.exists():
             return tool_error(
-                f"Model file not found: {model_path}",
+                f"Model file not found: {model_file_path}",
                 "FILE_NOT_FOUND",
-                model_path=str(model_path),
+                model_file_path=str(model_file_path),
             )
 
-        output_path = workspace.path / "parts" / model_path.with_suffix(".gcode").name
+        output_path = (
+            out_path if out_path is not None else model_file_path.with_suffix(".gcode")
+        )
 
         try:
             result = prusaslicer_slice_fn(
-                model_path=model_path,
+                model_path=model_file_path,
                 output_path=output_path,
                 config_path=config_path,
                 prusaslicer_path=prusaslicer_path,
@@ -65,7 +61,7 @@ def register_prusaslicer_slice(app: FastMCP):
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                model_path=str(model_path),
+                model_file_path=str(model_file_path),
                 exception_type=type(e).__name__,
             )
 
@@ -73,7 +69,7 @@ def register_prusaslicer_slice(app: FastMCP):
             return tool_error(
                 "Failed to slice model",
                 "SLICE_FAILED",
-                model_path=str(model_path),
+                model_file_path=str(model_file_path),
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )
