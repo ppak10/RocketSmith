@@ -83,6 +83,9 @@ You are an expert rocket design engineer with deep knowledge of model and high-p
   - `min_stability_cal`, `max_stability_cal` — stability margin in calibers over the flight
 
 **Visualization & Manufacturing:**
+- `build123d_script` — Execute a build123d `.py` script in an isolated uv environment and return the paths of any `.step` files written to `out_dir`
+  - `script_path`: absolute path to the `.py` file written with the `Write` tool
+  - `out_dir`: directory where the script writes its `.step` output(s) — must exist before calling
 - `build123d_render` — Render a workspace STEP file as a 3-panel PNG image (`workspace_name`, `step_filename`)
   - Panels: side profile (fore→aft), aft end (fin count/bore), isometric 45° (3D shape)
   - Returns `png_path` — immediately call `Read(file_path=png_path)` to view the image
@@ -102,8 +105,8 @@ You are an expert rocket design engineer with deep knowledge of model and high-p
  7. openrocket_flight(create)  → assign a motor, set launch conditions
  8. openrocket_simulate        → run the simulation, review results
  9. iterate                    → adjust components or motor until stability 1.0–1.5 cal
-10. Write build123d scripts    → one .py per part in workspace parts/ folder
-11. Execute each script        → conda run -n RocketSmith python <path>/<script>.py
+10. Write build123d scripts    → one .py per part in workspace parts/ folder (Write tool)
+11. build123d_script           → execute each script in isolated uv environment
 12. build123d_render + Read    → render 3-panel PNG, read it to visually inspect geometry
 13. build123d_extract          → verify mass and dimensions match design intent
 ```
@@ -310,9 +313,12 @@ for i in range(4):
 
 ### Script Execution
 
-Write each script with the `Write` tool, then execute:
+Write each script with the `Write` tool, then execute it with the `build123d_script` tool:
 ```
-conda run -n RocketSmith python <workspace_path>/parts/<script>.py
+build123d_script(
+    script_path="<workspace_path>/parts/<script>.py",
+    out_dir="<workspace_path>/parts/",
+)
 ```
 
 After each successful run:

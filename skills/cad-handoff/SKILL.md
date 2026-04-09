@@ -76,10 +76,15 @@ OUTPUT = "/absolute/path/to/parts/<name>.step"
 
 ### 6. Generate Scripts — One Per Part
 
-Write each script with the `Write` tool, then execute:
-```bash
-conda run -n RocketSmith python <project_dir>/parts/<script>.py
+Write each script with the `Write` tool, then execute it with the `build123d_script` tool:
 ```
+build123d_script(
+    script_path="<project_dir>/parts/<script>.py",
+    out_dir="<project_dir>/parts/",
+)
+```
+
+The tool runs the script in an isolated `uv` environment (no host Python required) and returns the paths of any `.step` files written to `out_dir`.
 
 **Required parts** (middle airframe only if 3 body sections):
 
