@@ -210,3 +210,5 @@ workspaces/
 
 .DS_Store
 .gemini
+
+dev/

@@ -1,5 +1,6 @@
 from enum import Enum
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -28,3 +29,36 @@ class PrusaSlicerResult(BaseModel):
     filament_used_cm3: float | None = None
     filament_used_g: float | None = None
     total_layers: int | None = None
+
+
+class ConfigType(str, Enum):
+    PRINTER = "printer"
+    FILAMENT = "filament"
+    PRINT = "print"
+
+
+ConfigAction = Literal["list", "show", "create", "set", "delete"]
+
+
+class ConfigEntry(BaseModel):
+    """Metadata for a single PrusaSlicer config file."""
+
+    name: str
+    config_type: ConfigType
+    path: Path
+
+
+class ConfigSettings(BaseModel):
+    """A PrusaSlicer config file with its parsed key-value settings."""
+
+    name: str
+    config_type: ConfigType
+    path: Path
+    settings: dict[str, str]
+
+
+class ConfigListResult(BaseModel):
+    """Result of listing PrusaSlicer config files."""
+
+    configs: list[ConfigEntry]
+    count: int
