@@ -21,7 +21,7 @@
       ],
       "env": {
         "PYTHONPATH": "./src",
-        "ROCKETSMITH_PROJECT_DIR": "${workspacePath}"
+        "ROCKETSMITH_PROJECT_DIR": "$CLAUDE_PROJECT_DIR"
       }
     }
   }
