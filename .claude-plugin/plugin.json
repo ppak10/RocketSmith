@@ -18,7 +18,11 @@
         "run",
         "-m",
         "rocketsmith.mcp"
-      ]
+      ],
+      "env": {
+        "PYTHONPATH": "./src",
+        "ROCKETSMITH_PROJECT_DIR": "${workspacePath}"
+      }
     }
   }
 }
