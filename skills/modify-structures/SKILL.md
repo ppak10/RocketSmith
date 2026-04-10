@@ -62,6 +62,7 @@ If the list is empty, skip the rest of this skill.
 3. **Execute** via `build123d_script`. The tool runs the script in isolated mode and returns the path of the overwritten STEP.
 4. **Re-render** via `build123d_render(step_file_path=<step_path>, out_path=<visualizations_dir>/<name>.png)` and `Read` to visually verify the modifications are in the right place.
 5. **Re-extract** via `build123d_extract` to confirm the bounding box hasn't changed unexpectedly (modifications typically only remove material, so bounding box should match).
+6. **Pause for user feedback.** Modifications are detail features that interact with the base geometry in ways that are hard to verify autonomously — hole placement relative to shoulders, pocket depth vs. wall thickness, angular alignment of through-holes with mating parts. Show the user the re-rendered PNG, describe what was modified (e.g., "Added 4× M4 heat-set holes at Z=25mm on the upper airframe shoulder"), and ask whether the placement looks correct. See **User Feedback on Modifications** below.
 
 ### 4. Regenerate the Full Assembly
 
@@ -182,18 +183,7 @@ Not yet implemented. Reserved fields: `target`, `diameter_mm`, `depth_mm`.
 
 Not yet implemented. When this lands, it will likely be an **additive** modification (the only one in this skill that adds material rather than removing it).
 
-For any `kind` not in the recipe reference, query the `cad_examples` reference collection:
-
-```
-rag_reference(
-    action="search",
-    collection="cad_examples",
-    query=f"build123d {modification['kind']} {modification.get('purpose', '')}",
-    n_results=3,
-)
-```
-
-**If no results**, ask the user how to implement the modification rather than improvising.
+For any `kind` not in the recipe reference, query `rag_reference(action="search", collection="cad_examples", query=f"build123d {modification['kind']}", n_results=3)`. If no results, ask the user rather than improvising.
 
 ## Verification After Modification
 
@@ -202,6 +192,28 @@ After each part is modified:
 1. **Re-render**: `build123d_render(step_file_path=<step_path>)`. The tool auto-routes to `visualizations/<name>.png`, overwriting the Pass 1 render — the modified version is the current truth.
 2. **Visual check**: does the render show the modifications in the expected positions? Heat-set holes should appear as small dark circles around the shoulder mid-length. Through-holes should appear at matching angles on the mating tube.
 3. **Dimensional check**: `build123d_extract` — the bounding box should be unchanged (all current modifications are subtractive). If the volume dropped by more than ~5% of the base, flag it — you may have subtracted too much.
+4. **User feedback**: pause and ask the user to confirm the modifications. See below.
+
+## User Feedback on Modifications
+
+All modifications require user feedback before proceeding to the next part. Unlike Pass 1 where only complex features need a pause, Pass 2 modifications are inherently detail-oriented and their correctness depends on assembly context that only the user can fully judge.
+
+### What to show the user
+
+1. **The re-rendered PNG** — show the path or display inline
+2. **A summary of what was applied**, e.g.:
+   - "Applied 4× radial heat-set holes (M4, 5.7mm × 7mm) at Z=25mm, evenly spaced at 0°/90°/180°/270° on the upper airframe shoulder"
+   - "Applied 4× through-holes (4.5mm clearance) at matching positions on the lower airframe mating end"
+3. **A targeted question**:
+   - For hole patterns: "Do the hole positions align with where you want the retention hardware? Are the angular positions correct for your assembly?"
+   - For pockets: "Does the pocket depth look right relative to the wall thickness? Is the placement where you expected?"
+   - For paired modifications (heat-set + through-hole): "These two parts mate at this joint. Do the hole patterns on both sides look aligned?"
+
+### Handling feedback
+
+- **Approval** — proceed to the next part's modifications.
+- **"Move the holes" / "Change the angle"** — update the manifest's modification entry, rewrite the script, re-run, re-render, and ask again.
+- **"Skip this modification"** — remove it from the script (but leave it in the manifest for traceability), re-run, and proceed.
 
 ## Red Flags — Stop and Fix
 
@@ -232,10 +244,16 @@ for part in manifest["parts"]:
     Read(png_path)
     build123d_extract(step_file_path)
     if check_failed: fix_and_retry()
+    # always pause for user feedback on modifications
+    ask_user("Applied <modifications> to <part>. Does the placement look correct?")
+    wait_for_response()
+    if user_requested_change: update_and_retry()
 
 # regenerate the assembly if anything changed
 if any_part_was_modified:
     regenerate_full_assembly()
+    ask_user("Regenerated assembly with modifications. Do the joints look right?")
+    wait_for_response()
 
 # then handoff
 report_to_build123d_subagent()

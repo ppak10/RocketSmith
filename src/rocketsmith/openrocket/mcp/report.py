@@ -80,13 +80,19 @@ def register_openrocket_report(app: FastMCP):
                     file_path=str(rocket_file_path),
                 )
 
+            from datetime import datetime, timezone
+
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
             results: list[FlightReportResult] = []
             for sim in sims:
-                # Sanitize simulation name for use as directory name
+                # Folder name: timestamp + sanitized sim name for
+                # chronological sorting while remaining identifiable.
                 safe_name = (
                     sim.name.replace(" ", "_").replace("/", "_").replace("\\", "_")
                 )
-                out_dir = reports_base / safe_name
+                dir_name = f"{timestamp}_{safe_name}"
+                out_dir = reports_base / dir_name
                 result = generate_flight_report(sim, out_dir)
                 results.append(result)
 

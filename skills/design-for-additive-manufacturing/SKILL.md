@@ -49,18 +49,7 @@ If the user has answered any of these, collect the answers into a `fusion_overri
 
 ### 2. Check the Reference Collection for Edge Cases
 
-Before generating the manifest for non-standard designs (transitions, boattails, multi-stage, cluster mounts, unusual nose cone shapes), query the reference collection:
-
-```
-rag_reference(
-    action="search",
-    collection="cad_examples",
-    query=f"DFAM {distinctive_feature} {body_diameter_class}",
-    n_results=3,
-)
-```
-
-Hits may surface fusion decisions other users have made for similar designs. **If no results**, fall through to the defaults. **If the search errors** (collection not indexed), proceed silently.
+For non-standard designs (transitions, boattails, multi-stage, cluster mounts), query `rag_reference(action="search", collection="cad_examples", query=f"DFAM {distinctive_feature}", n_results=3)`. Fall through to defaults if no results; proceed silently on errors.
 
 ### 3. Generate the Manifest
 
@@ -123,12 +112,10 @@ Parts manifest for <rocket_name>:
 
 Stop and ask the user to confirm before generating CAD if any fusion decision was non-default or if the reference collection suggested an alternative.
 
-## Hard Rules — Do Not Violate
+## Hard Rules
 
-- **Fins are ALWAYS fused into the parent body tube.** Never emit a standalone fin set as a separate part. This is a structural requirement for FDM printing — layer lines across the fin root are weak, and a bonded fin can fail under aerodynamic load. There is no scenario in which separate fins are correct for AM.
-- **A centering ring never exists as a standalone printed part when the motor mount is fused.** If the motor mount is fused into the body tube as wall thickening, centering rings are geometric artefacts of the traditional construction method and have no physical analogue. Include them in `skipped_components` with the reason `"absorbed into wall thickening"`, not in `parts`.
-- **Every section that mates with another section must have a retention mechanism.** Shoulder without heat-set holes / friction fit / pins → assembly-time failure. If you can't pick a retention mechanism, ask the user.
-- **Wall thickness below 1.5 mm is a red flag.** Some SLA processes allow it, but FDM below 1.5 mm is weak and warps. Flag before generating.
+- **Fins are ALWAYS fused** into the parent body tube — never a standalone part.
+- **Every mating section needs a retention mechanism** — shoulder without heat-set holes / friction fit / pins is an assembly-time failure.
 
 ## AM-Specific Geometry Patterns
 
@@ -151,7 +138,7 @@ Feature block:
 ### Integrated fins
 Fins extend radially from the outer wall of the body tube, filleted at the root for stress concentration reduction, as part of a single solid body. The number of fins and their angular spacing come from `TrapezoidFinSet`.
 
-`fillet_mm` must be small enough to be geometrically realisable by the build123d/OCC pipeline: roughly `thickness_mm / 4`, hard-capped by the helper at `min(thickness_mm / 2, 3 mm)`. A fillet approaching the fin half-thickness causes OCC to fail with "BRep_API: command not done" because the fillets on opposite broad faces collide. Do NOT copy `thickness_mm` into `fillet_mm` — that's the most common failure mode and the reason the DFAM helper clamps aggressively.
+`fillet_mm` must be geometrically realisable: default `thickness_mm / 4`, hard-capped at `min(thickness_mm / 2 * 0.9, 3 mm)`. A fillet approaching the fin half-thickness causes OCC to fail ("BRep_API: command not done") because the fillets on opposite broad faces collide. Do NOT copy `thickness_mm` into `fillet_mm`.
 
 Feature block:
 ```json
@@ -222,7 +209,8 @@ Feature block:
 - `component_to_part_map` maps an OR component to no entry → the mass-calibration skill will fail to attribute its weight later
 - Multiple OR components map to the same part but the `derived_from` list doesn't reflect that → auditability broken
 - Any wall thickness below 1.5 mm → structural red flag for FDM, acceptable only for SLA with explicit user confirmation
-- An `integrated_fins` block where `fillet_mm >= thickness_mm / 2` → geometrically infeasible. The fillet on one broad face of the fin will collide with the fillet on the opposite broad face, and OCC's `fillet()` will refuse to build it at Pass 1. The `_fin_feature_block` helper in `dfam.py` already clamps defaults and overrides to `min(thickness_mm/2, _DFAM_MAX_FIN_FILLET_MM)` — if you're authoring the manifest by hand or through a code path that bypasses the helper, apply the same clamp. A fin without any root fillet at all is also a red flag (stress concentration); the intent is "small but present", typically `thickness_mm/4` capped at 3 mm.
+- `fillet_mm >= thickness_mm / 2` on an `integrated_fins` block → geometrically infeasible (OCC fillet self-intersects). The `_fin_feature_block` helper clamps to `min(thickness_mm/2 * 0.9, _DFAM_MAX_FIN_FILLET_MM)`; apply the same clamp if authoring by hand. A fillet of 0 is also a red flag — the intent is "small but present" (`thickness/4` capped at 3 mm).
+- **Multiple body tube sections but no `TubeCoupler` between an adjacent pair** → flat-ended tubes that can't interlock. The coupler is what DFAM fuses into an `integral_aft_shoulder`. Stop and add the coupler in the `.ork` before proceeding.
 - The parts list has more printed parts than the OR tree suggests should exist (e.g. 6 printed parts from a single-section LPR) → the fusion logic isn't firing, review defaults
 - A `TubeCoupler` is marked `fuse` but the design is dual-deploy → may be wrong, ask the user
 - The user requested `retention="m4_heat_set"` but no `radial_holes` modifications appear in the manifest → the design probably has no `TubeCoupler` to fuse into a shoulder. Retention modifications are tied to integral shoulders; without a shoulder there's nowhere to put the holes. Either add a coupler to the OR design or use a different mating strategy (friction fit on the nose cone shoulder, etc.)

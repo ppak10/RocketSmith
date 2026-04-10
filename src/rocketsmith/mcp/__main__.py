@@ -27,7 +27,7 @@ from rocketsmith.build123d.mcp import (
     register_build123d_extract,
     register_build123d_render,
     register_build123d_script,
-    register_build123d_visualize,
+    register_build123d_viewer,
 )
 from rocketsmith.manufacturing.mcp import register_manufacturing_manifest
 from rocketsmith.rag.mcp import register_rag_reference
@@ -49,7 +49,7 @@ _ = register_prusaslicer_database(app)
 _ = register_build123d_extract(app)
 _ = register_build123d_render(app)
 _ = register_build123d_script(app)
-_ = register_build123d_visualize(app)
+_ = register_build123d_viewer(app)
 _ = register_manufacturing_manifest(app)
 _ = register_rag_reference(app)
 

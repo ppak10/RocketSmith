@@ -74,22 +74,7 @@ If below 5:1, the rocket will leave the rod slowly and be vulnerable to weatherc
 
 ### 5. Check the Reference Collection for Known Issues
 
-Before committing to a candidate, look it up in the `motor_reviews` reference collection:
-
-```
-rag_reference(
-    action="search",
-    collection="motor_reviews",
-    query=f"{motor_designation} {manufacturer}",
-    n_results=3,
-)
-```
-
-Real-world reports may surface issues the database can't: delay reliability, ignition problems, CATO reports, known production batches to avoid, or real observed apogee vs. OpenRocket prediction for comparable rockets. Weigh any hits against the theoretical numbers.
-
-**If the search returns no results**, proceed — the collection may be empty or no reviews match this motor. The absence of reviews is not itself a warning sign.
-
-**If the search errors** (collection not indexed), proceed silently.
+Query `rag_reference(action="search", collection="motor_reviews", query=f"{motor_designation} {manufacturer}", n_results=3)` for real-world reports (delay reliability, ignition problems, CATO reports, observed vs. predicted apogee). Weigh any hits against the theoretical numbers. Proceed if no results or on errors.
 
 ### 6. Simulate Candidates
 

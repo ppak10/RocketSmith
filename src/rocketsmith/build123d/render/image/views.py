@@ -65,7 +65,7 @@ def _project_iso(
     angle_deg: float = 45.0,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Isometric projection with Y-axis rotation. Returns (screen_xy, depth, rotated_normals)."""
-    from rocketsmith.build123d.ascii.project import rotate_y
+    from rocketsmith.build123d.render.ascii.project import rotate_y
 
     rv = rotate_y(vertices, angle_deg)
     rn = rotate_y(normals, angle_deg)
@@ -103,7 +103,7 @@ def _ortho_scale(
 def _iso_scale(
     vertices: np.ndarray, width: int, height: int, margin: int = 30
 ) -> float:
-    from rocketsmith.build123d.ascii.project import rotate_y
+    from rocketsmith.build123d.render.ascii.project import rotate_y
 
     cos30 = math.cos(math.radians(30))
     sin30 = math.sin(math.radians(30))
@@ -213,7 +213,7 @@ def render_step_png(
     plt.switch_backend("agg")
 
     from matplotlib.colors import LinearSegmentedColormap
-    from rocketsmith.build123d.ascii import _load_centered_mesh
+    from rocketsmith.build123d.render.ascii import _load_centered_mesh
 
     verts, tris, normals = _load_centered_mesh(step_path, tolerance=tolerance)
     if len(verts) == 0:

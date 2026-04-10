@@ -13,20 +13,21 @@ from orhelper import FlightDataType, FlightEvent
 from rocketsmith.openrocket.models import FlightReportResult, OpenRocketSimulation
 
 
-# ── Plot style (matches build123d dark navy renderer) ────────────────────────
+# ── Plot style ────────────────────────────────────────────────────────────────
 
-_BG = (0.06, 0.06, 0.10)
-_GRID = "#1a2030"
-_TEXT = "#aaccee"
-_LINE_PRIMARY = "#6699cc"
-_LINE_SECONDARY = "#cc8844"
+_BG = "white"
+_GRID = "#dddddd"
+_TEXT = "#333333"
+_TITLE_COLOR = "#111111"
+_LINE_PRIMARY = "#2266aa"
+_LINE_SECONDARY = "#cc6622"
 _EVENT_COLORS = {
-    "burnout": "#ff6644",
-    "apogee": "#44cc66",
-    "deployment": "#cc44ff",
+    "burnout": "#cc3333",
+    "apogee": "#228833",
+    "deployment": "#8833aa",
     "ground_hit": "#888888",
 }
-_FIG_W, _FIG_H, _DPI = 8.0, 4.0, 100
+_FIG_W, _FIG_H, _DPI = 10.0, 5.0, 200
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,12 +54,12 @@ def _event_times(sim: OpenRocketSimulation) -> dict[str, float | None]:
 
 def _setup_axes(ax, xlabel: str, ylabel: str) -> None:
     ax.set_facecolor(_BG)
-    ax.set_xlabel(xlabel, color=_TEXT, fontsize=9)
-    ax.set_ylabel(ylabel, color=_TEXT, fontsize=9)
-    ax.tick_params(colors=_TEXT, labelsize=8)
-    ax.grid(True, color=_GRID, linewidth=0.5)
+    ax.set_xlabel(xlabel, color=_TEXT, fontsize=10)
+    ax.set_ylabel(ylabel, color=_TEXT, fontsize=10)
+    ax.tick_params(colors=_TEXT, labelsize=9)
+    ax.grid(True, color=_GRID, linewidth=0.5, alpha=0.8)
     for spine in ax.spines.values():
-        spine.set_color(_GRID)
+        spine.set_color("#cccccc")
 
 
 def _draw_events(ax, events: dict[str, float | None]) -> None:
@@ -81,7 +82,7 @@ def _draw_events(ax, events: dict[str, float | None]) -> None:
 
 def _save_plot(fig, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=_DPI, bbox_inches="tight", facecolor=_BG)
+    fig.savefig(path, dpi=_DPI, bbox_inches="tight", facecolor="white")
 
 
 # ── Individual plot generators ───────────────────────────────────────────────
@@ -102,7 +103,7 @@ def _plot_single(
 
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
     fig.patch.set_facecolor(_BG)
-    ax.set_title(title, color="white", fontsize=11, pad=8)
+    ax.set_title(title, color=_TITLE_COLOR, fontsize=13, fontweight="bold", pad=10)
     _setup_axes(ax, "Time (s)", ylabel)
     ax.plot(time, y, color=_LINE_PRIMARY, linewidth=1.2)
 
@@ -142,7 +143,13 @@ def _plot_thrust_mass(
 
     fig, ax1 = plt.subplots(figsize=(_FIG_W, _FIG_H))
     fig.patch.set_facecolor(_BG)
-    ax1.set_title("Thrust & Mass vs Time", color="white", fontsize=11, pad=8)
+    ax1.set_title(
+        "Thrust & Mass vs Time",
+        color=_TITLE_COLOR,
+        fontsize=13,
+        fontweight="bold",
+        pad=10,
+    )
     _setup_axes(ax1, "Time (s)", "Thrust (N)")
 
     if thrust is not None:
@@ -152,7 +159,7 @@ def _plot_thrust_mass(
         ax2 = ax1.twinx()
         _setup_axes(ax2, "", "Mass (kg)")
         ax2.plot(time, mass, color=_LINE_SECONDARY, linewidth=1.2, label="Mass")
-        ax2.set_ylabel("Mass (kg)", color=_LINE_SECONDARY, fontsize=9)
+        ax2.set_ylabel("Mass (kg)", color=_LINE_SECONDARY, fontsize=10)
         ax2.tick_params(axis="y", colors=_LINE_SECONDARY)
 
     _draw_events(ax1, events)
@@ -176,7 +183,13 @@ def _plot_drag_mach(
 
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
     fig.patch.set_facecolor(_BG)
-    ax.set_title("Drag Coefficient vs Mach Number", color="white", fontsize=11, pad=8)
+    ax.set_title(
+        "Drag Coefficient vs Mach Number",
+        color=_TITLE_COLOR,
+        fontsize=13,
+        fontweight="bold",
+        pad=10,
+    )
     _setup_axes(ax, "Mach Number", "CD")
     ax.plot(mach, cd, color=_LINE_PRIMARY, linewidth=1.0, alpha=0.8)
 
@@ -293,10 +306,27 @@ def generate_flight_report(
         events=events,
     )
 
+    # ── Write PDF ──
+
+    pdf_path = out_dir / "report.pdf"
+    _write_pdf(
+        sim_name=sim.name,
+        pdf_path=pdf_path,
+        plot_paths=plot_paths,
+        max_altitude_m=max_altitude,
+        max_velocity_ms=max_velocity,
+        time_to_apogee_s=time_to_apogee,
+        flight_time_s=flight_time,
+        min_stability_cal=min_stab,
+        max_stability_cal=max_stab,
+        events=events,
+    )
+
     return FlightReportResult(
         simulation_name=sim.name,
         report_dir=str(out_dir),
         report_path=str(report_path),
+        pdf_path=str(pdf_path),
         plot_paths=plot_paths,
         max_altitude_m=max_altitude,
         max_velocity_ms=max_velocity,
@@ -402,3 +432,154 @@ def _write_markdown(
             )
 
     report_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+# ── PDF writer ───────────────────────────────────────────────────────────────
+
+
+def _write_pdf(
+    *,
+    sim_name: str,
+    pdf_path: Path,
+    plot_paths: list[str],
+    max_altitude_m: float,
+    max_velocity_ms: float,
+    time_to_apogee_s: float | None,
+    flight_time_s: float,
+    min_stability_cal: float | None,
+    max_stability_cal: float | None,
+    events: dict[str, float | None],
+) -> None:
+    """Compose a multi-page PDF: cover page with summary, then one page per plot."""
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    plt.switch_backend("agg")
+
+    pdf_dpi = 300
+
+    with PdfPages(str(pdf_path)) as pdf:
+        # ── Page 1: Summary ──────────────────────────────────────
+        fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H * 1.4))
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("white")
+        ax.axis("off")
+
+        generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+        summary_rows = [
+            ("Max Altitude", _fmt(max_altitude_m, "m")),
+            ("Max Velocity", _fmt(max_velocity_ms, "m/s")),
+            ("Time to Apogee", _fmt(time_to_apogee_s, "s")),
+            ("Flight Time", _fmt(flight_time_s, "s")),
+            ("Min Stability", _fmt(min_stability_cal, "cal")),
+            ("Max Stability", _fmt(max_stability_cal, "cal")),
+        ]
+
+        event_labels = {
+            "burnout": "Motor Burnout",
+            "apogee": "Apogee",
+            "deployment": "Recovery Deployment",
+            "ground_hit": "Ground Hit",
+        }
+        event_rows = [
+            (label, _fmt(events.get(key), "s")) for key, label in event_labels.items()
+        ]
+
+        # Title
+        ax.text(
+            0.5,
+            0.95,
+            f"Flight Report: {sim_name}",
+            transform=ax.transAxes,
+            ha="center",
+            va="top",
+            fontsize=20,
+            color="#111111",
+            fontweight="bold",
+        )
+        ax.text(
+            0.5,
+            0.88,
+            f"Generated: {generated}",
+            transform=ax.transAxes,
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="#666666",
+        )
+
+        # Summary table
+        y = 0.78
+        ax.text(
+            0.15,
+            y,
+            "Summary",
+            transform=ax.transAxes,
+            fontsize=14,
+            color="#111111",
+            fontweight="bold",
+        )
+        y -= 0.06
+        for label, value in summary_rows:
+            ax.text(
+                0.18, y, label, transform=ax.transAxes, fontsize=11, color="#555555"
+            )
+            ax.text(
+                0.65,
+                y,
+                value,
+                transform=ax.transAxes,
+                fontsize=11,
+                color="#111111",
+                ha="left",
+                fontweight="medium",
+            )
+            y -= 0.05
+
+        # Events table
+        y -= 0.04
+        ax.text(
+            0.15,
+            y,
+            "Flight Events",
+            transform=ax.transAxes,
+            fontsize=14,
+            color="#111111",
+            fontweight="bold",
+        )
+        y -= 0.06
+        for label, value in event_rows:
+            ax.text(
+                0.18, y, label, transform=ax.transAxes, fontsize=11, color="#555555"
+            )
+            ax.text(
+                0.65,
+                y,
+                value,
+                transform=ax.transAxes,
+                fontsize=11,
+                color="#111111",
+                ha="left",
+                fontweight="medium",
+            )
+            y -= 0.05
+
+        pdf.savefig(fig, dpi=pdf_dpi, facecolor="white")
+        plt.close(fig)
+
+        # ── Plot pages ───────────────────────────────────────────
+        for plot_path_str in plot_paths:
+            plot_path = Path(plot_path_str)
+            if not plot_path.exists():
+                continue
+
+            img = plt.imread(str(plot_path))
+            fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+            fig.patch.set_facecolor("white")
+            ax.set_facecolor("white")
+            ax.axis("off")
+            ax.imshow(img, aspect="equal")
+            plt.tight_layout(pad=0)
+            pdf.savefig(fig, dpi=pdf_dpi, facecolor="white")
+            plt.close(fig)

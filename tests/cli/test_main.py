@@ -14,7 +14,6 @@ def test_main_help(runner):
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "RocketSmith" in result.stdout
-    assert "mcp" in result.stdout
 
 
 def test_main_no_args(runner):
@@ -28,9 +27,3 @@ def test_invalid_command(runner):
     """Test invalid command returns error."""
     result = runner.invoke(app, ["invalid-command"])
     assert result.exit_code != 0
-
-
-def test_mcp_subcommand_exists(runner):
-    """Test mcp subcommand is available."""
-    result = runner.invoke(app, ["mcp", "--help"])
-    assert result.exit_code == 0

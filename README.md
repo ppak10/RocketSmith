@@ -10,21 +10,42 @@ Let agents design, simulate, and build your rocket.
 
 RocketSmith is an end-to-end model-rocket toolchain exposed as an MCP extension. It orchestrates **OpenRocket** (flight simulation), **build123d** (parametric CAD), and **PrusaSlicer** (FDM slicing) behind a single agent, and closes the loop by feeding real printed-part weights back into the simulation for post-build stability verification.
 
-## Install (Gemini CLI)
+## Install
+
+RocketSmith integrates with AI coding tools through their native plugin/extension interfaces for MCP. A `uv` package is also available for CLI usage and direct API access.
+
+### Gemini CLI (extension)
 
 ```bash
 gemini extensions install https://github.com/ppak10/RocketSmith
 ```
 
-That's it. The extension registers the `rocketsmith` MCP server and loads the orchestrator agent, the three domain subagents (`openrocket`, `build123d`, `prusaslicer`), and the action skills.
+The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `build123d`, `prusaslicer`), and action skills automatically.
 
-On first use, ask the agent to run dependency setup:
+### Claude Code (MCP server)
 
+Add to your Claude Code MCP configuration (project or global `settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "rocketsmith": {
+      "command": "uvx",
+      "args": ["--from", "rocketsmith", "rocketsmith-mcp"]
+    }
+  }
+}
 ```
-@rocketsmith check dependencies
+
+Agent definitions (`agents/*.md`) and skills (`skills/*/SKILL.md`) are loaded via Claude Code's `CLAUDE.md` include mechanism.
+
+### CLI / API
+
+```bash
+uv tool install rocketsmith
 ```
 
-It will detect whether Java, OpenRocket 23.09, and PrusaSlicer are installed and offer to install anything missing.
+This installs the `rocketsmith` CLI for direct command-line usage and makes the Python API available for scripting. The CLI is independent of any AI coding tool — use it for automation, CI, or standalone workflows.
 
 ### First run
 
@@ -32,27 +53,22 @@ It will detect whether Java, OpenRocket 23.09, and PrusaSlicer are installed and
 @rocketsmith design and build a stable rocket for a D12 motor
 ```
 
-The orchestrator will walk through simulation → CAD → slicing → mass calibration and report at each phase.
-
-> **Claude Code and Codex support** — instructions are coming. For now, Gemini CLI is the supported entry point.
+The orchestrator will walk through simulation → CAD → slicing → mass calibration, pausing for user feedback during the interactive CAD phase.
 
 ## Documentation
 
 Full documentation lives in the [wiki](https://github.com/ppak10/RocketSmith/wiki):
 
 - [Home](https://github.com/ppak10/RocketSmith/wiki/Home) — pipeline overview, domain agents, and MCP tool list
-- [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) — Gemini CLI setup and dependency troubleshooting
+- [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) — plugin/extension setup and dependency troubleshooting
 - [Skills](https://github.com/ppak10/RocketSmith/wiki/Skills) — stability analysis, motor selection, CAD handoff, print preparation, mass calibration
 - [Hooks](https://github.com/ppak10/RocketSmith/wiki/Hooks) — session-start dependency checks and other hooks
 
 ## Requirements
 
-- **Gemini CLI** ≥ the version that supports `gemini extensions install`
-- **Java runtime** (auto-installed by the agent if missing)
+- **Java runtime** — required by OpenRocket
 - **OpenRocket 23.09** — RocketSmith uses [orhelper](https://github.com/SilentSys/orhelper), which targets the `net.sf.openrocket` package present in OpenRocket 23.09 and earlier. OpenRocket 24+ is not currently supported.
 - **PrusaSlicer** (optional, only needed for the CAD → print → calibration loop)
-
-All three are auto-installable via `@rocketsmith install dependencies`.
 
 ## License
 

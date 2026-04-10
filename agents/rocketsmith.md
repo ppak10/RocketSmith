@@ -39,12 +39,15 @@ Phase 1 — Simulation (openrocket subagent)
   3. Create .ork file and build component tree
   4. Run simulation — iterate until stability 1.0–1.5 cal
 
-Phase 2 — CAD Generation (build123d subagent)
+Phase 2 — CAD Generation (build123d subagent, interactive)
   5. Determine manufacturing method (see "Manufacturing Method" section below)
   6. Load the matching design-for-X skill to produce parts_manifest.json
      (default: design-for-additive-manufacturing)
   7. Generate build123d scripts for every part in the manifest
-  8. Execute scripts, render and verify each STEP file
+  8. Execute scripts, render, and verify each STEP file
+     - Complex features (fillets, revolves, arrays, fuses): pause for user feedback
+     - Modifications (holes, pockets): pause for user feedback after each part
+     - Full assembly: always pause for user feedback
 
 Phase 3 — Slicing (prusaslicer subagent)
   9. Slice each STEP file to gcode
@@ -59,20 +62,11 @@ Phase 4 — Mass Calibration (openrocket subagent, rocketsmith:mass-calibration)
  14. Report the final calibrated mass budget and stability margin to the user
 ```
 
-Proceed through all phases automatically once stability is confirmed — do not stop to ask permission between phases unless the user has a specific constraint. Phase 4 is mandatory: a design is not flight-ready until simulation has been re-verified against real printed part weights. Printed PLA/PETG parts routinely weigh 2–4× OpenRocket's material defaults, and a design that was stable with defaults can become unstable once built.
+Proceed through all phases automatically once stability is confirmed — do not stop to ask permission between phases unless the user has a specific constraint. **Phase 2 is interactive**: the build123d subagent will pause for user feedback on complex geometry features and modifications within each part — this is by design, not a stall. Phase 4 is mandatory: a design is not flight-ready until simulation has been re-verified against real printed part weights. Printed PLA/PETG parts routinely weigh 2–4× OpenRocket's material defaults, and a design that was stable with defaults can become unstable once built.
 
 ## Flight Report Rule (MANDATORY)
 
-**Every conversation that modifies a structural component must end with a flight report.** After all design or geometry changes are complete, the last action before handing back to the user is:
-
-1. Ensure a simulation exists for the `.ork` file — if not, create one with `openrocket_flight(action="create", ...)`.
-2. Run `openrocket_report(rocket_file_path=<project_root>/openrocket/<name>.ork, project_root=<project_root>)`.
-3. `Read` the generated `report.md` and at minimum the altitude and stability plots.
-4. Summarize the key flight numbers (max altitude, max velocity, stability range) in your final message.
-
-"Structural component" means any change to the rocket's geometry or mass that affects flight performance: nose cone shape, body tube dimensions, fin geometry, motor selection, coupler changes, mass overrides, etc. Pure CAD-only changes (fillets, print orientation, hole patterns) that don't change the `.ork` file do NOT trigger the flight report — the report captures the OpenRocket simulation state, and if the `.ork` hasn't changed there's nothing new to report.
-
-This rule applies to the rocketsmith orchestrator AND to the openrocket subagent when it operates independently (e.g. the user asks "change the fins to 4" without going through the full pipeline). The openrocket subagent should generate the report itself before returning.
+**Every conversation that modifies a structural component must end with a flight report.** See the openrocket agent's "Flight Report" section for the full procedure (4 steps: ensure sim exists, run `openrocket_report`, read report + plots, summarize). This applies to the orchestrator and to the openrocket subagent when operating independently.
 
 ## Manufacturing Method
 

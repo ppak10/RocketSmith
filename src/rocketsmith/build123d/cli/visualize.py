@@ -47,7 +47,10 @@ def register_build123d_visualize(app: typer.Typer):
         render a single static frame instead.
         """
         from rich import print as rprint
-        from rocketsmith.build123d.ascii import render_step_ascii, animate_step_ascii
+        from rocketsmith.build123d.render.ascii import (
+            render_step_ascii,
+            animate_step_ascii,
+        )
 
         if not step_file_path.exists():
             rprint(f"[yellow]File not found: {step_file_path}[/yellow]")

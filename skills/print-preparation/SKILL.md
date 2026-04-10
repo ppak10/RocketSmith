@@ -35,22 +35,7 @@ Verify all parts listed in `<project_dir>/parts_manifest.json` have correspondin
 
 ### 2.5. Check the Reference Collection for Print Gotchas
 
-For any part with unusual geometry (thin-walled nose cone, overhanging fin tip, bridge-heavy centering ring, large flat faces), check the `print_gotchas` reference collection before slicing:
-
-```
-rag_reference(
-    action="search",
-    collection="print_gotchas",
-    query=f"{part_name} {distinctive_feature}",
-    n_results=3,
-)
-```
-
-Example queries: `"nose cone tip-down overhang"`, `"thin wall body tube warp"`, `"fin tip layer adhesion"`, `"centering ring bridge"`. Real-world reports capture orientation and support choices that the generic heuristic table above cannot.
-
-**If the search returns no results**, fall back to the orientation/infill recommendations above. **If the search errors** (collection not indexed), proceed silently.
-
-Skip this step for simple parts that match the heuristic table cleanly — the collection query is for edge cases the generic rules don't capture.
+For parts with unusual geometry (thin walls, overhanging fin tips, large bridges), query `rag_reference(action="search", collection="print_gotchas", query=f"{part_name} {distinctive_feature}", n_results=3)`. Fall back to the heuristic table above if no results; proceed silently on errors. Skip for simple parts that match the table cleanly.
 
 ### 3. Slice Each Part
 

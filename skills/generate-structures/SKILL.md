@@ -168,8 +168,9 @@ For each feature in a multi-feature part:
    - **End panel** — camera looks down +Z toward −Z, so you see the high-Z face of the part. Symmetry counts (fin count, bolt circle count) and radial placement are obvious here.
    - **Isometric** — 3D sanity check. Is the feature on the expected side of the body? In this render's iso projection, high Z tends to appear toward the bottom-right of the panel (worth internalizing if you debug orientation issues often).
 5. **Verify numerically**: `build123d_extract` and compare the bbox Z extent against what you expect after this feature. If feature 2 was supposed to grow the part by `SHOULDER_LEN_MM` in +Z, the bbox Z max should have increased by exactly that. If it decreased, the feature extruded the wrong way.
-6. **If wrong, fix before adding the next feature.** Do not stack a new feature onto a broken one — the bug compounds and the diagnosis gets harder with every additional operation.
-7. **Only when this feature is visually and numerically correct**, move to the next.
+6. **Ask the user for feedback on complex features.** See the **User Feedback Checkpoints** section below for which features require a pause and what to show the user. Simple features (plain extrudes, basic cylinders) do not need user confirmation — proceed autonomously.
+7. **If wrong (or the user flags an issue), fix before adding the next feature.** Do not stack a new feature onto a broken one — the bug compounds and the diagnosis gets harder with every additional operation.
+8. **Only when this feature is visually and numerically correct (and user-approved, if applicable)**, move to the next.
 
 For simple parts this collapses: a plain body tube is one feature, one render — same as before. A nose cone with shoulder + ogive is two renders. An airframe with integrated fins + aft shoulder is three or four. The marginal cost per extra render is small; the cost of unwinding a compounded orientation bug is large.
 
@@ -202,6 +203,50 @@ The loop is mandatory when:
 - A part has ≥2 shape-producing ops and you haven't rendered this exact composition in the current session.
 - A previous one-shot render was wrong and you're rebuilding the part — iterate the rebuild to catch where the bug entered.
 - The manifest introduces a new feature type or a feature variant (e.g., first time seeing `forward_stop_lip` on a given body).
+
+## User Feedback Checkpoints
+
+CAD generation is **interactive**. After rendering complex features, pause and ask the user whether the geometry looks correct before moving on. This catches design-intent mismatches early — a fillet radius that's technically valid but visually wrong, fins that sweep the right direction but look too aggressive, a shoulder that's geometrically correct but shorter than the user expected.
+
+### When to pause for feedback
+
+Pause after rendering any of the following feature types:
+
+| Feature | Why it needs user eyes |
+|---|---|
+| **Fillets** (fin root, edge) | Radius trade-offs are subjective; OCC clamping may produce a smaller fillet than the user expected |
+| **Lofts and revolves** (nose cones, transitions, boattails) | Profile shape is hard to verify numerically — the user needs to see if the curve "looks right" |
+| **Polar arrays** (integrated fins, bolt circles) | Count and angular placement are easy to get right numerically but wrong visually (e.g., fins clocking) |
+| **Fused geometry** (fins into body, shoulders into tubes) | The merge seam, wall intersection, and overall proportions need a human sanity check |
+| **Full assembly composition** | Cross-part alignment, gaps, and proportions — always pause here |
+
+### When NOT to pause
+
+Do not pause for simple, unambiguous features that are fully determined by the manifest:
+
+- Plain hollow cylinders (body tubes, couplers, motor mounts)
+- Simple solid extrudes (shoulders, stop lips)
+- Parameter-only changes (wall thickness, bore diameter)
+
+These are verified autonomously via render + extract. Only pause if something looks wrong.
+
+### What to show the user
+
+When pausing for feedback, present:
+
+1. **The render** — show the PNG path so the user can view it, or include the ASCII storyboard inline for quick feedback
+2. **A brief description** of what was just added — e.g., "Added 3-fin polar array with 2.5 mm root fillets to the lower airframe"
+3. **A specific question** — not just "does this look good?" but targeted:
+   - For fillets: "The root fillet was clamped to 2.5 mm (manifest requested 3.0 mm). Does this radius look acceptable, or would you like to adjust?"
+   - For nose cones: "Here's the tangent ogive profile. Does the curve shape match what you had in mind?"
+   - For assemblies: "Here's the full stack. Do the proportions and joint alignments look right?"
+4. **Wait for a response** before proceeding to the next feature or part.
+
+### Handling user feedback
+
+- **"Looks good" / approval** — proceed to the next feature.
+- **"Change X"** — update the script (or the manifest if it's a design-level change), re-run, re-render, and ask again.
+- **"I'm not sure"** — offer to render from additional angles (`build123d_render` with `format="ascii"` and different `angle_deg` values) or provide dimensional details from `build123d_extract`.
 
 ## Common build123d API Patterns
 
@@ -261,56 +306,31 @@ BASE_R_MM = BASE_OD_MM / 2
 rho = (BASE_R_MM**2 + NOSE_LEN_MM**2) / (2 * BASE_R_MM)
 
 def outer_r(z_from_base: float) -> float:
-    """Outer radius of the ogive at distance ``z_from_base`` above the cone base.
-
-    z_from_base = 0 is the base (radius BASE_R_MM); z_from_base = NOSE_LEN_MM
-    is the tip (radius 0). The cone base sits at Z = SHOULDER_LEN_MM in the
-    final part frame; there is a solid shoulder below it.
-
-    Derivation: standard tangent ogive y(x) = sqrt(rho² - (L-x)²) + R - rho
-    where x is measured from the *tip*. Substituting z_from_base = L - x
-    (distance from the base instead of from the tip) gives the form below.
-    At z_from_base=0 this yields sqrt(rho²) + R - rho = R (base radius);
-    at z_from_base=L it yields sqrt(rho² - L²) + R - rho = 0 (tip). Do NOT
-    substitute ``(NOSE_LEN_MM - z_from_base)`` for ``z_from_base`` inside
-    the square root — that mirrors the profile top-to-bottom and produces
-    a bowtie-shaped solid that pinches near the base and bulges near the
-    tip. This bug was present in this recipe for several iterations and
-    seeded bad ogives into every downstream project that copied it.
+    """Radius at z above the base. r(0)=R, r(L)=0.
+    IMPORTANT: the argument inside sqrt is ``rho**2 - z**2``, NOT
+    ``rho**2 - (L - z)**2`` — the latter mirrors the profile and
+    produces a bowtie shape.
     """
     return max(
-        math.sqrt(max(rho**2 - z_from_base**2, 0.0))
-        + BASE_R_MM
-        - rho,
+        math.sqrt(max(rho**2 - z_from_base**2, 0.0)) + BASE_R_MM - rho,
         0.0,
     )
 
-# Build a closed polyline for the ogive cross-section in the XZ plane.
-# Walk: base centre → base edge → up the curve to the tip → back down
-# the central axis to the base centre. close=True closes the loop.
-#
-# At N_SAMPLES = 40 the polyline is visually indistinguishable from a
-# spline; this also avoids the Spline+Line closure subtleties that can
-# silently produce a degenerate face.
+# Polyline profile: base centre → base edge → curve to tip → close.
+# 40 samples avoids Spline closure issues while looking smooth.
 N_SAMPLES = 40
-profile = [(0.0, SHOULDER_LEN_MM)]                 # base centre
-profile.append((BASE_R_MM, SHOULDER_LEN_MM))       # base edge (start of curve)
+profile = [(0.0, SHOULDER_LEN_MM), (BASE_R_MM, SHOULDER_LEN_MM)]
 for i in range(1, N_SAMPLES + 1):
     z_from_base = i * NOSE_LEN_MM / N_SAMPLES
-    z_world = SHOULDER_LEN_MM + z_from_base
-    profile.append((outer_r(z_from_base), z_world))
-# Force the last point to (0, tip) so the curve closes onto the central axis
-profile[-1] = (0.0, SHOULDER_LEN_MM + NOSE_LEN_MM)
+    profile.append((outer_r(z_from_base), SHOULDER_LEN_MM + z_from_base))
+profile[-1] = (0.0, SHOULDER_LEN_MM + NOSE_LEN_MM)  # force tip to axis
 
 with BuildPart() as nose_cone:
-    # 1. Solid shoulder at the bottom (Z = 0 to Z = SHOULDER_LEN_MM).
-    #    This is a SOLID disk extruded into a cylinder — not a hollow tube.
-    #    The closed flat bottom is the print-bed face.
+    # 1. Solid shoulder (print-bed face at Z=0)
     with BuildSketch(Plane.XY):
         Circle(SHOULDER_OD_MM / 2)
     extrude(amount=SHOULDER_LEN_MM)
-
-    # 2. Solid ogive on top of the shoulder, fused into the same BuildPart.
+    # 2. Ogive revolved above shoulder
     with BuildSketch(Plane.XZ):
         with BuildLine():
             Polyline(*profile, close=True)
@@ -339,68 +359,7 @@ All formulas below use:
 - `L` = `NOSE_LEN_MM` = ogive/cone length from base to tip
 - `R` = `BASE_R_MM` = `BASE_OD_MM / 2` = base radius
 
-At z=0 every formula returns R (base radius); at z=L every formula returns 0 (tip). The derivations come from the standard aerospace nose-cone design formulas (Wikipedia: "Nose cone design"), converted from the x-from-tip convention to the z-from-base convention used by this pipeline via `x = L - z`.
-
-```python
-import math
-
-# --- Shape parameters ---
-# These are read from the manifest if present. Defaults below match
-# OpenRocket's defaults for each shape type.
-SHAPE = features.get("shape", "ogive").lower()
-SHAPE_PARAM = features.get("shape_parameter")   # only used by parabolic, power, haack
-
-# --- Profile function dispatch ---
-def outer_r(z: float) -> float:
-    """Radius of the nose cone at distance z above the base."""
-    x = L - z                                   # x from tip (standard convention)
-
-    if SHAPE == "conical":
-        return R * x / L
-
-    elif SHAPE == "ogive":
-        rho = (R**2 + L**2) / (2 * R)
-        return max(math.sqrt(max(rho**2 - z**2, 0.0)) + R - rho, 0.0)
-
-    elif SHAPE == "ellipsoid":
-        return R * math.sqrt(max(L**2 - z**2, 0.0)) / L
-
-    elif SHAPE == "parabolic":
-        # K' ∈ [0, 1]. K'=0 → cone, K'=1 → full parabola.
-        # OpenRocket default is K'=1 (full parabola).
-        kp = SHAPE_PARAM if SHAPE_PARAM is not None else 1.0
-        xn = x / L
-        return R * (2 * xn - kp * xn**2) / (2 - kp)
-
-    elif SHAPE == "power":
-        # n ∈ [0, 1]. n=0 → cylinder, n=1 → cone.
-        # OpenRocket default is n=0.5.
-        n = SHAPE_PARAM if SHAPE_PARAM is not None else 0.5
-        if x <= 0:
-            return 0.0
-        return R * (x / L) ** n
-
-    elif SHAPE == "haack":
-        # C = 0 → LD-Haack (Von Kármán), C = 1/3 → LV-Haack.
-        # OpenRocket default is C=0 (Von Kármán).
-        C = SHAPE_PARAM if SHAPE_PARAM is not None else 0.0
-        # Parametric form: theta varies as x goes from 0 (tip) to L (base).
-        if x <= 0:
-            return 0.0
-        theta = math.acos(1 - 2 * x / L)
-        return R * math.sqrt(
-            (theta - math.sin(2 * theta) / 2 + C * math.sin(theta) ** 3) / math.pi
-        )
-
-    else:
-        raise ValueError(f"Unknown nose cone shape: {SHAPE!r}")
-
-# L and R must be defined before calling outer_r.
-L = NOSE_LEN_MM
-R = BASE_R_MM
-```
-
-Quick-reference table:
+All formulas use z from base (`x = L - z` converts to the standard tip-origin convention). At z=0 every formula returns R; at z=L every formula returns 0. Read `SHAPE` from `features.get("shape", "ogive")` and `SHAPE_PARAM` from `features.get("shape_parameter")`.
 
 | Shape      | `outer_r(z)` (z from base)                           | Parameter        | Default |
 |------------|-------------------------------------------------------|------------------|---------|
@@ -409,14 +368,9 @@ Quick-reference table:
 | ellipsoid  | `R * sqrt(L² - z²) / L`                               | none             | —       |
 | parabolic  | `R * (2u - K'u²) / (2 - K')` where `u = (L-z)/L`     | K' ∈ [0, 1]     | 1.0     |
 | power      | `R * ((L-z) / L)^n`                                   | n ∈ [0, 1]      | 0.5     |
-| haack      | parametric via `θ = arccos(1 - 2(L-z)/L)`; see code   | C (0=VK, 1/3=LV)| 0.0     |
+| haack      | `R * sqrt((θ - sin(2θ)/2 + C·sin³θ) / π)` where `θ = arccos(1 - 2(L-z)/L)` | C (0=VK, 1/3=LV)| 0.0 |
 
-**Correctness check after changing shapes:** the same profile-walk + revolve code produces all shapes. When you switch `outer_r`, re-run, and render, visually verify:
-- **Conical** → straight-edged cone in the side profile (no curvature).
-- **Ellipsoid** → half-ellipse cross-section; widest curvature near the base.
-- **Parabolic** → gentler curve than ogive, approaching conical for K'→0.
-- **Power** → blunt "stubby" shape for n<1 (concave sides), conical at n=1.
-- **Haack (Von Kármán)** → similar to tangent ogive but with minimum-drag profile; very slightly different curvature near the tip.
+For parabolic/power/haack, if `SHAPE_PARAM` is None use the default above. Visual check: conical → straight edges, ellipsoid → half-ellipse, parabolic → gentler than ogive, power(n<1) → blunt/concave, haack → similar to ogive (minimum-drag).
 
 **To opt into a hollow nose cone**, the manifest's `features.hollow` field is set to `true` and `features.wall_mm` is the desired wall thickness. Add a third pass to the BuildPart that subtracts the inner cavity, leaving `wall_mm` of material everywhere except a few mm of solid material at the tip. The default is solid; only do this when the manifest asks for it.
 
@@ -552,18 +506,7 @@ If a feature type isn't in this table, query the `cad_examples` reference collec
 
 ## Check the Reference Collection
 
-For feature types or build123d API patterns not covered above, query the reference collection:
-
-```
-rag_reference(
-    action="search",
-    collection="cad_examples",
-    query=f"build123d {feature_type_or_api_question}",
-    n_results=3,
-)
-```
-
-Example queries: `"build123d loft between circles"`, `"build123d sweep along path"`, `"build123d thicken surface"`, `"build123d fillet edge selection"`. **If the search returns no results**, fall back to the patterns above or ask the user. **If the search errors**, proceed silently.
+For feature types or build123d API patterns not covered above, query `rag_reference(action="search", collection="cad_examples", query=f"build123d {question}", n_results=3)`. Fall back to the patterns above if no results; proceed silently on errors.
 
 ## Verification Workflow
 
@@ -576,9 +519,10 @@ After each successful `build123d_script` call:
    - Is the part inside-out (walls appearing solid where there should be a bore)?
    - Is any dimension obviously wrong?
 3. **`build123d_extract(step_file_path)`** — compare the bounding box Z extent to `features["length_mm"]` and the max XY extent to `features["od_mm"]`. Mismatches > 1 mm indicate a script bug.
-4. **If any check fails, fix the script and re-run.** Do not accept broken geometry, do not defer verification to "I'll check all of them at the end".
+4. **Pause for user feedback** if this feature is in the feedback checkpoint list (see **User Feedback Checkpoints** above). Show the render, describe what was built, and ask a targeted question. Wait for user approval before continuing.
+5. **If any check fails (or the user requests changes), fix the script and re-run.** Do not accept broken geometry, do not defer verification to "I'll check all of them at the end".
 
-After the full assembly is generated, spend extra time on the assembly render. Cross-part issues (visible gaps at joints, off-axis fins, shoulder mismatches) are only visible here.
+After the full assembly is generated, **always pause for user feedback** on the assembly render — this is mandatory regardless of feature complexity. Cross-part issues (visible gaps at joints, off-axis fins, shoulder mismatches) are only visible here and the user's approval of the full stack is required before handoff.
 
 ## Red Flags — Stop and Fix
 
@@ -607,18 +551,24 @@ Do not run `modify-structures` twice for the same manifest — a successful modi
 ```
 # the Pass 1 loop
 for part in manifest["parts"]:
-    write_script(part, features_only=True)
-    build123d_script(script_path, out_dir)
-    build123d_render(step_file_path, out_path=visualizations_dir/<name>.png)
-    Read(png_path)
-    build123d_extract(step_file_path)
-    if check_failed: fix_and_retry()
+    for feature in part["features"]:
+        write_or_append_script(part, feature)
+        build123d_script(script_path, out_dir)
+        build123d_render(step_file_path, out_path=visualizations_dir/<name>.png)
+        Read(png_path)
+        build123d_extract(step_file_path)
+        if is_complex_feature(feature):  # fillets, lofts, revolves, arrays, fuses
+            ask_user("Does this look right? <describe what was added>")
+            wait_for_response()
+        if check_failed or user_requested_change: fix_and_retry()
 
-# then the assembly
+# then the assembly (always pause for feedback)
 for asm in manifest["assemblies"]:
     write_assembly_script(asm)
     build123d_script(...)
     build123d_render(...) → Read → verify cross-part alignment
+    ask_user("Assembly looks like <description>. Do the proportions and joints look right?")
+    wait_for_response()
 
 # handoff
 if any(part.modifications for part in manifest["parts"]):

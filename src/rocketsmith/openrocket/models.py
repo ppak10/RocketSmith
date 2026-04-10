@@ -34,6 +34,7 @@ class FlightReportResult(BaseModel):
     simulation_name: str
     report_dir: str
     report_path: str
+    pdf_path: str
     plot_paths: list[str]
     max_altitude_m: float
     max_velocity_ms: float

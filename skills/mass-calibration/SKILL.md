@@ -74,56 +74,24 @@ openrocket_component(
 
 #### Case B: One printed part → multiple OR components (fused)
 
-When the `derived_from` list has more than one entry, the printed weight covers the combined mass of all of them. You have two options:
-
-**Option B1 (recommended — pin all, distribute proportionally):**
-For each OR component in `derived_from`, compute its share of the original OR-estimated mass, then apply that share of the measured printed weight:
+When `derived_from` has multiple entries, distribute the printed weight proportionally across all fused components to preserve CG distribution:
 
 ```
-# Read each OR component's default (OR-estimated) mass via openrocket_component(action="read")
-defaults = {
-    "BodyTube:Lower":           0.0541,   # 54.1 g
-    "TrapezoidFinSet":           0.0082,   # 8.2 g
-    "InnerTube:MotorMount":      0.0089,   # 8.9 g
-    "CenteringRing:Fore":        0.0031,
-    "CenteringRing:Aft":         0.0031,
-}
-total_default = sum(defaults.values())      # 0.0774 kg
-measured = 0.0897                            # 89.7 g printed
+# Read each component's OR-default mass via openrocket_component(action="read")
+defaults = {"BodyTube:Lower": 0.0541, "TrapezoidFinSet": 0.0082, "InnerTube:MotorMount": 0.0089}
+total_default = sum(defaults.values())
+measured = 0.0897   # printed weight in kg (89.7 g / 1000)
 
-# Distribute the measured weight proportionally
 for component, default_mass in defaults.items():
-    share = (default_mass / total_default) * measured
     openrocket_component(
         action="update",
         rocket_file_path=<path>,
         component_name=component,
-        override_mass_kg=share,
+        override_mass_kg=(default_mass / total_default) * measured,
     )
 ```
 
-This preserves the CG distribution within the printed part, which matters for the fin set's position affecting stability.
-
-**Option B2 (simpler — pin primary, zero the rest):**
-Apply the full measured weight to the first (primary) component in `derived_from` and zero out the others:
-
-```
-openrocket_component(
-    action="update",
-    rocket_file_path=<path>,
-    component_name="BodyTube:Lower",
-    override_mass_kg=0.0897,   # full 89.7 g
-)
-for secondary in ["TrapezoidFinSet", "InnerTube:MotorMount", "CenteringRing:Fore", "CenteringRing:Aft"]:
-    openrocket_component(
-        action="update",
-        rocket_file_path=<path>,
-        component_name=secondary,
-        override_mass_kg=0.0,
-    )
-```
-
-Option B2 is simpler but collapses the mass to a single point, which can shift CG compared to option B1. Use B2 only when the printed part is short enough that intra-part CG shift is negligible (small LPR parts). **Default to option B1 for mid-power and above.**
+For small LPR parts where CG shift is negligible, you can instead apply the full weight to the primary component and zero the rest — but **default to proportional distribution for mid-power and above.**
 
 #### Case C: OR component → skipped or purchased
 
