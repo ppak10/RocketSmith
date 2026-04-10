@@ -22,23 +22,16 @@ gemini extensions install https://github.com/ppak10/RocketSmith
 
 The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `cadsmith`, `prusaslicer`), and action skills automatically.
 
-### Claude Code (MCP server)
+### Claude Code (plugin)
 
-Add to your Claude Code MCP configuration (project or global `settings.json`):
+Register the RocketSmith marketplace and install the plugin:
 
-```json
-{
-  "mcpServers": {
-    "rocketsmith": {
-      "command": "uvx",
-      "args": ["--from", "rocketsmith", "rocketsmith-mcp"]
-    }
-  }
-}
+```bash
+/plugin marketplace add ppak10/RocketSmith
+/plugin install rocketsmith@rocketsmith
 ```
 
-Agent definitions (`agents/*.md`) and skills (`skills/*/SKILL.md`) are loaded via Claude Code's `CLAUDE.md` include mechanism.
-
+This installs the full plugin — MCP server, orchestrator agent, domain subagents (`openrocket`, `cadsmith`, `prusaslicer`), action skills, and session hooks. Update with `/plugin update rocketsmith`.
 ### CLI / API
 
 ```bash
