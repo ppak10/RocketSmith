@@ -114,19 +114,19 @@ def register_manufacturing_manifest(app: FastMCP):
                 project_root=str(project_root),
             )
 
+        if method != "additive":
+            return tool_error(
+                f"Manufacturing method '{method}' is not yet supported. "
+                "Only 'additive' is implemented today.",
+                "NOT_IMPLEMENTED",
+                method=method,
+            )
+
         try:
             if openrocket_path is None:
                 from rocketsmith.openrocket.utils import get_openrocket_path
 
                 openrocket_path = get_openrocket_path()
-
-            if method != "additive":
-                return tool_error(
-                    f"Manufacturing method '{method}' is not yet supported. "
-                    "Only 'additive' is implemented today.",
-                    "NOT_IMPLEMENTED",
-                    method=method,
-                )
 
             from rocketsmith.manufacturing.dfam import generate_dfam_manifest
 

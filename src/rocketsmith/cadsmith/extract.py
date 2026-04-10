@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from rocketsmith.cadsmith.models import Build123dGeometry, BoundingBox, CenterOfMass
+from rocketsmith.cadsmith.models import BoundingBox, CADSmithModelInfo, CenterOfMass
 
 
 def extract_geometry(
     step_path: Path,
     material_density_kg_m3: float | None = None,
-) -> Build123dGeometry:
+) -> CADSmithModelInfo:
     """Extract geometric properties from a STEP file.
 
     Args:
@@ -15,7 +15,7 @@ def extract_geometry(
             mass_g is calculated from volume × density.
 
     Returns:
-        Build123dGeometry with volume, surface area, bounding box, and
+        CADSmithModelInfo with volume, surface area, bounding box, and
         centre of mass. mass_g is populated only when density is given.
     """
     from build123d import import_step
@@ -30,7 +30,7 @@ def extract_geometry(
         volume_m3 = shape.volume * 1e-9  # mm³ → m³
         mass_g = round(volume_m3 * material_density_kg_m3 * 1000, 2)
 
-    return Build123dGeometry(
+    return CADSmithModelInfo(
         volume_mm3=round(shape.volume, 2),
         volume_cm3=round(shape.volume * 1e-3, 3),
         surface_area_mm2=round(shape.area, 2),

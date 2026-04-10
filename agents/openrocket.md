@@ -121,9 +121,11 @@ After building the body tube components (step 4), check: *"How many body tube se
 
 **Common mistake:** the agent creates multiple body tubes to fit a print-bed constraint but forgets the couplers. The design simulates fine (couplers barely affect aerodynamics) so the omission isn't caught until CAD generation produces flat-ended cylinders. The check at step 5 prevents this.
 
-### Visual Verification (MANDATORY)
+### Visual Verification (MANDATORY — both interactive and zero-shot modes)
 
-**Show the ASCII side profile** (from `openrocket_inspect`'s `ascii_art` field) in a fenced code block at three moments: (1) after adding components, (2) alongside simulation results, (3) before CAD handoff with `width=200`. The profile is the fastest way to catch wrong order, misplaced couplers, oversized fins, or missing nose cone.
+**Every time `openrocket_inspect` is called, print the `ascii_art` field to the user in a fenced code block.** This is not optional in either interaction mode. The ASCII side profile is the user's primary visual feedback — it shows how the rocket's shape evolves as components change. Without it, the user is blind to structural changes.
+
+Display it at minimum at these three moments: (1) after adding or modifying components, (2) alongside simulation results, (3) before CAD handoff with `width=200`. The profile is the fastest way to catch wrong order, misplaced couplers, oversized fins, or missing nose cone. Do not summarize or skip the ASCII art — always print the full string.
 
 ### CAD handoff
 

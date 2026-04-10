@@ -13,7 +13,7 @@ class CenterOfMass(BaseModel):
     z_mm: float
 
 
-class Build123dGeometry(BaseModel):
+class CADSmithModelInfo(BaseModel):
     volume_mm3: float
     volume_cm3: float
     surface_area_mm2: float

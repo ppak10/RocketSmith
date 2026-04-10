@@ -7,7 +7,7 @@ def register_cadsmith_extract(app: FastMCP):
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
-    from rocketsmith.cadsmith.models import Build123dGeometry
+    from rocketsmith.cadsmith.models import CADSmithModelInfo
 
     @app.tool(
         name="cadsmith_extract",
@@ -22,7 +22,7 @@ def register_cadsmith_extract(app: FastMCP):
     async def cadsmith_extract(
         step_file_path: Path,
         material_density_kg_m3: float | None = None,
-    ) -> Union[ToolSuccess[Build123dGeometry], ToolError]:
+    ) -> Union[ToolSuccess[CADSmithModelInfo], ToolError]:
         """
         Extract geometric properties from a STEP file.
 
