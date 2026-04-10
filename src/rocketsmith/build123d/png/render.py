@@ -3,10 +3,18 @@
 Reuses the existing mesh tessellation and z-buffer rasterization pipeline
 from the ASCII renderer, but outputs float intensity arrays → matplotlib PNG.
 
-Three views are rendered per part:
-  - Side profile   (orthographic, looking along +X):  shows length, fins, shoulder
-  - Aft end        (orthographic, looking along -Z):  shows fin count, bore diameter
-  - Isometric 45°  (isometric with Y-rotation):       3D sanity check
+Three views are rendered per part. Labels describe the *part-local* frame,
+not the rocket-logical frame — individual parts live in their own local
+coordinates (e.g. nose cones are built shoulder-at-Z=0 for printing, which
+is the opposite of the rocket's fore-to-aft direction). Rocket-frame
+orientation is only meaningful in assembly renders where every part has
+been transformed into the assembly coordinate system.
+
+  - Side (eye at −X, looking +X) : horizontal = Z (low Z on the left), vertical = Y
+  - End  (eye at +Z, looking −Z) : horizontal = X, vertical = Y; the +Z face
+                                   of the part's bounding box is what the
+                                   camera sees first
+  - Isometric 45°                : 3D sanity check with Y-rotation applied
 """
 
 from __future__ import annotations
@@ -29,22 +37,22 @@ _LIGHT_DIR: np.ndarray = _LIGHT / np.linalg.norm(_LIGHT)
 def _project_side(
     vertices: np.ndarray, scale: float, width: int, height: int
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Orthographic side view: camera along +X, Z-axis horizontal (fore=left)."""
+    """Orthographic side view: eye at −X looking +X, Z horizontal (low Z on the left, +Y up)."""
     z, y = vertices[:, 2], vertices[:, 1]
     sx = z * scale + width / 2.0
     sy = -y * scale + height / 2.0
-    depth = -vertices[:, 0]   # more negative X → closer to +X camera
+    depth = -vertices[:, 0]  # eye at −X → smaller X is closer → depth = −X
     return np.stack([sx, sy], axis=1), depth
 
 
-def _project_aft(
+def _project_end(
     vertices: np.ndarray, scale: float, width: int, height: int
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Orthographic aft-end view: camera at +Z looking toward -Z (aft face visible)."""
+    """Orthographic end view: eye at +Z looking −Z, high-Z face of the part is nearest camera."""
     x, y = vertices[:, 0], vertices[:, 1]
     sx = x * scale + width / 2.0
     sy = -y * scale + height / 2.0
-    depth = vertices[:, 2]    # higher Z → closer to aft camera
+    depth = vertices[:, 2]  # eye at +Z → larger Z is closer → depth = +Z
     return np.stack([sx, sy], axis=1), depth
 
 
@@ -78,7 +86,12 @@ def _project_iso(
 
 
 def _ortho_scale(
-    vertices: np.ndarray, horiz_axis: int, vert_axis: int, width: int, height: int, margin: int = 30
+    vertices: np.ndarray,
+    horiz_axis: int,
+    vert_axis: int,
+    width: int,
+    height: int,
+    margin: int = 30,
 ) -> float:
     h_span = float(vertices[:, horiz_axis].max() - vertices[:, horiz_axis].min())
     v_span = float(vertices[:, vert_axis].max() - vertices[:, vert_axis].min())
@@ -87,7 +100,9 @@ def _ortho_scale(
     return min((width - 2 * margin) / h_span, (height - 2 * margin) / v_span)
 
 
-def _iso_scale(vertices: np.ndarray, width: int, height: int, margin: int = 30) -> float:
+def _iso_scale(
+    vertices: np.ndarray, width: int, height: int, margin: int = 30
+) -> float:
     from rocketsmith.build123d.ascii.project import rotate_y
 
     cos30 = math.cos(math.radians(30))
@@ -128,7 +143,11 @@ def _rasterize_intensity(
     py_grid, px_grid = np.mgrid[0:height, 0:width].astype(np.float64)
 
     for idx in range(len(tri_indices)):
-        i0, i1, i2 = int(tri_indices[idx, 0]), int(tri_indices[idx, 1]), int(tri_indices[idx, 2])
+        i0, i1, i2 = (
+            int(tri_indices[idx, 0]),
+            int(tri_indices[idx, 1]),
+            int(tri_indices[idx, 2]),
+        )
         sx0, sy0 = screen_xy[i0, 0], screen_xy[i0, 1]
         sx1, sy1 = screen_xy[i1, 0], screen_xy[i1, 1]
         sx2, sy2 = screen_xy[i2, 0], screen_xy[i2, 1]
@@ -177,7 +196,7 @@ def render_step_png(
     panel_height: int = 420,
     tolerance: float = 0.5,
 ) -> Path:
-    """Render a STEP file to a 3-panel PNG (side profile, aft end, isometric).
+    """Render a STEP file to a 3-panel PNG (side, end, isometric).
 
     Args:
         step_path:    Path to the STEP file to render.
@@ -190,6 +209,7 @@ def render_step_png(
         output_path on success.
     """
     import matplotlib.pyplot as plt
+
     plt.switch_backend("agg")
 
     from matplotlib.colors import LinearSegmentedColormap
@@ -202,21 +222,21 @@ def render_step_png(
     W, H = panel_width, panel_height
 
     # ── Scales ────────────────────────────────────────────────
-    # Side:  horiz=Z(axis 2), vert=Y(axis 1)
-    # Aft:   horiz=X(axis 0), vert=Y(axis 1)
+    # Side: horiz=Z(axis 2), vert=Y(axis 1)
+    # End:  horiz=X(axis 0), vert=Y(axis 1)
     scale_side = _ortho_scale(verts, horiz_axis=2, vert_axis=1, width=W, height=H)
-    scale_aft  = _ortho_scale(verts, horiz_axis=0, vert_axis=1, width=W, height=H)
-    scale_iso  = _iso_scale(verts, W, H)
+    scale_end = _ortho_scale(verts, horiz_axis=0, vert_axis=1, width=W, height=H)
+    scale_iso = _iso_scale(verts, W, H)
 
     # ── Project ───────────────────────────────────────────────
-    xy_side, d_side          = _project_side(verts, scale_side, W, H)
-    xy_aft,  d_aft           = _project_aft( verts, scale_aft,  W, H)
-    xy_iso,  d_iso, n_iso    = _project_iso( verts, normals, scale_iso, W, H, angle_deg=45.0)
+    xy_side, d_side = _project_side(verts, scale_side, W, H)
+    xy_end, d_end = _project_end(verts, scale_end, W, H)
+    xy_iso, d_iso, n_iso = _project_iso(verts, normals, scale_iso, W, H, angle_deg=45.0)
 
     # ── Rasterize ─────────────────────────────────────────────
     img_side = _rasterize_intensity(xy_side, d_side, tris, normals, W, H)
-    img_aft  = _rasterize_intensity(xy_aft,  d_aft,  tris, normals, W, H)
-    img_iso  = _rasterize_intensity(xy_iso,  d_iso,  tris, n_iso,   W, H)
+    img_end = _rasterize_intensity(xy_end, d_end, tris, normals, W, H)
+    img_iso = _rasterize_intensity(xy_iso, d_iso, tris, n_iso, W, H)
 
     # ── Colormap: dark navy bg → steel blue shadow → light steel highlight ────
     bg = (0.06, 0.06, 0.10)
@@ -234,16 +254,16 @@ def render_step_png(
     # ── Build figure ──────────────────────────────────────────
     dpi = 100
     fig_w = (W * 3) / dpi
-    fig_h = (H + 60) / dpi   # extra height for title + labels
+    fig_h = (H + 60) / dpi  # extra height for title + labels
 
     fig, axes = plt.subplots(1, 3, figsize=(fig_w, fig_h), dpi=dpi)
     fig.patch.set_facecolor(bg)
     fig.suptitle(step_path.name, color="white", fontsize=11, y=0.98)
 
     panels = [
-        (img_side, "Side Profile  (fore → aft)"),
-        (img_aft,  "Aft End  (looking forward)"),
-        (img_iso,  "Isometric 45°"),
+        (img_side, "Side  (−X camera, Z horizontal: low Z left → high Z right)"),
+        (img_end, "End  (+Z camera looking −Z: high-Z face of part)"),
+        (img_iso, "Isometric 45°  (part-local frame)"),
     ]
 
     for ax, (img, title) in zip(axes, panels):
@@ -260,7 +280,7 @@ def render_step_png(
 
         mask = img >= 0
         if mask.any():
-            part_rgba = part_cmap(img[mask])          # (N, 4)
+            part_rgba = part_cmap(img[mask])  # (N, 4)
             rgba[mask, :3] = part_rgba[:, :3]
 
         ax.imshow(rgba, origin="upper", interpolation="bilinear", aspect="equal")

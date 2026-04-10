@@ -58,7 +58,7 @@ For each entry in `manifest["parts"]`:
 
 1. **Write the script** with the `Write` tool. Use the script structure below and build only the features in `features` — ignore `modifications` entirely at this stage. For any part with **more than one shape-producing operation** (nose cone with shoulder + ogive, airframe with integrated fins, tube with integral aft shoulder, etc.) follow the iterative per-feature loop in **Build Iteratively — Verify Each Feature** below. Single-feature parts (plain body tube, plain ring) can be written in one shot.
 2. **Execute** via `build123d_script(script_path=<scripts_dir>/<name>.py, out_dir=<step_dir>)`.
-3. **Render** via `build123d_render(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `CAD/` to the sibling `visualizations/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<visualizations_dir>/<name>.png` explicitly. The PNG has **three panels — side profile (fore→aft left-to-right), aft end, isometric 45°** — check all three, not just the iso view.
+3. **Render** via `build123d_render(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `CAD/` to the sibling `visualizations/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<visualizations_dir>/<name>.png` explicitly. The PNG has **three panels — side (eye at −X, low Z on the left → high Z on the right), end (eye at +Z, showing the high-Z face), isometric 45°** — check all three, not just the iso view. Note that panel labels describe the **part-local frame**, not the rocket-logical frame — for a nose cone built per convention, low Z is the shoulder (rocket-aft) and high Z is the tip (rocket-fore). The rocket-frame view only exists in the assembly render.
 4. **Verify** via `build123d_extract` that the bounding box matches `features["length_mm"]` and `features["od_mm"]`.
 
 Do not proceed if a part fails verification. Fix the script and re-run.
@@ -163,10 +163,10 @@ For each feature in a multi-feature part:
 1. **Write** the script containing every feature so far plus the new one. Use `Write` for the first feature, `Edit` to append subsequent features — do not rewrite the whole script when appending one feature.
 2. **Execute**: `build123d_script(...)`.
 3. **Render + Read**: `build123d_render(...)` then `Read` the PNG.
-4. **Verify visually against the three panels**:
-   - **Side profile** — fore is left, aft is right (Z axis horizontal). Is the new feature in the expected Z range? Is it fused to the correct face of the existing geometry?
-   - **Aft end** — symmetry counts (fin count, bolt circle count) and radial placement are obvious here.
-   - **Isometric** — 3D sanity check. Is the feature on the expected side of the body?
+4. **Verify visually against the three panels**. The render labels describe the **part-local frame** — not the rocket's fore-aft frame. Reason in terms of "Z=0 is the part's local print-bed face" first, then translate to rocket semantics only when composing the assembly.
+   - **Side panel** — Z is horizontal, low Z on the left, high Z on the right. Is the new feature in the expected local-Z range? Is it fused to the correct face of the existing geometry? For a body tube built fore-at-Z=0, left = rocket-fore. For a nose cone built shoulder-at-Z=0, left = rocket-aft (shoulder) and right = rocket-fore (tip) — the opposite. "Left = fore" is NOT a universal truth; check the per-part-type orientation table above before interpreting the side view.
+   - **End panel** — camera looks down +Z toward −Z, so you see the high-Z face of the part. Symmetry counts (fin count, bolt circle count) and radial placement are obvious here.
+   - **Isometric** — 3D sanity check. Is the feature on the expected side of the body? In this render's iso projection, high Z tends to appear toward the bottom-right of the panel (worth internalizing if you debug orientation issues often).
 5. **Verify numerically**: `build123d_extract` and compare the bbox Z extent against what you expect after this feature. If feature 2 was supposed to grow the part by `SHOULDER_LEN_MM` in +Z, the bbox Z max should have increased by exactly that. If it decreased, the feature extruded the wrong way.
 6. **If wrong, fix before adding the next feature.** Do not stack a new feature onto a broken one — the bug compounds and the diagnosis gets harder with every additional operation.
 7. **Only when this feature is visually and numerically correct**, move to the next.
@@ -187,6 +187,8 @@ When a checkpoint render shows the just-added feature on the wrong side or in th
 | Nose cone ends up tip-down | Profile walks from tip down instead of base up | Rewrite the profile to start at the base (`Z = SHOULDER_LEN_MM`) and end at the tip (`Z = SHOULDER_LEN_MM + NOSE_LEN_MM`). See the canonical recipe below. |
 | Fins sweep the wrong direction | Leading-edge sweep sign | Fins sweep *aft* by convention — the leading edge's tip is further aft than its root. Flip the X offset applied to the tip chord. |
 | Integral aft shoulder appears on the fore end | Extruded from Z=0 instead of Z=length | The second extrude must sketch on `Plane.XY.offset(LENGTH_MM)` and extrude +Z, not sketch on `Plane.XY` and extrude −Z. |
+| Integrated fins render correctly but the root fillet is missing / the fillet call raised "Failed creating a fillet" | Fin root chord sits at exactly `OD/2` (tangent to the cylinder, not penetrating) so the fuse produced no intersection edges for `fillet()` to act on | Inset the fin profile's root X from `OD_MM/2` to `OD_MM/2 - 1.0`. The fin now actually penetrates the wall and the broad faces meet the cylinder surface in straight Z-parallel edges that the fillet filter can select. See the *Fin root fillet* recipe in the Common build123d API Patterns section. |
+| `fillet()` raises "Failed creating a fillet with radius of X" on fin root edges even though the edges exist | Manifest `fillet_mm` exceeds what OCC can build for this fin geometry — the fillet on one broad face of the fin collides with the fillet on the opposite broad face | Clamp at `min(FIN_THICK/2 * 0.9, 3.0)` before calling `fillet()`. This should be enforced upstream by the `design-for-additive-manufacturing` skill when the manifest is authored, but Pass 1 clamps defensively and prints a warning. |
 
 The common thread: **the fix is almost always one line**. Read the bbox Z extent before and after the bad feature, identify which of the above categories the bug falls into, edit one line, re-run.
 
@@ -335,6 +337,46 @@ with BuildPart() as array:
         add(feature_shape.rotate(Axis.Z, i * (360 / COUNT)))
 ```
 
+### Fin root fillet (integrated fins only)
+
+After a fin has been polar-arrayed and fused into a cylindrical body, the root fillet is applied to the straight edges where each fin's two broad faces meet the cylinder's OD. Two prerequisites:
+
+1. **The fin must penetrate the wall**, not sit tangent to it. The fin profile's root chord X coordinate is `OD_MM/2 - FIN_ROOT_INSET_MM` with `FIN_ROOT_INSET_MM = 1.0`. A root at exactly `OD_MM/2` is tangent along a single line, the fuse has no volumetric overlap, and the fillet has no edges to act on.
+2. **The fillet radius must be geometrically feasible.** OCC refuses any radius approaching the fin half-thickness. Clamp at `min(FIN_THICK/2 * 0.9, 3.0)` before calling `fillet()`. A manifest `fillet_mm` larger than that ceiling should be clamped (and the clamp printed as a warning), not passed through.
+
+Edge selection pattern — inside the `BuildPart() as airframe:` context, after the fin array loop:
+
+```python
+if FIN_FILLET_MM > 0:
+    body_r = OD_MM / 2
+    z_parallel_edges = airframe.edges().filter_by(Axis.Z)
+    fin_root_edges = [
+        e for e in z_parallel_edges
+        if abs(math.sqrt(e.center().X ** 2 + e.center().Y ** 2) - body_r) < 0.5
+        and 0.1 < e.center().Z < FIN_ROOT
+        and 1.0 < e.length < FIN_ROOT
+    ]
+    if fin_root_edges:
+        # Clamp to the largest value OCC actually accepts for this fin
+        max_feasible = min(FIN_THICK / 2 * 0.9, 3.0)
+        applied = min(FIN_FILLET_MM, max_feasible)
+        if applied < FIN_FILLET_MM:
+            print(
+                f"[fillet] manifest fillet_mm={FIN_FILLET_MM} exceeds "
+                f"geometric limit; applied {applied} mm"
+            )
+        fillet(fin_root_edges, radius=applied)
+```
+
+Filter rationale:
+
+- **`filter_by(Axis.Z)`** — the fin-root edges we want are straight lines parallel to Z (the intersection of the fin's flat broad faces, which contain the Z direction, with the cylinder surface). The base tube's top and bottom edges are circles, not Z-parallel lines, so this excludes them.
+- **Radial distance ≈ `body_r`** — the selected edges must lie on the cylinder's outer surface.
+- **`0.1 < center.Z < FIN_ROOT`** — keeps the selection to the fin's Z range. Excludes the OCC cylinder seam line artifact (a Z-parallel topological edge OCC inserts on every cylindrical surface where its u-parameter wraps) that gets split by the fin fuse into pieces above and below the fin.
+- **`e.length < FIN_ROOT`** — the seam-line fragment that happens to fall within the fin Z range is slightly longer than `FIN_ROOT` because OCC splits the seam slightly past the fin boundary due to tolerance; this length filter excludes it.
+
+The selection intentionally skips the short fore/aft arcs at the root chord endpoints (where the fin's slanted fore and aft faces meet the OD). Including them caps the achievable fillet at ~1.5 mm because those arcs are only 6–13 mm long. Z-parallel-only selection gets us up to ~2–3 mm at the cost of leaving the fore/aft corners sharp — a good trade-off for visible fillets on printed rockets in the typical 64–80 mm body tube range. If you need the full closed loop (continuous fillet all the way around each fin root), extend the selector to include the OD arcs, but expect the max feasible radius to drop.
+
 ### Fuse a feature into a parent body
 
 ```python
@@ -355,8 +397,14 @@ with BuildPart() as airframe:
 
 ### Assembly composition
 
+The assembly frame stacks parts along +Z. Each part was built in its own local print frame (`Part Orientation Convention` section above) and most local frames can be stacked directly — body tubes, couplers, rings — because their Z=0 face is already the face that mates with the next part in the stack.
+
+**Nose cones are the exception.** They are built shoulder-at-Z=0 for printing, so their local +Z points from shoulder → tip, which is the **opposite** of the rocket's fore-to-aft direction. Stacked as-is, the tip would be at low assembly-Z and the shoulder at high assembly-Z, and the shoulder would be pressed against the wrong face of the upper airframe. Rotate the nose cone 180° about X before inserting it into the stack so its shoulder sits at the high-Z end of its local range and mates correctly with the upper airframe's fore face (local Z=0).
+
+If any other part type turns out to have this kind of local-vs-assembly mismatch in the future, handle it the same way — rotate at import time, before the cursor-z stacking loop runs.
+
 ```python
-from build123d import import_step, Compound
+from build123d import import_step, Compound, Axis
 from pathlib import Path
 
 # Resolve paths relative to this script's location (same pattern as per-part scripts)
@@ -364,13 +412,21 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 CAD_DIR = PROJECT_ROOT / "CAD"
 
-parts = [
-    import_step(str(CAD_DIR / "nose_cone.step")),
-    import_step(str(CAD_DIR / "upper_airframe.step")),
-    import_step(str(CAD_DIR / "lower_airframe.step")),
-]
+# Import and re-orient each part into the assembly frame.
+# Nose cones are built shoulder-down for printing; flip 180° about X so
+# the shoulder ends up at the high-Z end of the nose cone's local range,
+# where it will mate with the fore face of the upper airframe.
+nose_cone = import_step(str(CAD_DIR / "nose_cone.step")).rotate(Axis.X, 180)
+upper_airframe = import_step(str(CAD_DIR / "upper_airframe.step"))
+lower_airframe = import_step(str(CAD_DIR / "lower_airframe.step"))
 
-# Position fore-to-aft along Z using each part's bounding box Z extent
+parts = [nose_cone, upper_airframe, lower_airframe]
+
+# Stack along +Z in the order given (fore-to-aft in this layout: nose cone
+# first, motor last). The nose cone sits at low Z and the motor at high Z
+# in the assembly frame — this is "fore-down" in the rocket's own frame,
+# which is fine for a visual sanity render. If you want "fore-up" for the
+# viewer's benefit, compose as shown and then rotate the whole assembly.
 positioned = []
 cursor_z = 0.0
 for p in parts:
@@ -391,7 +447,7 @@ The DFAM manifest uses named feature types. Below are the Pass-1 compositions of
 |---|---|
 | base cylinder (`length_mm`, `od_mm`, `id_mm`) | Hollow cylinder pattern. |
 | `local_wall_thickening` | Hollow cylinder with a secondary inner `Circle` at `bore_mm / 2` subtracted only between `[region_start_mm, region_end_mm]` along Z. Two extrusions: one for the full outer shell, one for the locally thickened inner wall. |
-| `integrated_fins` | After the parent hollow cylinder, build a single fin as a `Polyline` sketch in the XZ plane (root_chord on the body surface, tip_chord at body_r + span, sweep applied at the leading edge), extrude ±thickness/2 in Y, then polar-array `count` copies around Z. Apply a `fillet_mm` fillet at the root edge if `fillet_mm` > 0. |
+| `integrated_fins` | Build a single fin as a `Polyline` sketch in the XZ plane. **Root chord sits slightly INSIDE the cylinder wall** — use X = `od_mm/2 - 1.0` mm, not exactly `od_mm/2`. A root at exactly `od_mm/2` is tangent to the cylinder along a single line, producing zero volumetric overlap when fused, and the root fillet has no edges to act on. With the 1 mm inset the fin actually penetrates the wall and the fuse creates real intersection edges. Tip chord is at X = `od_mm/2 + span`, sweep applied at the leading edge. Extrude ±thickness/2 in Y. Polar-array `count` copies around Z via `add(fin_shape.rotate(Axis.Z, i * 360/count))`. **Fillet**: after the polar-array, select the Z-parallel straight edges that lie on the cylinder OD within the fin chord Z range (see snippet below) and pass them to `fillet()`. Clamp `fillet_mm` at `min(fin_thickness_mm/2 * 0.9, 3.0)` — larger values fail OCC. If `fillet_mm` is 0 or not present, skip the fillet. |
 | `integral_aft_shoulder` | At Z = parent `length_mm`, extrude a second hollow cylinder with OD = `od_mm` and ID = parent `id_mm`, length = `length_mm`. The `assembly_clearance_mm` field defaults to 0 (interference fit); use the shoulder OD from the manifest verbatim rather than re-applying clearance yourself. |
 | `forward_stop_lip` | At the fore end of the motor bore (Z = region_start_mm), extrude a small annulus inward (OD = bore radius, ID = stop ID) by `thickness_mm` in −Z. Fuse with parent. |
 

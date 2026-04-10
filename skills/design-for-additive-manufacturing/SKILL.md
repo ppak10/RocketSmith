@@ -151,6 +151,8 @@ Feature block:
 ### Integrated fins
 Fins extend radially from the outer wall of the body tube, filleted at the root for stress concentration reduction, as part of a single solid body. The number of fins and their angular spacing come from `TrapezoidFinSet`.
 
+`fillet_mm` must be small enough to be geometrically realisable by the build123d/OCC pipeline: roughly `thickness_mm / 4`, hard-capped by the helper at `min(thickness_mm / 2, 3 mm)`. A fillet approaching the fin half-thickness causes OCC to fail with "BRep_API: command not done" because the fillets on opposite broad faces collide. Do NOT copy `thickness_mm` into `fillet_mm` — that's the most common failure mode and the reason the DFAM helper clamps aggressively.
+
 Feature block:
 ```json
 {
@@ -220,6 +222,7 @@ Feature block:
 - `component_to_part_map` maps an OR component to no entry → the mass-calibration skill will fail to attribute its weight later
 - Multiple OR components map to the same part but the `derived_from` list doesn't reflect that → auditability broken
 - Any wall thickness below 1.5 mm → structural red flag for FDM, acceptable only for SLA with explicit user confirmation
+- An `integrated_fins` block where `fillet_mm >= thickness_mm / 2` → geometrically infeasible. The fillet on one broad face of the fin will collide with the fillet on the opposite broad face, and OCC's `fillet()` will refuse to build it at Pass 1. The `_fin_feature_block` helper in `dfam.py` already clamps defaults and overrides to `min(thickness_mm/2, _DFAM_MAX_FIN_FILLET_MM)` — if you're authoring the manifest by hand or through a code path that bypasses the helper, apply the same clamp. A fin without any root fillet at all is also a red flag (stress concentration); the intent is "small but present", typically `thickness_mm/4` capped at 3 mm.
 - The parts list has more printed parts than the OR tree suggests should exist (e.g. 6 printed parts from a single-section LPR) → the fusion logic isn't firing, review defaults
 - A `TubeCoupler` is marked `fuse` but the design is dual-deploy → may be wrong, ask the user
 - The user requested `retention="m4_heat_set"` but no `radial_holes` modifications appear in the manifest → the design probably has no `TubeCoupler` to fuse into a shoulder. Retention modifications are tied to integral shoulders; without a shoulder there's nowhere to put the holes. Either add a coupler to the OR design or use a different mating strategy (friction fit on the nose cone shoulder, etc.)

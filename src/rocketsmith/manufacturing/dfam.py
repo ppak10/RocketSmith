@@ -59,9 +59,15 @@ _NON_PHYSICAL_TYPES = {"Parachute", "MassComponent", "LaunchLug", "RailButton"}
 # fine but break easily on landing. ~12.7 mm (0.5") is the working default.
 _DFAM_MIN_FIN_THICKNESS_MM = 12.7
 
-# Default fin-to-body fillet radius. The fin root is the most stress-concentrated
-# point on the airframe and a generous fillet is critical for impact survival.
-_DFAM_DEFAULT_FIN_FILLET_MM = 12.7
+# Fin-to-body fillet sizing. The root fillet must be small enough to be
+# geometrically realisable: OCC's fillet operation fails if the radius
+# approaches the fin half-thickness because the two sides of the fillet
+# (one on each broad face of the fin) self-intersect. Empirically a fillet
+# radius of ~thickness/4, capped at ``_DFAM_MAX_FIN_FILLET_MM``, is a safe
+# starting point — noticeable on the render, structurally meaningful, and
+# clear of the OCC geometric limit.
+_DFAM_FIN_FILLET_THICKNESS_FRACTION = 0.25
+_DFAM_MAX_FIN_FILLET_MM = 3.0
 
 # Default nose-cone shoulder length. Long enough for alignment and a stable
 # print bed face; not so long that it dominates the print volume.
@@ -219,12 +225,21 @@ def _fin_feature_block(
        balsa or fiberglass construction (a few mm). Printed fins at that
        thickness break easily on landing. We bump any thickness below
        ``_DFAM_MIN_FIN_THICKNESS_MM`` (12.7 mm = 0.5") up to the minimum.
-    2. **Generous root fillet**: the fin-to-body junction is the highest
-       stress concentration on the airframe; ``_DFAM_DEFAULT_FIN_FILLET_MM``
-       (also 12.7 mm) keeps fins attached after a hard landing.
+    2. **Root fillet clamped to geometry**: the fin-to-body junction is a
+       high stress concentration on the airframe, so a fillet is always
+       specified — but it must be small enough to be geometrically
+       realisable by the build123d/OCC pipeline. The default is
+       ``thickness_mm * _DFAM_FIN_FILLET_THICKNESS_FRACTION`` capped at
+       ``_DFAM_MAX_FIN_FILLET_MM``. A fillet radius approaching the fin
+       half-thickness causes OCC's fillet operation to fail because the
+       fillets on the two broad faces self-intersect.
 
     Both are overridable via ``fusion_overrides``:
-    ``{"fin_thickness_mm": ..., "fin_fillet_mm": ...}``.
+    ``{"fin_thickness_mm": ..., "fin_fillet_mm": ...}``. If the caller
+    passes a ``fin_fillet_mm`` that exceeds the geometric cap, it is
+    clamped to the cap (a warning is not raised — the clamp is silent
+    because the default is deliberately conservative and any override
+    above it is almost certainly a unit-conversion mistake).
     """
     overrides = overrides or {}
 
@@ -234,10 +249,18 @@ def _fin_feature_block(
     else:
         thickness_mm = max(float(or_thickness), _DFAM_MIN_FIN_THICKNESS_MM)
 
+    # Geometric ceiling: the fillet can't exceed the fin half-thickness
+    # without OCC failing, and empirically ``_DFAM_MAX_FIN_FILLET_MM`` is
+    # the largest value that builds reliably for typical body tube radii.
+    fillet_ceiling = min(thickness_mm / 2.0, _DFAM_MAX_FIN_FILLET_MM)
+    default_fillet = min(
+        thickness_mm * _DFAM_FIN_FILLET_THICKNESS_FRACTION,
+        _DFAM_MAX_FIN_FILLET_MM,
+    )
     if "fin_fillet_mm" in overrides:
-        fillet_mm = float(overrides["fin_fillet_mm"])
+        fillet_mm = min(float(overrides["fin_fillet_mm"]), fillet_ceiling)
     else:
-        fillet_mm = _DFAM_DEFAULT_FIN_FILLET_MM
+        fillet_mm = default_fillet
 
     return {
         "from": _component_id(comp),

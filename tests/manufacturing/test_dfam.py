@@ -300,10 +300,18 @@ class TestManifestGeneration:
         # Original OR thickness preserved for auditability
         assert fin_block["or_thickness_mm"] < 12.7
 
-    def test_fin_fillet_default_is_half_inch(
+    def test_fin_fillet_default_is_geometrically_feasible(
         self, minimal_rocket, tmp_path, openrocket_jar
     ):
-        """The fin-to-body fillet should default to 12.7 mm (0.5"), not 1.5 mm."""
+        """The fin-to-body fillet default must be buildable by OCC.
+
+        An earlier iteration defaulted the fillet to the full fin
+        thickness (12.7 mm), which OCC refuses to build because the
+        fillets on the two broad faces of a 12.7 mm thick fin collide.
+        The current default is ``thickness/4`` capped at 3 mm — small
+        enough to always build, large enough to be visible and
+        structurally meaningful.
+        """
         manifest = generate_dfam_manifest(
             minimal_rocket, tmp_path, jar_path=openrocket_jar
         )
@@ -315,13 +323,19 @@ class TestManifestGeneration:
             for f in airframe.features.get("fused", [])
             if f.get("as") == "integrated_fins"
         )
-        assert fin_block["fillet_mm"] == pytest.approx(12.7)
+        thickness = fin_block["thickness_mm"]
+        fillet = fin_block["fillet_mm"]
+        # Must be strictly less than the fin half-thickness (OCC limit)
+        assert fillet < thickness / 2
+        # Must be > 0 (structural — fins without any root fillet are a
+        # red flag per the DFAM skill)
+        assert fillet > 0
 
     def test_fin_thickness_overridable(self, minimal_rocket, tmp_path, openrocket_jar):
         manifest = generate_dfam_manifest(
             minimal_rocket,
             tmp_path,
-            fusion_overrides={"fin_thickness_mm": 5.0, "fin_fillet_mm": 3.0},
+            fusion_overrides={"fin_thickness_mm": 5.0, "fin_fillet_mm": 2.0},
             jar_path=openrocket_jar,
         )
         airframe = next(
@@ -333,7 +347,33 @@ class TestManifestGeneration:
             if f.get("as") == "integrated_fins"
         )
         assert fin_block["thickness_mm"] == pytest.approx(5.0)
-        assert fin_block["fillet_mm"] == pytest.approx(3.0)
+        # 2.0 is below the half-thickness ceiling (2.5) so it passes
+        # through without clamping
+        assert fin_block["fillet_mm"] == pytest.approx(2.0)
+
+    def test_fin_fillet_override_clamped_to_half_thickness(
+        self, minimal_rocket, tmp_path, openrocket_jar
+    ):
+        """An override larger than the geometric ceiling is silently clamped.
+
+        The ceiling is ``min(thickness/2, _DFAM_MAX_FIN_FILLET_MM)``.
+        Passing 10 mm with a 5 mm thick fin should clamp to 2.5 mm.
+        """
+        manifest = generate_dfam_manifest(
+            minimal_rocket,
+            tmp_path,
+            fusion_overrides={"fin_thickness_mm": 5.0, "fin_fillet_mm": 10.0},
+            jar_path=openrocket_jar,
+        )
+        airframe = next(
+            p for p in manifest.parts if "airframe" in p.name or p.name == "upper"
+        )
+        fin_block = next(
+            f
+            for f in airframe.features.get("fused", [])
+            if f.get("as") == "integrated_fins"
+        )
+        assert fin_block["fillet_mm"] == pytest.approx(2.5)
 
     def test_nose_cone_has_integral_shoulder_by_default(
         self, minimal_rocket, tmp_path, openrocket_jar
