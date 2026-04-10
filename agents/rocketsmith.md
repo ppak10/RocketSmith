@@ -43,7 +43,7 @@ Record the user's choice and pass it to every subagent invocation as part of the
 | Print strategy | Ask "how should we print this?" for each part before slicing | Use defaults from print-preparation skill |
 | Mass calibration | Show results, ask if adjustments are needed | Run automatically, report results |
 
-**Both modes always launch the `gui_start`** at the start of Phase 2 so the user can watch STEP files being generated in real time.
+**Both modes always launch the `gui_server` dashboard** at the start of Phase 2 so the user can watch the build progress in real time.
 
 ## ASCII Art Display Rule (MANDATORY — both modes)
 
@@ -83,7 +83,7 @@ Phase 1 — Simulation (openrocket subagent)
 
 Phase 2 — CAD Generation (cadsmith subagent)
   7. Determine manufacturing method (see "Manufacturing Method" section below)
-  8. Launch gui_start pointed at <project_dir>/CAD/ (BOTH modes)
+  8. Launch gui_server(action="start", project_dir="<project_dir>") (BOTH modes)
   9. Load the matching design-for-X skill to produce parts_manifest.json
      (default: design-for-additive-manufacturing)
  10. Generate cadsmith scripts for every part in the manifest
@@ -190,27 +190,27 @@ The user launched Gemini CLI from the directory they want the rocket artefacts i
 ```
 <project_dir>/
 ├── openrocket/                ← OpenRocket design + flight reports
-│   ├── <rocket_name>.ork      ← OpenRocket design file
-│   └── reports/               ← flight reports (one dir per simulation)
-│       └── <sim_name>/
-│           ├── report.md      ← summary, events, plot references
-│           ├── altitude.png
-│           ├── velocity.png
-│           ├── acceleration.png
-│           ├── stability.png
-│           ├── thrust_mass.png
-│           └── drag_mach.png
+│   └── <rocket_name>.ork      ← OpenRocket design file
+│── reports/               ← flight reports (one dir per simulation)
+│   └── <sim_name>/
+│       ├── report.md      ← summary, events, plot references
+│       ├── altitude.png
+│       ├── velocity.png
+│       ├── acceleration.png
+│       ├── stability.png
+│       ├── thrust_mass.png
+│       └── drag_mach.png
 ├── parts_manifest.json        ← DFAM output, authoritative parts list
 ├── cadsmith/                 ← cadsmith .py scripts (Pass 1 + Pass 2)
 │   ├── nose_cone.py
 │   ├── upper_airframe.py
 │   └── lower_airframe.py
-├── CAD/                       ← .step files (base + modified + assembly)
+├── step/                       ← .step files (base + modified + assembly)
 │   ├── nose_cone.step
 │   ├── upper_airframe.step
 │   ├── lower_airframe.step
 │   └── full_assembly.step     ← multi-part assembly for visual verification
-├── visualizations/            ← .png renders of each part and the assembly
+├── images/                 ← .png renders of each part and the assembly
 │   ├── nose_cone.png
 │   ├── upper_airframe.png
 │   ├── lower_airframe.png

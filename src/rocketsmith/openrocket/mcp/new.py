@@ -12,6 +12,7 @@ def register_openrocket_new(app: FastMCP):
         tool_success,
         tool_error,
     )
+    from rocketsmith.gui.layout import OPENROCKET_DIR
 
     @app.tool(
         title="New OpenRocket File",
@@ -32,14 +33,10 @@ def register_openrocket_new(app: FastMCP):
                   If it happens to end in ``.ork``, the suffix is stripped before
                   being used as the default filename (to avoid ``foo.ork.ork``).
             out_path: **Absolute** path where the .ork file should be saved.
-                      If omitted, defaults to ``{name}.ork`` in the current
-                      working directory — but note that when this tool runs
-                      inside a Gemini CLI extension, the MCP subprocess cwd is
-                      the extension directory, not the user's project. Always
-                      pass an explicit absolute path derived from the user's
-                      project directory. The ``.ork`` extension is normalised
-                      automatically (``foo`` → ``foo.ork``, ``foo.ork.ork`` →
-                      ``foo.ork``).
+                      If omitted, defaults to
+                      ``<project_dir>/openrocket/{name}.ork``.
+                      The ``.ork`` extension is normalised automatically
+                      (``foo`` → ``foo.ork``, ``foo.ork.ork`` → ``foo.ork``).
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
         """
@@ -52,7 +49,8 @@ def register_openrocket_new(app: FastMCP):
         display_name = name[:-4] if name.endswith(".ork") else name
 
         if out_path is None:
-            out_path = get_project_dir() / f"{display_name}.ork"
+            out_path = get_project_dir() / OPENROCKET_DIR / f"{display_name}.ork"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
 
         out_path = resolve_path(out_path)
 

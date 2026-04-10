@@ -212,3 +212,6 @@ workspaces/
 .gemini
 
 dev/
+
+# Node / React frontend (src/rocketsmith/gui/web)
+node_modules/

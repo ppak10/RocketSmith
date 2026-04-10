@@ -7,6 +7,7 @@ def register_cadsmith_render(app: FastMCP):
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
+    from rocketsmith.gui.layout import IMAGES_DIR, STEP_DIR
 
     @app.tool(
         name="cadsmith_render",
@@ -54,12 +55,11 @@ def register_cadsmith_render(app: FastMCP):
                 aspect ratio; this value caps the total output so it stays readable.
                 Ignored when storyboard is false.
             out_path: (image only) Path to save the PNG. If omitted, the tool follows
-                the rocketsmith project convention: when the STEP file lives in a
-                ``CAD/`` directory (the standard layout), the PNG is written to the
-                sibling ``visualizations/`` directory with the same stem. For STEP
-                files outside a ``CAD/`` directory, the PNG is written alongside the
-                STEP with a ``.png`` extension. Pass ``out_path`` explicitly to
-                override either default.
+                the project layout convention: when the STEP file lives in the
+                ``step/`` directory, the PNG is written to the sibling
+                ``images/`` directory with the same stem. For STEP files
+                outside ``step/``, the PNG is written alongside the STEP with
+                a ``.png`` extension. Pass ``out_path`` explicitly to override.
             tolerance: Tessellation tolerance in mm. Lower = finer mesh, slower.
                        0.5 gives good quality for rocket parts; use 0.2 for fine detail.
         """
@@ -155,10 +155,10 @@ async def _render_image(
 
     if out_path is not None:
         png_path = out_path
-    elif step_file_path.parent.name == "CAD":
-        viz_dir = step_file_path.parent.parent / "visualizations"
-        viz_dir.mkdir(parents=True, exist_ok=True)
-        png_path = viz_dir / (step_file_path.stem + ".png")
+    elif step_file_path.parent.name == STEP_DIR:
+        images_dir = step_file_path.parent.parent / IMAGES_DIR
+        images_dir.mkdir(parents=True, exist_ok=True)
+        png_path = images_dir / (step_file_path.stem + ".png")
     else:
         png_path = step_file_path.with_suffix(".png")
 

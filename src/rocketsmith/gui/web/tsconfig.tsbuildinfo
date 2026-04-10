@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/hooks/usewatchsocket.ts","./src/layout/dashboard.tsx","./src/panels/flightprofile.tsx","./src/panels/imageviewer.tsx","./src/panels/partsmanifest.tsx","./src/panels/simsummary.tsx","./src/panels/stepviewer.tsx"],"version":"5.8.3"}

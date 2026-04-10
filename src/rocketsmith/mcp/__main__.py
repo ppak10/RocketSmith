@@ -28,7 +28,7 @@ from rocketsmith.cadsmith.mcp import (
     register_cadsmith_render,
     register_cadsmith_script,
 )
-from rocketsmith.gui.mcp import register_gui_start
+from rocketsmith.gui.mcp import register_gui_server
 from rocketsmith.manufacturing.mcp import register_manufacturing_manifest
 from rocketsmith.rag.mcp import register_rag_reference
 
@@ -49,7 +49,7 @@ _ = register_prusaslicer_database(app)
 _ = register_cadsmith_extract(app)
 _ = register_cadsmith_render(app)
 _ = register_cadsmith_script(app)
-_ = register_gui_start(app)
+_ = register_gui_server(app)
 _ = register_manufacturing_manifest(app)
 _ = register_rag_reference(app)
 

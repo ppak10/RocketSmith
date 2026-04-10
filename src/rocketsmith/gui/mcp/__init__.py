@@ -1,5 +1,5 @@
-from .start import register_gui_start
+from .server import register_gui_server
 
 __all__ = [
-    "register_gui_start",
+    "register_gui_server",
 ]

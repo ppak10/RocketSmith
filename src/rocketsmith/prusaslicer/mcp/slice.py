@@ -8,6 +8,7 @@ def register_prusaslicer_slice(app: FastMCP):
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
     from rocketsmith.prusaslicer.models import Material, PrusaSlicerResult
+    from rocketsmith.gui.layout import GCODE_DIR, STEP_DIR
 
     @app.tool(
         title="Slice Model with PrusaSlicer",
@@ -26,8 +27,10 @@ def register_prusaslicer_slice(app: FastMCP):
 
         Args:
             model_file_path: Path to the input model file (.stl, .step, .3mf, .obj).
-            out_path: Path to save the .gcode output. Defaults to the same directory
-                      as model_file_path with a .gcode extension.
+            out_path: Path to save the .gcode output. When omitted and the model
+                      lives in the ``step/`` directory, gcode is written to the
+                      sibling ``gcode/`` directory. Otherwise defaults to the
+                      same directory as the model with a .gcode extension.
             config_path: Optional path to a PrusaSlicer .ini config file to load.
             prusaslicer_path: Optional path to the PrusaSlicer executable.
             material: Filament material for weight calculation (pla, petg, abs).
@@ -48,9 +51,14 @@ def register_prusaslicer_slice(app: FastMCP):
                 model_file_path=str(model_file_path),
             )
 
-        output_path = (
-            out_path if out_path is not None else model_file_path.with_suffix(".gcode")
-        )
+        if out_path is not None:
+            output_path = out_path
+        elif model_file_path.parent.name == STEP_DIR:
+            gcode_dir = model_file_path.parent.parent / GCODE_DIR
+            gcode_dir.mkdir(parents=True, exist_ok=True)
+            output_path = gcode_dir / (model_file_path.stem + ".gcode")
+        else:
+            output_path = model_file_path.with_suffix(".gcode")
 
         from rocketsmith.prusaslicer.slice import PrusaSlicerSliceError
 

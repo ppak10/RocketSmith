@@ -10,6 +10,7 @@ def register_openrocket_report(app: FastMCP):
     from rocketsmith.mcp.types import ToolError, ToolSuccess
     from rocketsmith.mcp.utils import resolve_path, tool_error, tool_success
     from rocketsmith.openrocket.models import FlightReportResult
+    from rocketsmith.gui.layout import REPORTS_DIR
 
     @app.tool(
         title="Generate OpenRocket Flight Report",
@@ -61,7 +62,7 @@ def register_openrocket_report(app: FastMCP):
             # Convention: <project_root>/openrocket/<name>.ork
             project_root = rocket_file_path.parent.parent
 
-        reports_base = project_root / "openrocket" / "reports"
+        reports_base = project_root / REPORTS_DIR
 
         try:
             if openrocket_path is None:
