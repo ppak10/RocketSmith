@@ -266,9 +266,20 @@ def outer_r(z_from_base: float) -> float:
     z_from_base = 0 is the base (radius BASE_R_MM); z_from_base = NOSE_LEN_MM
     is the tip (radius 0). The cone base sits at Z = SHOULDER_LEN_MM in the
     final part frame; there is a solid shoulder below it.
+
+    Derivation: standard tangent ogive y(x) = sqrt(rho² - (L-x)²) + R - rho
+    where x is measured from the *tip*. Substituting z_from_base = L - x
+    (distance from the base instead of from the tip) gives the form below.
+    At z_from_base=0 this yields sqrt(rho²) + R - rho = R (base radius);
+    at z_from_base=L it yields sqrt(rho² - L²) + R - rho = 0 (tip). Do NOT
+    substitute ``(NOSE_LEN_MM - z_from_base)`` for ``z_from_base`` inside
+    the square root — that mirrors the profile top-to-bottom and produces
+    a bowtie-shaped solid that pinches near the base and bulges near the
+    tip. This bug was present in this recipe for several iterations and
+    seeded bad ogives into every downstream project that copied it.
     """
     return max(
-        math.sqrt(max(rho**2 - (NOSE_LEN_MM - z_from_base)**2, 0.0))
+        math.sqrt(max(rho**2 - z_from_base**2, 0.0))
         + BASE_R_MM
         - rho,
         0.0,
@@ -319,7 +330,93 @@ Key points:
 - The whole part is **solid**. No hollowing pass.
 - The first layer when sliced is the full shoulder cross-section (a solid circle ~58 mm in diameter for a 64 mm body tube). No "no extrusions in the first layer" failures.
 
-For non-ogive nose cone shapes (conical, parabolic, von Kármán), keep the same shoulder-down structure — only the `outer_r(z)` function changes.
+### Nose cone profile functions by shape type
+
+OpenRocket supports six nose cone shapes: **ogive** (default), **conical**, **ellipsoid**, **parabolic**, **power**, and **haack**. The manifest carries the shape name in `features.shape` (e.g. `"shape": "haack"`). Everything in the canonical recipe above stays the same — shoulder, profile walk, revolve, export — except the `outer_r(z_from_base)` function. Swap it according to the table below.
+
+All formulas below use:
+- `z` = `z_from_base` = distance above the cone base, measured from Z=SHOULDER_LEN_MM
+- `L` = `NOSE_LEN_MM` = ogive/cone length from base to tip
+- `R` = `BASE_R_MM` = `BASE_OD_MM / 2` = base radius
+
+At z=0 every formula returns R (base radius); at z=L every formula returns 0 (tip). The derivations come from the standard aerospace nose-cone design formulas (Wikipedia: "Nose cone design"), converted from the x-from-tip convention to the z-from-base convention used by this pipeline via `x = L - z`.
+
+```python
+import math
+
+# --- Shape parameters ---
+# These are read from the manifest if present. Defaults below match
+# OpenRocket's defaults for each shape type.
+SHAPE = features.get("shape", "ogive").lower()
+SHAPE_PARAM = features.get("shape_parameter")   # only used by parabolic, power, haack
+
+# --- Profile function dispatch ---
+def outer_r(z: float) -> float:
+    """Radius of the nose cone at distance z above the base."""
+    x = L - z                                   # x from tip (standard convention)
+
+    if SHAPE == "conical":
+        return R * x / L
+
+    elif SHAPE == "ogive":
+        rho = (R**2 + L**2) / (2 * R)
+        return max(math.sqrt(max(rho**2 - z**2, 0.0)) + R - rho, 0.0)
+
+    elif SHAPE == "ellipsoid":
+        return R * math.sqrt(max(L**2 - z**2, 0.0)) / L
+
+    elif SHAPE == "parabolic":
+        # K' ∈ [0, 1]. K'=0 → cone, K'=1 → full parabola.
+        # OpenRocket default is K'=1 (full parabola).
+        kp = SHAPE_PARAM if SHAPE_PARAM is not None else 1.0
+        xn = x / L
+        return R * (2 * xn - kp * xn**2) / (2 - kp)
+
+    elif SHAPE == "power":
+        # n ∈ [0, 1]. n=0 → cylinder, n=1 → cone.
+        # OpenRocket default is n=0.5.
+        n = SHAPE_PARAM if SHAPE_PARAM is not None else 0.5
+        if x <= 0:
+            return 0.0
+        return R * (x / L) ** n
+
+    elif SHAPE == "haack":
+        # C = 0 → LD-Haack (Von Kármán), C = 1/3 → LV-Haack.
+        # OpenRocket default is C=0 (Von Kármán).
+        C = SHAPE_PARAM if SHAPE_PARAM is not None else 0.0
+        # Parametric form: theta varies as x goes from 0 (tip) to L (base).
+        if x <= 0:
+            return 0.0
+        theta = math.acos(1 - 2 * x / L)
+        return R * math.sqrt(
+            (theta - math.sin(2 * theta) / 2 + C * math.sin(theta) ** 3) / math.pi
+        )
+
+    else:
+        raise ValueError(f"Unknown nose cone shape: {SHAPE!r}")
+
+# L and R must be defined before calling outer_r.
+L = NOSE_LEN_MM
+R = BASE_R_MM
+```
+
+Quick-reference table:
+
+| Shape      | `outer_r(z)` (z from base)                           | Parameter        | Default |
+|------------|-------------------------------------------------------|------------------|---------|
+| conical    | `R * (L - z) / L`                                     | none             | —       |
+| ogive      | `sqrt(rho² - z²) + R - rho`  where  `rho=(R²+L²)/(2R)` | none          | —       |
+| ellipsoid  | `R * sqrt(L² - z²) / L`                               | none             | —       |
+| parabolic  | `R * (2u - K'u²) / (2 - K')` where `u = (L-z)/L`     | K' ∈ [0, 1]     | 1.0     |
+| power      | `R * ((L-z) / L)^n`                                   | n ∈ [0, 1]      | 0.5     |
+| haack      | parametric via `θ = arccos(1 - 2(L-z)/L)`; see code   | C (0=VK, 1/3=LV)| 0.0     |
+
+**Correctness check after changing shapes:** the same profile-walk + revolve code produces all shapes. When you switch `outer_r`, re-run, and render, visually verify:
+- **Conical** → straight-edged cone in the side profile (no curvature).
+- **Ellipsoid** → half-ellipse cross-section; widest curvature near the base.
+- **Parabolic** → gentler curve than ogive, approaching conical for K'→0.
+- **Power** → blunt "stubby" shape for n<1 (concave sides), conical at n=1.
+- **Haack (Von Kármán)** → similar to tangent ogive but with minimum-drag profile; very slightly different curvature near the tip.
 
 **To opt into a hollow nose cone**, the manifest's `features.hollow` field is set to `true` and `features.wall_mm` is the desired wall thickness. Add a third pass to the BuildPart that subtracts the inner cavity, leaving `wall_mm` of material everywhere except a few mm of solid material at the tip. The default is solid; only do this when the manifest asks for it.
 
