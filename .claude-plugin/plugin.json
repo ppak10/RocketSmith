@@ -8,5 +8,21 @@
   "homepage": "https://github.com/ppak10/RocketSmith",
   "repository": "https://github.com/ppak10/RocketSmith",
   "license": "MIT",
-  "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"]
+  "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": {
+    "rocketsmith": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "rocketsmith",
+        "python",
+        "-m",
+        "rocketsmith.mcp"
+      ]
+    }
+  }
 }
