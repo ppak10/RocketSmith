@@ -30,7 +30,13 @@ def register_build123d_render(app: FastMCP):
 
         Args:
             step_file_path: Path to the STEP file.
-            out_path: Path to save the PNG. Defaults to step_file_path with .png extension.
+            out_path: Path to save the PNG. If omitted, the tool follows the
+                rocketsmith project convention: when the STEP file lives in a
+                ``CAD/`` directory (the standard layout), the PNG is written
+                to the sibling ``visualizations/`` directory with the same
+                stem. For STEP files outside a ``CAD/`` directory, the PNG
+                is written alongside the STEP with a ``.png`` extension.
+                Pass ``out_path`` explicitly to override either default.
             tolerance: Tessellation tolerance in mm. Lower = finer mesh, slower.
                        0.5 gives good quality for rocket parts; use 0.2 for fine detail.
         """
@@ -46,9 +52,20 @@ def register_build123d_render(app: FastMCP):
                 step_file_path=str(step_file_path),
             )
 
-        png_path = (
-            out_path if out_path is not None else step_file_path.with_suffix(".png")
-        )
+        if out_path is not None:
+            png_path = out_path
+        elif step_file_path.parent.name == "CAD":
+            # Rocketsmith project convention:
+            #   <project_root>/CAD/<part>.step → <project_root>/visualizations/<part>.png
+            # The skills tell the agent to pass out_path explicitly, but
+            # falling back to the convention when they forget beats writing
+            # the PNG into CAD/ alongside the STEP file.
+            viz_dir = step_file_path.parent.parent / "visualizations"
+            viz_dir.mkdir(parents=True, exist_ok=True)
+            png_path = viz_dir / (step_file_path.stem + ".png")
+        else:
+            # Non-standard layout — keep the historical behaviour.
+            png_path = step_file_path.with_suffix(".png")
 
         try:
             render_step_png(step_file_path, png_path, tolerance=tolerance)

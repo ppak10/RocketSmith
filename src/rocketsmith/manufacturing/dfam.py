@@ -50,6 +50,24 @@ _STRUCTURAL_WRAPPERS = {"Rocket", "AxialStage"}
 _NON_PHYSICAL_TYPES = {"Parachute", "MassComponent", "LaunchLug", "RailButton"}
 
 
+# ── DFAM defaults for additive manufacturing ──────────────────────────────────
+#
+# These constants encode the additive-manufacturing-specific design rules
+# the user has agreed on. Each is overridable per-design via fusion_overrides.
+
+# Minimum fin thickness for FDM-printed rockets. Thinner fins (≤ ~5 mm) print
+# fine but break easily on landing. ~12.7 mm (0.5") is the working default.
+_DFAM_MIN_FIN_THICKNESS_MM = 12.7
+
+# Default fin-to-body fillet radius. The fin root is the most stress-concentrated
+# point on the airframe and a generous fillet is critical for impact survival.
+_DFAM_DEFAULT_FIN_FILLET_MM = 12.7
+
+# Default nose-cone shoulder length. Long enough for alignment and a stable
+# print bed face; not so long that it dominates the print volume.
+_DFAM_DEFAULT_NOSE_SHOULDER_LENGTH_MM = 30.0
+
+
 def _sanitize_name(name: str) -> str:
     """Convert a free-text component name to a snake_case identifier.
 
@@ -126,19 +144,55 @@ def _make_part_entry(
     )
 
 
-def _nose_cone_features(comp: dict[str, Any]) -> dict[str, Any]:
-    """Extract feature block for a nose cone.
+def _nose_cone_features(
+    comp: dict[str, Any],
+    body_tube_id_mm: float | None,
+    overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Extract feature block for a nose cone with an integral shoulder.
 
-    The shoulder retention decision is made at the manifest level
-    (retention mechanism), not per-part, so it's propagated from the
-    caller rather than computed here.
+    For additive manufacturing the nose cone is **solid** by default — the
+    mass penalty is small for typical sizes and the structural and slicing
+    advantages are large. The user can opt into a hollow nose cone via
+    ``fusion_overrides={"nose_cone_hollow": True, "nose_cone_wall_mm": ...}``.
+
+    Every nose cone gets an **integral shoulder** (the "coupler" portion
+    that plugs into the upper airframe) sized to the body tube ID with
+    zero clearance, matching the same convention as the integral aft
+    shoulder on body tubes. The shoulder length defaults to
+    ``_DFAM_DEFAULT_NOSE_SHOULDER_LENGTH_MM`` and is overridable via
+    ``fusion_overrides={"nose_cone_shoulder_length_mm": ...}``.
     """
+    overrides = overrides or {}
+
+    hollow = bool(overrides.get("nose_cone_hollow", False))
+    wall_mm = float(overrides.get("nose_cone_wall_mm", 3.0))
+
+    shoulder_length_mm = float(
+        overrides.get(
+            "nose_cone_shoulder_length_mm",
+            _DFAM_DEFAULT_NOSE_SHOULDER_LENGTH_MM,
+        )
+    )
+    shoulder_od_mm: float | None
+    if body_tube_id_mm is not None and body_tube_id_mm > 0:
+        # Match the body tube ID exactly (zero clearance, same convention as
+        # integral_aft_shoulder on body tubes).
+        shoulder_od_mm = float(body_tube_id_mm)
+    else:
+        shoulder_od_mm = None  # no body tube to mate with — caller will warn
+
     return {
         "shape": comp.get("shape", "ogive"),
         "length_mm": comp.get("length_mm"),
         "base_od_mm": comp.get("aft_diameter_mm"),
         "fore_d_mm": comp.get("fore_diameter_mm", 0.0),
-        "wall_mm": comp.get("thickness_mm", 3.0),
+        "hollow": hollow,
+        "wall_mm": wall_mm if hollow else None,
+        "shoulder": {
+            "od_mm": shoulder_od_mm,
+            "length_mm": shoulder_length_mm,
+        },
     }
 
 
@@ -153,8 +207,38 @@ def _body_tube_base_features(comp: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _fin_feature_block(comp: dict[str, Any]) -> dict[str, Any]:
-    """Feature block describing a fin set fused into a parent body tube."""
+def _fin_feature_block(
+    comp: dict[str, Any],
+    overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Feature block describing a fin set fused into a parent body tube.
+
+    Two AM-specific defaults are applied here:
+
+    1. **Minimum thickness**: OR's default fin thickness reflects traditional
+       balsa or fiberglass construction (a few mm). Printed fins at that
+       thickness break easily on landing. We bump any thickness below
+       ``_DFAM_MIN_FIN_THICKNESS_MM`` (12.7 mm = 0.5") up to the minimum.
+    2. **Generous root fillet**: the fin-to-body junction is the highest
+       stress concentration on the airframe; ``_DFAM_DEFAULT_FIN_FILLET_MM``
+       (also 12.7 mm) keeps fins attached after a hard landing.
+
+    Both are overridable via ``fusion_overrides``:
+    ``{"fin_thickness_mm": ..., "fin_fillet_mm": ...}``.
+    """
+    overrides = overrides or {}
+
+    or_thickness = comp.get("thickness_mm", 3.0) or 3.0
+    if "fin_thickness_mm" in overrides:
+        thickness_mm = float(overrides["fin_thickness_mm"])
+    else:
+        thickness_mm = max(float(or_thickness), _DFAM_MIN_FIN_THICKNESS_MM)
+
+    if "fin_fillet_mm" in overrides:
+        fillet_mm = float(overrides["fin_fillet_mm"])
+    else:
+        fillet_mm = _DFAM_DEFAULT_FIN_FILLET_MM
+
     return {
         "from": _component_id(comp),
         "as": "integrated_fins",
@@ -163,8 +247,9 @@ def _fin_feature_block(comp: dict[str, Any]) -> dict[str, Any]:
         "tip_chord_mm": comp.get("tip_chord_mm"),
         "span_mm": comp.get("span_mm"),
         "sweep_mm": comp.get("sweep_mm", 0.0),
-        "thickness_mm": comp.get("thickness_mm", 3.0),
-        "fillet_mm": 1.5,
+        "thickness_mm": thickness_mm,
+        "or_thickness_mm": or_thickness,  # preserved for auditability
+        "fillet_mm": fillet_mm,
     }
 
 
@@ -331,12 +416,15 @@ def generate_dfam_manifest(
     component_to_part_map: dict[str, str] = {}
 
     # Pass 1: handle nose cones
+    body_tube_id_mm = derived.get("body_tube_id_mm")
     for i, comp in enumerate(components):
         if comp["type"] != "NoseCone":
             continue
         cid = _component_id(comp)
         name = _sanitize_name(comp["name"])
-        features = _nose_cone_features(comp)
+        features = _nose_cone_features(
+            comp, body_tube_id_mm=body_tube_id_mm, overrides=overrides
+        )
         features["retention"] = retention
         part = _make_part_entry(name, directories, [cid], features)
         parts.append(part)
@@ -369,7 +457,7 @@ def generate_dfam_manifest(
             child_type = child["type"]
 
             if child_type == "TrapezoidFinSet":
-                fused_blocks.append(_fin_feature_block(child))
+                fused_blocks.append(_fin_feature_block(child, overrides))
                 derived_from.append(child_id)
                 component_to_part_map[child_id] = name
 

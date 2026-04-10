@@ -52,6 +52,8 @@ def register_prusaslicer_slice(app: FastMCP):
             out_path if out_path is not None else model_file_path.with_suffix(".gcode")
         )
 
+        from rocketsmith.prusaslicer.slice import PrusaSlicerSliceError
+
         try:
             result = prusaslicer_slice_fn(
                 model_path=model_file_path,
@@ -69,6 +71,23 @@ def register_prusaslicer_slice(app: FastMCP):
                 "FILE_NOT_FOUND",
                 model_file_path=str(model_file_path),
                 exception_type=type(e).__name__,
+            )
+
+        except PrusaSlicerSliceError as e:
+            # Surface PrusaSlicer's actual stdout/stderr in the error
+            # details so the agent can read them directly without dropping
+            # to a shell command. The summary is in `error`; the verbatim
+            # captured output is in `details.stderr` / `details.stdout`.
+            return tool_error(
+                e.summary,
+                "SLICE_FAILED",
+                model_file_path=str(model_file_path),
+                output_path=e.output_path,
+                returncode=e.returncode,
+                stderr=e.stderr,
+                stdout=e.stdout,
+                command=e.command,
+                exception_type="PrusaSlicerSliceError",
             )
 
         except Exception as e:

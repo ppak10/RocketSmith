@@ -46,6 +46,7 @@ You are a CAD execution agent. Your job is to turn a parts manifest into STEP fi
   - Panels: side profile, end-on, isometric 45°
   - Returns `png_path` — immediately call `Read(file_path=png_path)` to view the image
   - **Use this to verify every part after generating it.**
+  - **PNG routing:** when `out_path` is omitted and the STEP file lives in `<project_dir>/CAD/`, the tool automatically writes the PNG to `<project_dir>/visualizations/<stem>.png` (creating the directory if needed). This is the Rocketsmith project convention. Passing `out_path` explicitly overrides this — use it only when you want the render somewhere non-standard.
 - `build123d_visualize` — Render a STEP file as ASCII art (`step_file_path`, `storyboard`, `angle_deg`)
   - With `storyboard=true`, produces a 4-view 2×2 grid (0°/90°/180°/270°) — useful for quick sanity checks in contexts where an image round-trip is expensive
   - With `storyboard=false`, renders a single static frame at the given `angle_deg`

@@ -69,7 +69,7 @@ If any part was modified, the `CAD/full_assembly.step` is now stale — regenera
 
 ## Modification Script Structure
 
-Unlike Pass 1 scripts which build geometry from scratch, Pass 2 scripts import an existing STEP and apply operations to it:
+Unlike Pass 1 scripts which build geometry from scratch, Pass 2 scripts import an existing STEP and apply operations to it. Like Pass 1, the paths are resolved **relative to the script's own location** so the project stays portable:
 
 ```python
 """
@@ -81,7 +81,12 @@ from build123d import *
 from pathlib import Path
 from math import cos, sin, radians
 
-BASE_STEP = Path("<absolute path to CAD/<name>.step>")
+# --- Resolve paths relative to this script's location ---
+# This script lives at <project_root>/build123d/<name>_modified.py
+# Base STEP and output STEP are at <project_root>/CAD/<name>.step
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+BASE_STEP = PROJECT_ROOT / "CAD" / "<name>.step"
 OUTPUT = BASE_STEP  # overwrite in place
 
 # Import the base
@@ -98,6 +103,7 @@ export_step(modified.part, str(OUTPUT))
 
 Key rules:
 
+- **Paths are relative to `__file__`.** Resolve `PROJECT_ROOT` from the script's own location. This keeps the script portable across machines and checkouts — never hardcode an absolute path like `/Users/someone/rockets/...` in a modification script.
 - **Import the base STEP, don't rebuild the shell.** If you find yourself re-declaring `LENGTH_MM` and `OD_MM` to rebuild a cylinder, you're in the wrong skill.
 - **Apply modifications in manifest order.** Some modifications interact (e.g. a pocket inside a heat-set boss region); order matters.
 - **Overwrite the base STEP in place.** The manifest's `step_path` is the canonical location; don't emit a separate `_modified.step` file.
@@ -193,7 +199,7 @@ rag_reference(
 
 After each part is modified:
 
-1. **Re-render**: `build123d_render(step_file_path=<step_path>, out_path=<visualizations_dir>/<name>.png)`. The filename can overwrite the Pass 1 render — the modified version is the current truth.
+1. **Re-render**: `build123d_render(step_file_path=<step_path>)`. The tool auto-routes to `visualizations/<name>.png`, overwriting the Pass 1 render — the modified version is the current truth.
 2. **Visual check**: does the render show the modifications in the expected positions? Heat-set holes should appear as small dark circles around the shoulder mid-length. Through-holes should appear at matching angles on the mating tube.
 3. **Dimensional check**: `build123d_extract` — the bounding box should be unchanged (all current modifications are subtractive). If the volume dropped by more than ~5% of the base, flag it — you may have subtracted too much.
 

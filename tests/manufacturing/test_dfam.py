@@ -281,6 +281,108 @@ class TestManifestGeneration:
                 part.modifications == []
             ), f"Part {part.name} has unexpected modifications: {part.modifications}"
 
+    def test_fin_thickness_bumped_to_minimum_by_default(
+        self, minimal_rocket, tmp_path, openrocket_jar
+    ):
+        """OR's default fin thickness (~3 mm) should be bumped to 12.7 mm for AM."""
+        manifest = generate_dfam_manifest(
+            minimal_rocket, tmp_path, jar_path=openrocket_jar
+        )
+        airframe = next(
+            p for p in manifest.parts if "airframe" in p.name or p.name == "upper"
+        )
+        fin_block = next(
+            f
+            for f in airframe.features.get("fused", [])
+            if f.get("as") == "integrated_fins"
+        )
+        assert fin_block["thickness_mm"] == pytest.approx(12.7)
+        # Original OR thickness preserved for auditability
+        assert fin_block["or_thickness_mm"] < 12.7
+
+    def test_fin_fillet_default_is_half_inch(
+        self, minimal_rocket, tmp_path, openrocket_jar
+    ):
+        """The fin-to-body fillet should default to 12.7 mm (0.5"), not 1.5 mm."""
+        manifest = generate_dfam_manifest(
+            minimal_rocket, tmp_path, jar_path=openrocket_jar
+        )
+        airframe = next(
+            p for p in manifest.parts if "airframe" in p.name or p.name == "upper"
+        )
+        fin_block = next(
+            f
+            for f in airframe.features.get("fused", [])
+            if f.get("as") == "integrated_fins"
+        )
+        assert fin_block["fillet_mm"] == pytest.approx(12.7)
+
+    def test_fin_thickness_overridable(self, minimal_rocket, tmp_path, openrocket_jar):
+        manifest = generate_dfam_manifest(
+            minimal_rocket,
+            tmp_path,
+            fusion_overrides={"fin_thickness_mm": 5.0, "fin_fillet_mm": 3.0},
+            jar_path=openrocket_jar,
+        )
+        airframe = next(
+            p for p in manifest.parts if "airframe" in p.name or p.name == "upper"
+        )
+        fin_block = next(
+            f
+            for f in airframe.features.get("fused", [])
+            if f.get("as") == "integrated_fins"
+        )
+        assert fin_block["thickness_mm"] == pytest.approx(5.0)
+        assert fin_block["fillet_mm"] == pytest.approx(3.0)
+
+    def test_nose_cone_has_integral_shoulder_by_default(
+        self, minimal_rocket, tmp_path, openrocket_jar
+    ):
+        manifest = generate_dfam_manifest(
+            minimal_rocket, tmp_path, jar_path=openrocket_jar
+        )
+        nose_cone = next(p for p in manifest.parts if p.name == "nose_cone")
+        shoulder = nose_cone.features.get("shoulder")
+        assert shoulder is not None
+        # Default shoulder OD = body tube ID (60 mm for the test rocket)
+        assert shoulder["od_mm"] == pytest.approx(60.0)
+        # Default shoulder length = 30 mm
+        assert shoulder["length_mm"] == pytest.approx(30.0)
+
+    def test_nose_cone_solid_by_default(self, minimal_rocket, tmp_path, openrocket_jar):
+        """Nose cones should be solid (no hollowing pass) by default."""
+        manifest = generate_dfam_manifest(
+            minimal_rocket, tmp_path, jar_path=openrocket_jar
+        )
+        nose_cone = next(p for p in manifest.parts if p.name == "nose_cone")
+        assert nose_cone.features.get("hollow") is False
+        assert nose_cone.features.get("wall_mm") is None
+
+    def test_nose_cone_hollow_overridable(
+        self, minimal_rocket, tmp_path, openrocket_jar
+    ):
+        manifest = generate_dfam_manifest(
+            minimal_rocket,
+            tmp_path,
+            fusion_overrides={"nose_cone_hollow": True, "nose_cone_wall_mm": 4.0},
+            jar_path=openrocket_jar,
+        )
+        nose_cone = next(p for p in manifest.parts if p.name == "nose_cone")
+        assert nose_cone.features["hollow"] is True
+        assert nose_cone.features["wall_mm"] == pytest.approx(4.0)
+
+    def test_nose_cone_shoulder_length_overridable(
+        self, minimal_rocket, tmp_path, openrocket_jar
+    ):
+        manifest = generate_dfam_manifest(
+            minimal_rocket,
+            tmp_path,
+            fusion_overrides={"nose_cone_shoulder_length_mm": 50.0},
+            jar_path=openrocket_jar,
+        )
+        nose_cone = next(p for p in manifest.parts if p.name == "nose_cone")
+        assert nose_cone.features["shoulder"]["length_mm"] == pytest.approx(50.0)
+
     def test_full_assembly_is_always_populated(
         self, minimal_rocket, tmp_path, openrocket_jar
     ):

@@ -222,6 +222,7 @@ Feature block:
 - Any wall thickness below 1.5 mm → structural red flag for FDM, acceptable only for SLA with explicit user confirmation
 - The parts list has more printed parts than the OR tree suggests should exist (e.g. 6 printed parts from a single-section LPR) → the fusion logic isn't firing, review defaults
 - A `TubeCoupler` is marked `fuse` but the design is dual-deploy → may be wrong, ask the user
+- The user requested `retention="m4_heat_set"` but no `radial_holes` modifications appear in the manifest → the design probably has no `TubeCoupler` to fuse into a shoulder. Retention modifications are tied to integral shoulders; without a shoulder there's nowhere to put the holes. Either add a coupler to the OR design or use a different mating strategy (friction fit on the nose cone shoulder, etc.)
 
 ## parts_manifest.json Schema
 

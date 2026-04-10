@@ -7,6 +7,36 @@ from rocketsmith.prusaslicer.models import MATERIAL_DENSITY, Material, PrusaSlic
 from rocketsmith.prusaslicer.utils import get_prusaslicer_path
 
 
+class PrusaSlicerSliceError(Exception):
+    """Raised when PrusaSlicer fails to produce a usable gcode file.
+
+    Carries the captured stdout, stderr, return code, and command line so
+    the MCP wrapper can pass them through to the agent verbatim. This is
+    the diagnostic info that ``CalledProcessError.__str__`` discards.
+    """
+
+    def __init__(
+        self,
+        summary: str,
+        returncode: int,
+        stdout: str,
+        stderr: str,
+        command: list[str],
+        model_path: str,
+        output_path: str,
+        detail: str,
+    ):
+        self.summary = summary
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        self.command = command
+        self.model_path = model_path
+        self.output_path = output_path
+        self.detail = detail
+        super().__init__(f"{summary}\n\n{detail}")
+
+
 def slice(
     model_path: Path,
     output_path: Path | None = None,
@@ -47,25 +77,52 @@ def slice(
         cmd += ["--load", str(config_path)]
     cmd.append(str(model_path))
 
-    proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    # Note: ``check=False`` deliberately. PrusaSlicer's stderr is the most
+    # important diagnostic when slicing fails, and ``CalledProcessError``'s
+    # default ``__str__`` only contains the command line and return code —
+    # not the captured stderr. Inspecting the return code manually lets us
+    # surface PrusaSlicer's actual error message (e.g. "no extrusions in
+    # the first layer", "Object out of print volume") in the raised
+    # exception, so the agent can react without dropping to a shell.
+    proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
 
-    # PrusaSlicer can exit 0 even when it refuses to slice (e.g. "All objects
-    # are outside of the print volume", malformed mesh, missing print config).
-    # If the output file is missing we would fail downstream with a confusing
-    # FileNotFoundError pointing at the .gcode path; surface the real reason
-    # from PrusaSlicer's own stdout/stderr instead.
-    if not output_path.exists():
+    if proc.returncode != 0 or not output_path.exists():
+        # Build a single informative error message that the MCP wrapper
+        # will pass through to the agent. Both failure modes (non-zero
+        # exit, and zero exit with no output file) take this branch.
         detail_lines = []
         if proc.stderr and proc.stderr.strip():
-            detail_lines.append(f"stderr: {proc.stderr.strip()}")
+            detail_lines.append(f"stderr:\n{proc.stderr.strip()}")
         if proc.stdout and proc.stdout.strip():
-            detail_lines.append(f"stdout: {proc.stdout.strip()}")
-        detail = "\n".join(detail_lines) if detail_lines else "(no output)"
-        raise RuntimeError(
-            "PrusaSlicer exited 0 but produced no G-code at "
-            f"{output_path}. This usually means the model is outside the "
-            "print volume, the mesh is invalid, or no print profile was "
-            f"supplied via config_path.\n{detail}"
+            detail_lines.append(f"stdout:\n{proc.stdout.strip()}")
+        detail = "\n\n".join(detail_lines) if detail_lines else "(no output)"
+
+        if proc.returncode != 0:
+            summary = (
+                f"PrusaSlicer exited with code {proc.returncode} while "
+                f"slicing {model_path.name}. This usually means the "
+                "model orientation is wrong (e.g. tip-down nose cone "
+                "with no extrusions in the first layer), the mesh is "
+                "invalid, the model is outside the print volume, or "
+                "the supplied config_path is missing required profiles."
+            )
+        else:
+            summary = (
+                f"PrusaSlicer exited 0 but produced no G-code at "
+                f"{output_path}. This usually means the model is outside "
+                "the print volume, the mesh is invalid, or no print "
+                "profile was supplied via config_path."
+            )
+
+        raise PrusaSlicerSliceError(
+            summary=summary,
+            returncode=proc.returncode,
+            stdout=proc.stdout or "",
+            stderr=proc.stderr or "",
+            command=list(cmd),
+            model_path=str(model_path),
+            output_path=str(output_path),
+            detail=detail,
         )
 
     metadata = _parse_gcode_metadata(output_path)
