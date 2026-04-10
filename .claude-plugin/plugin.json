@@ -9,7 +9,6 @@
   "repository": "https://github.com/ppak10/RocketSmith",
   "license": "MIT",
   "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
-  "skills": "./skills/",
   "mcpServers": {
     "rocketsmith": {
       "command": "uvx",
