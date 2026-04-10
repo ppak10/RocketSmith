@@ -32,6 +32,17 @@ Register the RocketSmith marketplace and install the plugin:
 ```
 
 This installs the full plugin — MCP server, orchestrator agent, domain subagents (`openrocket`, `cadsmith`, `prusaslicer`), action skills, and session hooks. Update with `/plugin update rocketsmith`.
+
+#### Local development
+
+To test from a local clone, start Claude Code with `--plugin-dir` pointing at the repo:
+
+```bash
+claude --plugin-dir .
+```
+
+Use `/reload-plugins` to pick up changes without restarting.
+
 ### CLI / API
 
 ```bash

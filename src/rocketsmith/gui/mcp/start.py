@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_cadsmith_viewer(app: FastMCP):
+def register_gui_start(app: FastMCP):
     from pathlib import Path
     from typing import Union
 
@@ -9,7 +9,7 @@ def register_cadsmith_viewer(app: FastMCP):
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
-        name="cadsmith_viewer",
+        name="gui_start",
         title="Launch STEP Viewer",
         description=(
             "Launch an interactive 3D viewer window for a STEP file. "
@@ -20,7 +20,7 @@ def register_cadsmith_viewer(app: FastMCP):
         ),
         structured_output=True,
     )
-    async def cadsmith_viewer(
+    async def gui_start(
         step_file_path: Path,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
@@ -50,7 +50,12 @@ def register_cadsmith_viewer(app: FastMCP):
             )
 
         # Locate the viewer module
-        viewer_module = Path(__file__).resolve().parent.parent / "viewer" / "viewer.py"
+        viewer_module = (
+            Path(__file__).resolve().parent.parent.parent
+            / "cadsmith"
+            / "viewer"
+            / "viewer.py"
+        )
         if not viewer_module.exists():
             return tool_error(
                 "Viewer module not found in package",
@@ -86,4 +91,4 @@ def register_cadsmith_viewer(app: FastMCP):
             }
         )
 
-    return cadsmith_viewer
+    return gui_start

@@ -43,7 +43,7 @@ Record the user's choice and pass it to every subagent invocation as part of the
 | Print strategy | Ask "how should we print this?" for each part before slicing | Use defaults from print-preparation skill |
 | Mass calibration | Show results, ask if adjustments are needed | Run automatically, report results |
 
-**Both modes always launch the `cadsmith_viewer`** at the start of Phase 2 so the user can watch STEP files being generated in real time.
+**Both modes always launch the `gui_start`** at the start of Phase 2 so the user can watch STEP files being generated in real time.
 
 ## ASCII Art Display Rule (MANDATORY — both modes)
 
@@ -83,7 +83,7 @@ Phase 1 — Simulation (openrocket subagent)
 
 Phase 2 — CAD Generation (cadsmith subagent)
   7. Determine manufacturing method (see "Manufacturing Method" section below)
-  8. Launch cadsmith_viewer pointed at <project_dir>/CAD/ (BOTH modes)
+  8. Launch gui_start pointed at <project_dir>/CAD/ (BOTH modes)
   9. Load the matching design-for-X skill to produce parts_manifest.json
      (default: design-for-additive-manufacturing)
  10. Generate cadsmith scripts for every part in the manifest

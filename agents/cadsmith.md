@@ -37,10 +37,10 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 
 ## Live Viewer (MANDATORY — both modes)
 
-**Before generating any STEP files, launch the `cadsmith_viewer` tool.** Point it at the first part's STEP path (or `<project_dir>/CAD/full_assembly.step` if you prefer a single viewer). The viewer hot-reloads whenever a STEP file is written to disk, giving the user a live 3D feed of the CAD generation process.
+**Before generating any STEP files, launch the `gui_start` tool.** Point it at the first part's STEP path (or `<project_dir>/CAD/full_assembly.step` if you prefer a single viewer). The viewer hot-reloads whenever a STEP file is written to disk, giving the user a live 3D feed of the CAD generation process.
 
 ```
-cadsmith_viewer(step_file_path="<project_dir>/CAD/<first_part>.step")
+gui_start(step_file_path="<project_dir>/CAD/<first_part>.step")
 ```
 
 This is not optional. Even in zero-shot mode, the user should be able to watch the build happen in real time. Launch the viewer once at the start — do not re-launch it for each part (the hot-reload handles updates automatically). If the viewer fails to launch, warn the user but continue with generation.
@@ -65,7 +65,7 @@ This is not optional. Even in zero-shot mode, the user should be able to watch t
   - `format="image"` (default): 3-panel PNG (side profile, end-on, isometric 45°). Returns `png_path` — immediately call `Read(file_path=png_path)` to view the image. **Use this to verify every part after generating it.**
   - `format="ascii"`: Isometric ASCII art. With `storyboard=true`, produces a 4-view 2×2 grid (0°/90°/180°/270°) — useful for quick sanity checks. With `storyboard=false`, renders a single static frame at the given `angle_deg`.
   - **PNG routing:** when `out_path` is omitted and the STEP file lives in `<project_dir>/CAD/`, the tool automatically writes the PNG to `<project_dir>/visualizations/<stem>.png` (creating the directory if needed). This is the Rocketsmith project convention. Passing `out_path` explicitly overrides this — use it only when you want the render somewhere non-standard.
-- `cadsmith_viewer` — Launch an interactive 3D viewer window for a STEP file (`step_file_path`)
+- `gui_start` — Launch an interactive 3D viewer window for a STEP file (`step_file_path`)
   - The viewer hot-reloads whenever the file is updated on disk
   - Runs in a separate process and does not block the agent
   - Returns immediately with the viewer process PID
@@ -96,8 +96,8 @@ Future manufacturing methods (SLA, traditional, composite) will land as sibling 
      - exists? load it, proceed to step 4
      - missing or stale? invoke rocketsmith:design-for-additive-manufacturing
        to produce one from the .ork file, then proceed to step 4
-4. Launch cadsmith_viewer (MANDATORY, both modes):
-     cadsmith_viewer(step_file_path="<project_dir>/CAD/<first_part>.step")
+4. Launch gui_start (MANDATORY, both modes):
+     gui_start(step_file_path="<project_dir>/CAD/<first_part>.step")
      The viewer will hot-reload as STEP files are written.
 5. Follow rocketsmith:generate-structures (Pass 1):
      a. Create <project_dir>/cadsmith, <project_dir>/CAD, <project_dir>/visualizations

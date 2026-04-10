@@ -1,4 +1,4 @@
-"""Tests for the cadsmith_viewer MCP tool."""
+"""Tests for the gui_start MCP tool."""
 
 import os
 import signal
@@ -6,7 +6,7 @@ import signal
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from rocketsmith.cadsmith.mcp.viewer import register_cadsmith_viewer
+from rocketsmith.gui.mcp.start import register_gui_start
 
 
 @pytest.fixture
@@ -16,8 +16,8 @@ def anyio_backend():
 
 @pytest.fixture
 def mcp_app():
-    app = FastMCP(name="test-cadsmith")
-    register_cadsmith_viewer(app)
+    app = FastMCP(name="test-gui")
+    register_gui_start(app)
     return app
 
 
@@ -52,7 +52,7 @@ def sample_step():
 def test_tool_registered(mcp_app):
     tools = mcp_app._tool_manager.list_tools()
     assert len(tools) == 1
-    assert tools[0].name == "cadsmith_viewer"
+    assert tools[0].name == "gui_start"
 
 
 # ── Error cases ──────────────────────────────────────────────────────────────
