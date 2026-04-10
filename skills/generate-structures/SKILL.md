@@ -56,9 +56,9 @@ Bash("mkdir -p <project_root>/build123d <project_root>/CAD <project_root>/visual
 
 For each entry in `manifest["parts"]`:
 
-1. **Write the script** with the `Write` tool. Use the script structure below and build only the features in `features` — ignore `modifications` entirely at this stage.
+1. **Write the script** with the `Write` tool. Use the script structure below and build only the features in `features` — ignore `modifications` entirely at this stage. For any part with **more than one shape-producing operation** (nose cone with shoulder + ogive, airframe with integrated fins, tube with integral aft shoulder, etc.) follow the iterative per-feature loop in **Build Iteratively — Verify Each Feature** below. Single-feature parts (plain body tube, plain ring) can be written in one shot.
 2. **Execute** via `build123d_script(script_path=<scripts_dir>/<name>.py, out_dir=<step_dir>)`.
-3. **Render** via `build123d_render(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `CAD/` to the sibling `visualizations/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<visualizations_dir>/<name>.png` explicitly.
+3. **Render** via `build123d_render(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `CAD/` to the sibling `visualizations/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<visualizations_dir>/<name>.png` explicitly. The PNG has **three panels — side profile (fore→aft left-to-right), aft end, isometric 45°** — check all three, not just the iso view.
 4. **Verify** via `build123d_extract` that the bounding box matches `features["length_mm"]` and `features["od_mm"]`.
 
 Do not proceed if a part fails verification. Fix the script and re-run.
@@ -149,6 +149,57 @@ That's fine. Each part script lives in its own local frame. The assembly composi
 ### Quick mental check before writing a script
 
 Before you write any script, ask: *"If I sliced this part right now in PrusaSlicer, what's the very first layer?"* The answer should be the largest stable face of the part. If it's a single point, a small circle, an edge, or "the inside of a hollow shell," the orientation is wrong — fix it before going any further.
+
+## Build Iteratively — Verify Each Feature
+
+Parts built in one shot and rendered only at the end are the number-one source of orientation and side-of-body bugs. A bbox check cannot tell a shoulder-up nose cone from a shoulder-down one — same extents, same volume. An integrated-fin airframe with the fins sweeping forward looks nearly identical to one with fins sweeping aft in a single iso view. The only reliable check is **eyes on geometry**, and the earlier you look the cheaper the fix: catching a sign flip at feature 1 is a one-line edit; catching it after feature 5 means unwinding four fused operations.
+
+### The loop
+
+Treat each **shape-producing operation** (`extrude`, `revolve`, `add`, `offset`, `loft`, `fillet`, polar-array add) as an independent checkpoint. Profile construction, parameter assignments, and sketch setup are not checkpoints — they're setup for the next checkpoint.
+
+For each feature in a multi-feature part:
+
+1. **Write** the script containing every feature so far plus the new one. Use `Write` for the first feature, `Edit` to append subsequent features — do not rewrite the whole script when appending one feature.
+2. **Execute**: `build123d_script(...)`.
+3. **Render + Read**: `build123d_render(...)` then `Read` the PNG.
+4. **Verify visually against the three panels**:
+   - **Side profile** — fore is left, aft is right (Z axis horizontal). Is the new feature in the expected Z range? Is it fused to the correct face of the existing geometry?
+   - **Aft end** — symmetry counts (fin count, bolt circle count) and radial placement are obvious here.
+   - **Isometric** — 3D sanity check. Is the feature on the expected side of the body?
+5. **Verify numerically**: `build123d_extract` and compare the bbox Z extent against what you expect after this feature. If feature 2 was supposed to grow the part by `SHOULDER_LEN_MM` in +Z, the bbox Z max should have increased by exactly that. If it decreased, the feature extruded the wrong way.
+6. **If wrong, fix before adding the next feature.** Do not stack a new feature onto a broken one — the bug compounds and the diagnosis gets harder with every additional operation.
+7. **Only when this feature is visually and numerically correct**, move to the next.
+
+For simple parts this collapses: a plain body tube is one feature, one render — same as before. A nose cone with shoulder + ogive is two renders. An airframe with integrated fins + aft shoulder is three or four. The marginal cost per extra render is small; the cost of unwinding a compounded orientation bug is large.
+
+### Orientation bug decision tree
+
+When a checkpoint render shows the just-added feature on the wrong side or in the wrong place, the fix is almost always one of the following. Diagnose, make a one-line edit, re-run — resist the urge to rewrite the script.
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Extruded solid extends in −Z when you expected +Z (or vice versa) | `extrude` direction | Flip the sign of `amount`, or toggle `both=True` |
+| Revolved body rotates around the wrong axis | `axis` mismatched with sketch plane | Profile in `Plane.XZ` → `revolve(axis=Axis.Z)`. Profile in `Plane.YZ` → `revolve(axis=Axis.Z)` also, but mirrored. Check the sketch plane first. |
+| Feature appears at the origin instead of offset along Z | Sketch plane has no Z offset | Use `Plane.XY.offset(z)` or wrap with `Pos(0, 0, z) *` instead of plain `Plane.XY` |
+| Feature subtracts from the parent when it should fuse (or vice versa) | Wrong `mode` | Inside `BuildPart`, the default is `Mode.ADD`. Pass `mode=Mode.SUBTRACT` explicitly if needed — but remember Pass 1 never subtracts, so if you're reaching for SUBTRACT here you're probably in the wrong skill. |
+| In an assembly, a part sits at the wrong Z | Cursor sign or bbox-extent direction | Check `Pos(0, 0, cursor_z) * part`. Stacking fore-to-aft from Z=0: cursor should grow positive. Stacking aft-to-fore: cursor decreases. Match whichever convention the assembly script declares. |
+| Nose cone ends up tip-down | Profile walks from tip down instead of base up | Rewrite the profile to start at the base (`Z = SHOULDER_LEN_MM`) and end at the tip (`Z = SHOULDER_LEN_MM + NOSE_LEN_MM`). See the canonical recipe below. |
+| Fins sweep the wrong direction | Leading-edge sweep sign | Fins sweep *aft* by convention — the leading edge's tip is further aft than its root. Flip the X offset applied to the tip chord. |
+| Integral aft shoulder appears on the fore end | Extruded from Z=0 instead of Z=length | The second extrude must sketch on `Plane.XY.offset(LENGTH_MM)` and extrude +Z, not sketch on `Plane.XY` and extrude −Z. |
+
+The common thread: **the fix is almost always one line**. Read the bbox Z extent before and after the bad feature, identify which of the above categories the bug falls into, edit one line, re-run.
+
+### When the loop is overkill
+
+- **Trivial single-feature parts** — plain tube, plain ring, plain coupler. One feature, one render. No loop needed.
+- **Known-good recipes** — if you've already built five nose cones this session with the shoulder + ogive recipe and none needed correction, you can build the sixth in one shot and only iterate if the final render looks off. The loop exists to surface bugs in unfamiliar compositions, not to gate every known-good pattern.
+
+The loop is mandatory when:
+
+- A part has ≥2 shape-producing ops and you haven't rendered this exact composition in the current session.
+- A previous one-shot render was wrong and you're rebuilding the part — iterate the rebuild to catch where the bug entered.
+- The manifest introduces a new feature type or a feature variant (e.g., first time seeing `forward_stop_lip` on a given body).
 
 ## Common build123d API Patterns
 

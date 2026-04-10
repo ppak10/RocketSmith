@@ -106,7 +106,7 @@ Record the answer. Pass it to the `build123d` subagent so it knows which design-
 
 When handing off between phases, pass the key outputs explicitly:
 
-- **openrocket → build123d**: provide the `.ork` file path, the chosen manufacturing method (from the section above), and the final `openrocket_cad_handoff` output (components in mm, plus the derived motor mount and body tube ID). The build123d subagent will load the matching design-for-X skill based on the method.
+- **openrocket → build123d**: provide the `.ork` file path, the chosen manufacturing method (from the section above), and the final `openrocket_cad_handoff` output (components in mm, plus the derived motor mount and body tube ID). The build123d subagent will load the matching design-for-X skill based on the method. **Before invoking the build123d subagent, the openrocket subagent must have shown the user the final ASCII side profile of the rocket (from `openrocket_inspect.ascii_art`) in a fenced code block** — this is the user's last visual check before CAD scripts get written. If the openrocket subagent reports "design complete" without an ASCII profile, ask it to display one before proceeding.
 - **build123d → prusaslicer**: provide `<project_dir>/parts_manifest.json` and the list of generated STEP file paths in `<project_dir>/CAD/`. The manifest's `component_to_part_map` is the authoritative lookup for mapping printed parts back to OpenRocket components during calibration.
 - **prusaslicer → openrocket (calibration)**: provide a mapping of component name → `filament_used_g` for every printed part. Each entry becomes an `override_mass_kg` update on the corresponding `openrocket_component` (divide grams by 1000).
 
