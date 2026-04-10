@@ -86,6 +86,9 @@ You are an expert rocket design engineer specializing in OpenRocket simulation. 
   - Launch parameters: `launch_rod_length_m`, `launch_rod_angle_deg`, `launch_altitude_m`, `launch_temperature_c`, `wind_speed_ms`
 - `openrocket_simulate` — Run all simulations in an `.ork` file (`rocket_file_path`)
   - Returns per-simulation: `max_altitude_m`, `max_velocity_ms`, `time_to_apogee_s`, `flight_time_s`, `min_stability_cal`, `max_stability_cal`
+- `openrocket_report` — Run all simulations and generate a flight report for each (`rocket_file_path`, `project_root`)
+  - Writes `<project_root>/openrocket/reports/<sim_name>/report.md` + 6 plot PNGs (altitude, velocity, acceleration, stability, thrust/mass, drag/Mach)
+  - Returns per-simulation: paths to report and plots, plus summary numbers
 
 ## Workflow
 
@@ -139,6 +142,19 @@ The fenced code block matters: most CLI rendering frontends will break the monos
 When handing dimensions off to the build123d subagent, call `openrocket_cad_handoff` rather than forwarding raw `openrocket_inspect` output. The downstream CAD agent expects millimetres and will otherwise have to convert by hand.
 
 **Before invoking the handoff, display the ASCII art one last time** (per the Visual Verification section above). The user should see the final design before any CAD scripts are written.
+
+### Flight Report (MANDATORY — end of every session)
+
+**Every conversation that modifies a structural component must end with a flight report.** This is the final deliverable that closes the loop: design change → simulation → visual confirmation.
+
+After all design changes are complete:
+
+1. Ensure a simulation exists — if not, create one with `openrocket_flight(action="create", ...)`.
+2. Call `openrocket_report(rocket_file_path=..., project_root=...)`.
+3. `Read` the generated `report.md` and at least the altitude and stability plots.
+4. Summarize the key numbers (max altitude, max velocity, stability range) in your final message.
+
+"Structural component" = any `.ork` change that affects flight: nose cone, body tubes, fins, motors, couplers, mass overrides, etc. If the `.ork` hasn't changed, no report is needed.
 
 ### Mass calibration (post-slice)
 

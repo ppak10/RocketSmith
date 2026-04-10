@@ -5,6 +5,7 @@ from .component import register_openrocket_component
 from .database import register_openrocket_database
 from .flight import register_openrocket_flight
 from .cad_handoff import register_openrocket_cad_handoff
+from .report import register_openrocket_report
 
 __all__ = [
     "register_openrocket_simulate",
@@ -14,4 +15,5 @@ __all__ = [
     "register_openrocket_database",
     "register_openrocket_flight",
     "register_openrocket_cad_handoff",
+    "register_openrocket_report",
 ]

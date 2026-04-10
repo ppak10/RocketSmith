@@ -16,6 +16,7 @@ from rocketsmith.openrocket.mcp import (
     register_openrocket_database,
     register_openrocket_flight,
     register_openrocket_cad_handoff,
+    register_openrocket_report,
 )
 from rocketsmith.prusaslicer.mcp import (
     register_prusaslicer_slice,
@@ -41,6 +42,7 @@ _ = register_openrocket_component(app)
 _ = register_openrocket_database(app)
 _ = register_openrocket_flight(app)
 _ = register_openrocket_cad_handoff(app)
+_ = register_openrocket_report(app)
 _ = register_prusaslicer_slice(app)
 _ = register_prusaslicer_config(app)
 _ = register_prusaslicer_database(app)

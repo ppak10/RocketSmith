@@ -61,6 +61,19 @@ Phase 4 — Mass Calibration (openrocket subagent, rocketsmith:mass-calibration)
 
 Proceed through all phases automatically once stability is confirmed — do not stop to ask permission between phases unless the user has a specific constraint. Phase 4 is mandatory: a design is not flight-ready until simulation has been re-verified against real printed part weights. Printed PLA/PETG parts routinely weigh 2–4× OpenRocket's material defaults, and a design that was stable with defaults can become unstable once built.
 
+## Flight Report Rule (MANDATORY)
+
+**Every conversation that modifies a structural component must end with a flight report.** After all design or geometry changes are complete, the last action before handing back to the user is:
+
+1. Ensure a simulation exists for the `.ork` file — if not, create one with `openrocket_flight(action="create", ...)`.
+2. Run `openrocket_report(rocket_file_path=<project_root>/openrocket/<name>.ork, project_root=<project_root>)`.
+3. `Read` the generated `report.md` and at minimum the altitude and stability plots.
+4. Summarize the key flight numbers (max altitude, max velocity, stability range) in your final message.
+
+"Structural component" means any change to the rocket's geometry or mass that affects flight performance: nose cone shape, body tube dimensions, fin geometry, motor selection, coupler changes, mass overrides, etc. Pure CAD-only changes (fillets, print orientation, hole patterns) that don't change the `.ork` file do NOT trigger the flight report — the report captures the OpenRocket simulation state, and if the `.ork` hasn't changed there's nothing new to report.
+
+This rule applies to the rocketsmith orchestrator AND to the openrocket subagent when it operates independently (e.g. the user asks "change the fins to 4" without going through the full pipeline). The openrocket subagent should generate the report itself before returning.
+
 ## Manufacturing Method
 
 The OpenRocket design (`.ork` file) is a **logical design** — it describes the rocket's aerodynamic and mass properties independent of how any particular piece will be built. The physical parts list — what actually gets printed, cut, purchased, or fused into another part — depends on the chosen manufacturing method.
@@ -133,7 +146,17 @@ The user launched Gemini CLI from the directory they want the rocket artefacts i
 
 ```
 <project_dir>/
-├── <rocket_name>.ork          ← OpenRocket design file
+├── openrocket/                ← OpenRocket design + flight reports
+│   ├── <rocket_name>.ork      ← OpenRocket design file
+│   └── reports/               ← flight reports (one dir per simulation)
+│       └── <sim_name>/
+│           ├── report.md      ← summary, events, plot references
+│           ├── altitude.png
+│           ├── velocity.png
+│           ├── acceleration.png
+│           ├── stability.png
+│           ├── thrust_mass.png
+│           └── drag_mach.png
 ├── parts_manifest.json        ← DFAM output, authoritative parts list
 ├── build123d/                 ← build123d .py scripts (Pass 1 + Pass 2)
 │   ├── nose_cone.py
