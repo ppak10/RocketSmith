@@ -10,7 +10,6 @@
   "license": "MIT",
   "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
   "skills": "./skills/",
-  "agents": "./agents/",
   "hooks": "./hooks/hooks.json",
   "mcpServers": {
     "rocketsmith": {
