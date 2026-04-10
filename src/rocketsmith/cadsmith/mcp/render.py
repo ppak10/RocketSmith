@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_build123d_render(app: FastMCP):
+def register_cadsmith_render(app: FastMCP):
     from pathlib import Path
     from typing import Literal, Union
 
@@ -9,7 +9,7 @@ def register_build123d_render(app: FastMCP):
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
-        name="build123d_render",
+        name="cadsmith_render",
         title="Render STEP file",
         description=(
             "Render a STEP file for visual inspection. "
@@ -21,7 +21,7 @@ def register_build123d_render(app: FastMCP):
         ),
         structured_output=True,
     )
-    async def build123d_render(
+    async def cadsmith_render(
         step_file_path: Path,
         format: Literal["image", "ascii"] = "image",
         # --- ascii-specific ---
@@ -94,7 +94,7 @@ def register_build123d_render(app: FastMCP):
                 tool_error=tool_error,
             )
 
-    return build123d_render
+    return cadsmith_render
 
 
 async def _render_ascii(
@@ -109,7 +109,7 @@ async def _render_ascii(
     tool_success,
     tool_error,
 ):
-    from rocketsmith.build123d.render.ascii import render_step_ascii, render_storyboard
+    from rocketsmith.cadsmith.render.ascii import render_step_ascii, render_storyboard
 
     try:
         if storyboard:
@@ -151,7 +151,7 @@ async def _render_ascii(
 async def _render_image(
     step_file_path, *, out_path, tolerance, tool_success, tool_error
 ):
-    from rocketsmith.build123d.render.image import render_step_png
+    from rocketsmith.cadsmith.render.image import render_step_png
 
     if out_path is not None:
         png_path = out_path

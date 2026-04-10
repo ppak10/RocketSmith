@@ -9,7 +9,7 @@ description: Use when translating an OpenRocket logical design into a physical p
 
 OpenRocket describes a rocket as a **logical design** — a tree of abstract components (nose cone, body tubes, inner tubes, couplers, fin sets, centering rings) that captures aerodynamic and mass properties. That description is manufacturing-agnostic.
 
-The physical parts list — what actually gets produced and assembled — is a function of the chosen manufacturing method applied to that logical design. This skill handles the **additive manufacturing** case: converting OpenRocket components into a printable parts manifest that the `generate-structures` skill and `build123d` subagent use as their authoritative source.
+The physical parts list — what actually gets produced and assembled — is a function of the chosen manufacturing method applied to that logical design. This skill handles the **additive manufacturing** case: converting OpenRocket components into a printable parts manifest that the `generate-structures` skill and `cadsmith` subagent use as their authoritative source.
 
 **Core principle:** OpenRocket components don't map 1:1 to printed parts. A centering ring in OR becomes "localised wall thickening" in AM. A tube coupler in OR becomes "integral shoulder on the forward section" in AM. A fin set in OR becomes "fused geometry on the lower airframe" in AM. The translation is the whole point of this skill.
 
@@ -28,7 +28,7 @@ The physical parts list — what actually gets produced and assembled — is a f
 
 ## Output
 
-A single JSON file written to `<project_dir>/parts_manifest.json` by the **`manufacturing_manifest` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `build123d` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
+A single JSON file written to `<project_dir>/parts_manifest.json` by the **`manufacturing_manifest` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `cadsmith` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
 
 ## Steps
 
@@ -226,7 +226,7 @@ Feature block:
   "generated_at": "<ISO 8601 timestamp>",
 
   "directories": {
-    "scripts": "build123d",
+    "scripts": "cadsmith",
     "step": "CAD",
     "gcode": "gcode"
   },
@@ -234,7 +234,7 @@ Feature block:
   "parts": [
     {
       "name": "<snake_case part name>",
-      "script_path": "build123d/<name>.py",
+      "script_path": "cadsmith/<name>.py",
       "step_path": "CAD/<name>.step",
       "gcode_path": "gcode/<name>.gcode",
       "derived_from": ["<OR component identifier>", "..."],
@@ -301,7 +301,7 @@ openrocket_cad_handoff → {components, derived, handoff_notes}
                       ↓
               parts_manifest.json at project root
                       ↓
-          generate-structures skill → build123d scripts → STEP files
+          generate-structures skill → cadsmith scripts → STEP files
                       ↓
               prusaslicer → gcode → filament_used_g
                       ↓

@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_build123d_viewer(app: FastMCP):
+def register_cadsmith_viewer(app: FastMCP):
     from pathlib import Path
     from typing import Union
 
@@ -9,7 +9,7 @@ def register_build123d_viewer(app: FastMCP):
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
-        name="build123d_viewer",
+        name="cadsmith_viewer",
         title="Launch STEP Viewer",
         description=(
             "Launch an interactive 3D viewer window for a STEP file. "
@@ -20,7 +20,7 @@ def register_build123d_viewer(app: FastMCP):
         ),
         structured_output=True,
     )
-    async def build123d_viewer(
+    async def cadsmith_viewer(
         step_file_path: Path,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
@@ -86,4 +86,4 @@ def register_build123d_viewer(app: FastMCP):
             }
         )
 
-    return build123d_viewer
+    return cadsmith_viewer

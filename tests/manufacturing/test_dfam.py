@@ -446,7 +446,7 @@ class TestManifestGeneration:
             minimal_rocket, tmp_path, jar_path=openrocket_jar
         )
         for part in manifest.parts:
-            assert part.script_path.startswith("build123d/")
+            assert part.script_path.startswith("cadsmith/")
             assert part.script_path.endswith(".py")
             assert part.step_path.startswith("CAD/")
             assert part.step_path.endswith(".step")

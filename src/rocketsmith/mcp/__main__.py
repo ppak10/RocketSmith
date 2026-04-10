@@ -23,11 +23,11 @@ from rocketsmith.prusaslicer.mcp import (
     register_prusaslicer_config,
     register_prusaslicer_database,
 )
-from rocketsmith.build123d.mcp import (
-    register_build123d_extract,
-    register_build123d_render,
-    register_build123d_script,
-    register_build123d_viewer,
+from rocketsmith.cadsmith.mcp import (
+    register_cadsmith_extract,
+    register_cadsmith_render,
+    register_cadsmith_script,
+    register_cadsmith_viewer,
 )
 from rocketsmith.manufacturing.mcp import register_manufacturing_manifest
 from rocketsmith.rag.mcp import register_rag_reference
@@ -46,10 +46,10 @@ _ = register_openrocket_report(app)
 _ = register_prusaslicer_slice(app)
 _ = register_prusaslicer_config(app)
 _ = register_prusaslicer_database(app)
-_ = register_build123d_extract(app)
-_ = register_build123d_render(app)
-_ = register_build123d_script(app)
-_ = register_build123d_viewer(app)
+_ = register_cadsmith_extract(app)
+_ = register_cadsmith_render(app)
+_ = register_cadsmith_script(app)
+_ = register_cadsmith_viewer(app)
 _ = register_manufacturing_manifest(app)
 _ = register_rag_reference(app)
 

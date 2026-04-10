@@ -15,7 +15,7 @@ Mass calibration closes the loop: slice each printed part, read the filament wei
 
 ## When to Use
 
-- `build123d_script` has produced STEP files AND `prusaslicer_slice` has produced gcode for at least one printed part
+- `cadsmith_script` has produced STEP files AND `prusaslicer_slice` has produced gcode for at least one printed part
 - Before committing to a final build
 - After changing any print setting (infill, wall count, material) that would change part mass
 - When the user asks "will it still fly stable once printed?"
@@ -39,7 +39,7 @@ The two sections you care about are:
 - **`parts`** — each entry has a `name`, a `gcode_path`, and a `derived_from` list of the OR components the part was assembled from (post-fusion)
 - **`component_to_part_map`** — the inverse lookup: for every OR component in the `.ork` file, it tells you which printed part absorbed it, or that the component was `"skipped"` or `"purchased"` and does not need calibration
 
-If the manifest is missing, stop and ask the build123d subagent to regenerate it. Do not guess the mapping from filenames.
+If the manifest is missing, stop and ask the cadsmith subagent to regenerate it. Do not guess the mapping from filenames.
 
 ### 2. Collect Measured Weights
 

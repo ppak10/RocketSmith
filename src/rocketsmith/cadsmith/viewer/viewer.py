@@ -502,7 +502,7 @@ def launch_viewer(step_path: Path) -> None:
 def main():
     """CLI entry point for the viewer subprocess."""
     if len(sys.argv) < 2:
-        print("Usage: python -m rocketsmith.build123d.viewer.viewer <step_file>")
+        print("Usage: python -m rocketsmith.cadsmith.viewer.viewer <step_file>")
         sys.exit(1)
     launch_viewer(Path(sys.argv[1]))
 

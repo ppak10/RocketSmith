@@ -23,7 +23,7 @@ STEP_IDS = [p.stem for p in STEP_FILES]
 class TestLoadStepMesh:
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_returns_valid_arrays(self, step_file):
-        from rocketsmith.build123d.render.ascii.mesh import load_step_mesh
+        from rocketsmith.cadsmith.render.ascii.mesh import load_step_mesh
 
         verts, tris, normals = load_step_mesh(step_file, tolerance=1.0)
 
@@ -36,7 +36,7 @@ class TestLoadStepMesh:
 
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_triangle_indices_in_range(self, step_file):
-        from rocketsmith.build123d.render.ascii.mesh import load_step_mesh
+        from rocketsmith.cadsmith.render.ascii.mesh import load_step_mesh
 
         verts, tris, _ = load_step_mesh(step_file, tolerance=1.0)
 
@@ -45,7 +45,7 @@ class TestLoadStepMesh:
 
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_normals_are_unit_length(self, step_file):
-        from rocketsmith.build123d.render.ascii.mesh import load_step_mesh
+        from rocketsmith.cadsmith.render.ascii.mesh import load_step_mesh
 
         _, _, normals = load_step_mesh(step_file, tolerance=1.0)
 
@@ -56,13 +56,13 @@ class TestLoadStepMesh:
         np.testing.assert_allclose(lengths[non_degenerate], 1.0, atol=1e-6)
 
     def test_empty_on_missing_file(self, tmp_path):
-        from rocketsmith.build123d.render.ascii.mesh import load_step_mesh
+        from rocketsmith.cadsmith.render.ascii.mesh import load_step_mesh
 
         with pytest.raises(Exception):
             load_step_mesh(tmp_path / "nonexistent.step")
 
     def test_finer_tolerance_produces_more_triangles(self):
-        from rocketsmith.build123d.render.ascii.mesh import load_step_mesh
+        from rocketsmith.cadsmith.render.ascii.mesh import load_step_mesh
 
         if not STEP_FILES:
             pytest.skip("No STEP files available")
@@ -80,7 +80,7 @@ class TestLoadStepMesh:
 class TestViewerLoadMesh:
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_returns_float32_arrays(self, step_file):
-        from rocketsmith.build123d.viewer.viewer import _load_mesh
+        from rocketsmith.cadsmith.viewer.viewer import _load_mesh
 
         verts, tris, normals = _load_mesh(step_file, tolerance=1.0)
 
@@ -91,7 +91,7 @@ class TestViewerLoadMesh:
 
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_mesh_is_centered(self, step_file):
-        from rocketsmith.build123d.viewer.viewer import _load_mesh
+        from rocketsmith.cadsmith.viewer.viewer import _load_mesh
 
         verts, _, _ = _load_mesh(step_file, tolerance=1.0)
 
@@ -100,7 +100,7 @@ class TestViewerLoadMesh:
 
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_triangle_indices_in_range(self, step_file):
-        from rocketsmith.build123d.viewer.viewer import _load_mesh
+        from rocketsmith.cadsmith.viewer.viewer import _load_mesh
 
         verts, tris, _ = _load_mesh(step_file, tolerance=1.0)
 
@@ -109,7 +109,7 @@ class TestViewerLoadMesh:
 
     @pytest.mark.parametrize("step_file", STEP_FILES, ids=STEP_IDS)
     def test_normals_are_unit_length(self, step_file):
-        from rocketsmith.build123d.viewer.viewer import _load_mesh
+        from rocketsmith.cadsmith.viewer.viewer import _load_mesh
 
         _, _, normals = _load_mesh(step_file, tolerance=1.0)
 

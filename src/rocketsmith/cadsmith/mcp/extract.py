@@ -1,16 +1,16 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_build123d_extract(app: FastMCP):
+def register_cadsmith_extract(app: FastMCP):
     from pathlib import Path
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
-    from rocketsmith.build123d.models import Build123dGeometry
+    from rocketsmith.cadsmith.models import Build123dGeometry
 
     @app.tool(
-        name="build123d_extract",
+        name="cadsmith_extract",
         title="Extract STEP Geometry",
         description=(
             "Extract geometric properties from a STEP file using build123d: "
@@ -19,7 +19,7 @@ def register_build123d_extract(app: FastMCP):
         ),
         structured_output=True,
     )
-    async def build123d_extract(
+    async def cadsmith_extract(
         step_file_path: Path,
         material_density_kg_m3: float | None = None,
     ) -> Union[ToolSuccess[Build123dGeometry], ToolError]:
@@ -33,7 +33,7 @@ def register_build123d_extract(app: FastMCP):
                 Common values: PETG ≈ 1250, PLA ≈ 1240, ABS ≈ 1050,
                 Aluminium ≈ 2700, Carbon fibre ≈ 1600.
         """
-        from rocketsmith.build123d.extract import extract_geometry
+        from rocketsmith.cadsmith.extract import extract_geometry
 
         step_file_path = resolve_path(step_file_path)
         if not step_file_path.exists():
@@ -66,4 +66,4 @@ def register_build123d_extract(app: FastMCP):
                 exception_message=str(e),
             )
 
-    return build123d_extract
+    return cadsmith_extract

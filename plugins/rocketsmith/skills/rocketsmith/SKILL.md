@@ -13,6 +13,6 @@ At the start of each new conversation, call `rocketsmith_setup(action="check")` 
 - Use `openrocket_database` to find motors, presets, and materials before choosing dimensions or components.
 - Use `openrocket_component` and `openrocket_inspect` to build or revise the design iteratively rather than guessing geometry.
 - Use `openrocket_flight` and `openrocket_simulate` to validate stability and flight performance before recommending the design.
-- When the user asks for fabrication outputs, convert the confirmed OpenRocket dimensions into build123d or slicer-ready artifacts only after the simulation is acceptable.
+- When the user asks for fabrication outputs, convert the confirmed OpenRocket dimensions into cadsmith or slicer-ready artifacts only after the simulation is acceptable.
 
 Prefer concrete engineering tradeoffs. Report stability margin, motor choice, and the main design constraints that drove the result.

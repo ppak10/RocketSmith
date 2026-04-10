@@ -7,9 +7,9 @@ from rich.table import Table
 from rich.console import Console
 
 
-def register_build123d_extract(app: typer.Typer):
+def register_cadsmith_extract(app: typer.Typer):
     @app.command(name="extract")
-    def build123d_extract(
+    def cadsmith_extract(
         step_file_path: Annotated[
             Path,
             typer.Argument(help="Path to the STEP file."),
@@ -23,7 +23,7 @@ def register_build123d_extract(app: typer.Typer):
         ] = None,
     ) -> None:
         """Extract and display geometric properties from a STEP file."""
-        from rocketsmith.build123d.extract import extract_geometry
+        from rocketsmith.cadsmith.extract import extract_geometry
 
         if not step_file_path.exists():
             rprint(f"⚠️  [yellow]File not found: {step_file_path}[/yellow]")
@@ -60,4 +60,4 @@ def register_build123d_extract(app: typer.Typer):
 
         Console().print(table)
 
-    return build123d_extract
+    return cadsmith_extract

@@ -34,7 +34,7 @@ If every part's `modifications` list is empty (which is the default for a freshl
 
 ## Output
 
-- `<project_root>/build123d/<name>_modified.py` — one modification script per part with non-empty modifications (kept separate from the Pass 1 script for auditability)
+- `<project_root>/cadsmith/<name>_modified.py` — one modification script per part with non-empty modifications (kept separate from the Pass 1 script for auditability)
 - `<project_root>/CAD/<name>.step` — **overwritten** with the modified version
 - `<project_root>/CAD/full_assembly.step` — regenerated if any constituent part was modified
 - `<project_root>/visualizations/<name>.png` — re-rendered after modification
@@ -58,10 +58,10 @@ If the list is empty, skip the rest of this skill.
 ### 3. For Each Part With Modifications
 
 1. **Verify the base STEP exists** at `<project_root>/<step_path>`. If missing, run `generate-structures` first — do not fabricate a base here.
-2. **Write the modification script** to `<project_root>/build123d/<name>_modified.py`. The script imports the base STEP, applies each modification in order, and exports back to the same `step_path` (overwriting).
-3. **Execute** via `build123d_script`. The tool runs the script in isolated mode and returns the path of the overwritten STEP.
-4. **Re-render** via `build123d_render(step_file_path=<step_path>, out_path=<visualizations_dir>/<name>.png)` and `Read` to visually verify the modifications are in the right place.
-5. **Re-extract** via `build123d_extract` to confirm the bounding box hasn't changed unexpectedly (modifications typically only remove material, so bounding box should match).
+2. **Write the modification script** to `<project_root>/cadsmith/<name>_modified.py`. The script imports the base STEP, applies each modification in order, and exports back to the same `step_path` (overwriting).
+3. **Execute** via `cadsmith_script`. The tool runs the script in isolated mode and returns the path of the overwritten STEP.
+4. **Re-render** via `cadsmith_render(step_file_path=<step_path>, out_path=<visualizations_dir>/<name>.png)` and `Read` to visually verify the modifications are in the right place.
+5. **Re-extract** via `cadsmith_extract` to confirm the bounding box hasn't changed unexpectedly (modifications typically only remove material, so bounding box should match).
 6. **Pause for user feedback.** Modifications are detail features that interact with the base geometry in ways that are hard to verify autonomously — hole placement relative to shoulders, pocket depth vs. wall thickness, angular alignment of through-holes with mating parts. Show the user the re-rendered PNG, describe what was modified (e.g., "Added 4× M4 heat-set holes at Z=25mm on the upper airframe shoulder"), and ask whether the placement looks correct. See **User Feedback on Modifications** below.
 
 ### 4. Regenerate the Full Assembly
@@ -83,7 +83,7 @@ from pathlib import Path
 from math import cos, sin, radians
 
 # --- Resolve paths relative to this script's location ---
-# This script lives at <project_root>/build123d/<name>_modified.py
+# This script lives at <project_root>/cadsmith/<name>_modified.py
 # Base STEP and output STEP are at <project_root>/CAD/<name>.step
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -189,9 +189,9 @@ For any `kind` not in the recipe reference, query `rag_reference(action="search"
 
 After each part is modified:
 
-1. **Re-render**: `build123d_render(step_file_path=<step_path>)`. The tool auto-routes to `visualizations/<name>.png`, overwriting the Pass 1 render — the modified version is the current truth.
+1. **Re-render**: `cadsmith_render(step_file_path=<step_path>)`. The tool auto-routes to `visualizations/<name>.png`, overwriting the Pass 1 render — the modified version is the current truth.
 2. **Visual check**: does the render show the modifications in the expected positions? Heat-set holes should appear as small dark circles around the shoulder mid-length. Through-holes should appear at matching angles on the mating tube.
-3. **Dimensional check**: `build123d_extract` — the bounding box should be unchanged (all current modifications are subtractive). If the volume dropped by more than ~5% of the base, flag it — you may have subtracted too much.
+3. **Dimensional check**: `cadsmith_extract` — the bounding box should be unchanged (all current modifications are subtractive). If the volume dropped by more than ~5% of the base, flag it — you may have subtracted too much.
 4. **User feedback**: pause and ask the user to confirm the modifications. See below.
 
 ## User Feedback on Modifications
@@ -224,9 +224,9 @@ All modifications require user feedback before proceeding to the next part. Unli
 - The assembly render shows holes in the wrong place or missing — check each part's modification script independently before blaming the composition
 - A modification adds material where the base was hollow (e.g. a pocket that punches through a fin root) — check `depth_mm` and make sure you're subtracting, not adding
 
-## Handoff to the build123d Subagent
+## Handoff to the cadsmith Subagent
 
-After every modified part is verified and the full assembly is regenerated, hand control back to the `build123d` subagent. The subagent reports to the orchestrator which then hands off to the `prusaslicer` subagent for slicing.
+After every modified part is verified and the full assembly is regenerated, hand control back to the `cadsmith` subagent. The subagent reports to the orchestrator which then hands off to the `prusaslicer` subagent for slicing.
 
 Do not re-run `generate-structures` after a successful modify pass. The modified STEP is the current truth; regenerating base geometry would overwrite your modifications.
 
@@ -239,10 +239,10 @@ for part in manifest["parts"]:
         continue
     verify_base_step_exists(part["step_path"])
     write_modification_script(part)
-    build123d_script(script_path, out_dir)
-    build123d_render(step_file_path, out_path=visualizations_dir/<name>.png)
+    cadsmith_script(script_path, out_dir)
+    cadsmith_render(step_file_path, out_path=visualizations_dir/<name>.png)
     Read(png_path)
-    build123d_extract(step_file_path)
+    cadsmith_extract(step_file_path)
     if check_failed: fix_and_retry()
     # always pause for user feedback on modifications
     ask_user("Applied <modifications> to <part>. Does the placement look correct?")
@@ -256,5 +256,5 @@ if any_part_was_modified:
     wait_for_response()
 
 # then handoff
-report_to_build123d_subagent()
+report_to_cadsmith_subagent()
 ```

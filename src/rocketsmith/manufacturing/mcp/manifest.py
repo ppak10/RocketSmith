@@ -13,7 +13,7 @@ def register_manufacturing_manifest(app: FastMCP):
         title="Parts Manifest",
         description=(
             "Generate or read a parts manifest for a rocket project. The manifest "
-            "is the authoritative handoff from a design-for-X skill to the build123d "
+            "is the authoritative handoff from a design-for-X skill to the cadsmith "
             "CAD pipeline and the mass-calibration workflow. Use action='generate' to "
             "produce a new parts_manifest.json from an OpenRocket design file (applies "
             "design-for-additive-manufacturing fusion rules by default). Use "

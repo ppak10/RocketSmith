@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from rocketsmith.build123d.models import Build123dGeometry, BoundingBox, CenterOfMass
+from rocketsmith.cadsmith.models import Build123dGeometry, BoundingBox, CenterOfMass
 
 
 def extract_geometry(

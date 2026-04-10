@@ -14,7 +14,7 @@ def register_openrocket_cad_handoff(app: FastMCP):
             "Convert an OpenRocket .ork or RockSim .rkt design into CAD-ready "
             "parameters in millimetres. Reads every component, multiplies each "
             "length by 1000, identifies the motor mount, and returns a dict "
-            "ready to feed into build123d scripts. Eliminates the m↔mm "
+            "ready to feed into cadsmith scripts. Eliminates the m↔mm "
             "conversion as a source of hand-computed errors."
         ),
         structured_output=True,

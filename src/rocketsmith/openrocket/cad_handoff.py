@@ -1,7 +1,7 @@
 """Convert an OpenRocket design into CAD-ready (millimetre) parameters.
 
-This module is the "glue" between an OpenRocket .ork file and a build123d
-CAD workflow. OpenRocket stores every dimension in metres; build123d and
+This module is the "glue" between an OpenRocket .ork file and a cadsmith
+CAD workflow. OpenRocket stores every dimension in metres; cadsmith and
 most STEP consumers expect millimetres. Converting by hand is a common
 source of off-by-1000 bugs, so this helper does it once, per-component,
 and attaches the derived values and red-flag notes that the cad-handoff

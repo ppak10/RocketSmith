@@ -20,7 +20,7 @@ RocketSmith integrates with AI coding tools through their native plugin/extensio
 gemini extensions install https://github.com/ppak10/RocketSmith
 ```
 
-The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `build123d`, `prusaslicer`), and action skills automatically.
+The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `cadsmith`, `prusaslicer`), and action skills automatically.
 
 ### Claude Code (MCP server)
 

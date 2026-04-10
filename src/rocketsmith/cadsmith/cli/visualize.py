@@ -4,7 +4,7 @@ from pathlib import Path
 from typing_extensions import Annotated
 
 
-def register_build123d_visualize(app: typer.Typer):
+def register_cadsmith_visualize(app: typer.Typer):
     @app.command(name="visualize")
     def build123d_visualize(
         step_file_path: Annotated[
@@ -47,7 +47,7 @@ def register_build123d_visualize(app: typer.Typer):
         render a single static frame instead.
         """
         from rich import print as rprint
-        from rocketsmith.build123d.render.ascii import (
+        from rocketsmith.cadsmith.render.ascii import (
             render_step_ascii,
             animate_step_ascii,
         )

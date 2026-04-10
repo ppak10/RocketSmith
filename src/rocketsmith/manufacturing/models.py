@@ -1,7 +1,7 @@
 """Pydantic models for the parts manifest.
 
 The parts manifest is the contract between a design-for-X skill and the
-downstream ``build123d`` subagent, ``generate-cad`` skill, and
+downstream ``cadsmith`` subagent, ``generate-cad`` skill, and
 ``mass-calibration`` skill. It records per-component fate decisions
 (print, fuse, purchase, skip), feature blocks for each printable part,
 and the inverse lookup from OpenRocket components back to the part that
@@ -50,7 +50,7 @@ class ManufacturingMethod(str, Enum):
 class Directories(BaseModel):
     """Project-root-relative directory names for each artefact type."""
 
-    scripts: str = "build123d"
+    scripts: str = "cadsmith"
     step: str = "CAD"
     gcode: str = "gcode"
     visualizations: str = "visualizations"
@@ -150,7 +150,7 @@ class PartsManifest(BaseModel):
 
     Written to ``<project_root>/parts_manifest.json``. Consumed by:
 
-    - ``generate-cad`` skill / ``build123d`` subagent — iterates ``parts``
+    - ``generate-cad`` skill / ``cadsmith`` subagent — iterates ``parts``
       to produce STEP files
     - ``prusaslicer`` subagent — slices each ``step_path`` to ``gcode_path``
     - ``mass-calibration`` skill — uses ``component_to_part_map`` to

@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_build123d_script(app: FastMCP):
+def register_cadsmith_script(app: FastMCP):
     from pathlib import Path
     from typing import Union
 
@@ -9,7 +9,7 @@ def register_build123d_script(app: FastMCP):
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
-        name="build123d_script",
+        name="cadsmith_script",
         title="Run build123d Script",
         description=(
             "Execute a build123d Python script in an isolated uv environment and "
@@ -18,7 +18,7 @@ def register_build123d_script(app: FastMCP):
         ),
         structured_output=True,
     )
-    async def build123d_script(
+    async def cadsmith_script(
         script_path: Path,
         out_dir: Path,
     ) -> Union[ToolSuccess[dict], ToolError]:
@@ -95,4 +95,4 @@ def register_build123d_script(app: FastMCP):
             }
         )
 
-    return build123d_script
+    return cadsmith_script

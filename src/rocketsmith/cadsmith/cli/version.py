@@ -3,11 +3,11 @@ import typer
 from rich import print as rprint
 
 
-def register_build123d_version(app: typer.Typer):
+def register_cadsmith_version(app: typer.Typer):
     @app.command(name="version")
     def build123d_version() -> None:
         """Show the installed build123d version."""
-        from rocketsmith.build123d.utils import get_build123d_version
+        from rocketsmith.cadsmith.utils import get_build123d_version
 
         try:
             version = get_build123d_version()
