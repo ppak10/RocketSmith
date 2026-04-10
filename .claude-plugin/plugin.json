@@ -14,13 +14,13 @@
       "command": "uv",
       "args": [
         "--directory",
-        ".",
+        "${CLAUDE_PLUGIN_ROOT}",
         "run",
         "-m",
         "rocketsmith.mcp"
       ],
       "env": {
-        "PYTHONPATH": "./src",
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/src",
         "ROCKETSMITH_PROJECT_DIR": "$CLAUDE_PROJECT_DIR"
       }
     }
