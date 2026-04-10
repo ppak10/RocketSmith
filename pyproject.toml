@@ -31,7 +31,6 @@ Issues = "https://github.com/ppak10/RocketSmith/issues"
 
 [project.scripts]
 rocketsmith = "rocketsmith.cli:app"
-rocketsmith-mcp = "rocketsmith.mcp.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

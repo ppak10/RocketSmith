@@ -11,11 +11,13 @@
   "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
   "mcpServers": {
     "rocketsmith": {
-      "command": "uvx",
+      "command": "uv",
       "args": [
-        "--from",
-        "rocketsmith",
-        "rocketsmith-mcp"
+        "--directory",
+        "/Users",
+        "run",
+        "-m",
+        "rocketsmith.mcp"
       ]
     }
   }
