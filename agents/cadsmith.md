@@ -66,11 +66,10 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 
 These skills are loaded into your session at startup via `GEMINI.md`. They contain the detailed procedures; treat them as authoritative and follow them step-by-step.
 
-- **`rocketsmith:design-for-additive-manufacturing`** — translates an OpenRocket component tree into a `component_tree.json`. Applies per-component fate decisions (print, fuse, purchase, skip), AM-specific geometry patterns, and hard rules (fin integration, wall thickness, retention). Produces the manifest you then execute. Load when the CAD phase begins and no manifest exists, or when the design has changed.
 - **`rocketsmith:generate-structures`** — Pass 1 of the CAD pipeline. Reads `component_tree.json`, produces base STEP files for every printable part from their `features` blocks, and composes `full_assembly.step`. Rocketry-agnostic — knows about build123d base-geometry patterns (tubes, revolves, polar arrays, fused extrusions) but not about nose cones or fins.
 - **`rocketsmith:modify-structures`** — Pass 2 of the CAD pipeline. Reads each part's `modifications` list, imports the corresponding base STEP, applies detail features (radial holes, through-holes, pockets, mounts), and overwrites the STEP in place. Only runs if at least one part has non-empty modifications. Skip entirely when the default retention (`"none"`) produces no modifications.
 
-Future manufacturing methods (SLA, traditional, composite) will land as sibling skills (`design-for-sla`, `design-for-traditional`, etc.). Load whichever matches the session's chosen method.
+**Note:** The `design-for-additive-manufacturing` skill and manufacturing method decisions belong to the **manufacturing agent**, not cadsmith. Cadsmith expects an already-annotated `component_tree.json` — if one doesn't exist, ask the orchestrator to invoke the manufacturing agent first.
 
 ## Workflow
 
@@ -78,9 +77,9 @@ Future manufacturing methods (SLA, traditional, composite) will land as sibling 
 1. Verify dependencies (rocketsmith_setup if status uncertain)
 2. Determine project_dir from the orchestrator's mandatory Bash("pwd") step
 3. Check for <project_dir>/component_tree.json
-     - exists? load it, proceed to step 4
-     - missing or stale? invoke rocketsmith:design-for-additive-manufacturing
-       to produce one from the .ork file, then proceed to step 4
+     - exists and annotated? load it, proceed to step 4
+     - missing or unannotated? ask the orchestrator to invoke the
+       manufacturing agent first, then proceed to step 4
 4. Follow rocketsmith:generate-structures (Pass 1):
      a. Create <project_dir>/parts/cadsmith, <project_dir>/parts/step, <project_dir>/parts/stl, <project_dir>/parts/png, <project_dir>/parts/gif
      b. For each part in manifest["parts"], build base geometry from features only

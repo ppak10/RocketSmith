@@ -85,24 +85,26 @@ Phase 1 — Flight Design (openrocket subagent)
   6. Run flight — iterate until stability 1.0–1.5 cal
   7. [interactive] Present flight results and ask if the user wants changes
 
-Phase 2 — CAD Generation (cadsmith subagent)
+Phase 2 — Manufacturing Planning (manufacturing subagent)
   7. Determine manufacturing method (see "Manufacturing Method" section below)
-  8. Load the matching design-for-X skill to produce component_tree.json
-     (default: design-for-additive-manufacturing)
- 10. Generate cadsmith scripts for every part in the manifest
+  8. manufacturing_annotate_tree → annotate component_tree.json with DFAM
+  9. Feedback loop with openrocket if dimension changes needed
+
+Phase 3 — CAD Generation (cadsmith subagent)
+ 10. Generate cadsmith scripts for every part in the annotated tree
  11. Execute scripts, render, and verify each STEP file
      [interactive] Pause for user feedback after every part and the assembly
      [zero-shot]   Pause only on errors or ambiguous geometry
      The GUI updates as STEP files are written — the user sees live progress
 
-Phase 3 — Slicing (prusaslicer subagent)
+Phase 4 — Slicing (prusaslicer subagent)
  12. [interactive] Ask "how should we print this?" — discuss orientation,
      infill, material choice, and any per-part concerns before slicing
      [zero-shot]  Use defaults from print-preparation skill
  13. Slice each STEP file to gcode
  14. Capture filament_used_g for every printed part (per the component tree)
 
-Phase 4 — Mass Calibration (openrocket subagent, rocketsmith:mass-calibration)
+Phase 5 — Mass Calibration (openrocket subagent, rocketsmith:mass-calibration)
  15. Apply each filament weight as override_mass_kg, looking up the target
      OR component via the manifest's component_to_part_map
  16. Re-run openrocket_flight(action="run") and verify stability is still 1.0–1.5 cal
@@ -126,47 +128,17 @@ The OpenRocket design (`.ork` file) is a **logical design** — it describes the
 
 **Determine the method at the start of Phase 2**, before invoking the `cadsmith` subagent. Ask the user unless the intent is obvious from the request.
 
-### Default: `additive`
+**Determine the method at the start of Phase 2** by asking the user if the intent isn't obvious. Options are `additive` (default), `hybrid`, or `traditional`. See the manufacturing agent (`agents/manufacturing.md`) for details on each method and the specific DFAM rules.
 
-Unless the user says otherwise, assume **additive manufacturing** (FDM or SLA 3D printing). This is the pipeline's primary target and the most fully supported method. With this default:
-
-- Load the `rocketsmith:design-for-additive-manufacturing` skill to produce `component_tree.json`
-- Every component that can be printed, is printed
-- Fuse aggressively: fins into parent tubes, centering rings into local wall thickening, couplers into integral shoulders where reassembly isn't required
-- The only COTS items are things that genuinely shouldn't be printed (motor tubes near hot motors, parachutes, ballast)
-
-### Alternative: `hybrid` (not fully supported yet)
-
-If the user says "I'm using a fiberglass body tube" or "I want to print only the nose cone and fin can", the method is hybrid:
-
-- Some components printed, some purchased
-- Typical hybrid layout: print the nose cone and lower airframe (fin can), purchase the body tubes and motor tube as COTS items
-- A `design-for-hybrid` skill is **not yet implemented** — until it lands, fall back to `design-for-additive-manufacturing` and manually mark the relevant components as `fate: purchase` in the generated manifest, with a note to the user that hybrid mode is not fully automated
-
-### Alternative: `traditional` (not supported yet)
-
-If the user explicitly says "I'm using traditional construction" or "I'm using epoxy and fiberglass, no 3D printing", the method is traditional:
-
-- Most components are purchased or cut from stock material
-- CAD generation is usually only needed for one or two custom parts (often the nose cone)
-- A `design-for-traditional` skill is **not yet implemented** — for now, tell the user this method isn't supported and offer to generate just the specific parts they want printed
-
-### How to ask
-
-If the intent isn't obvious:
-
-> "I'll take this design through CAD generation now. Are you planning to 3D print the whole rocket (additive — the default), print some parts and purchase others (hybrid), or use traditional construction where only a few custom parts need CAD?"
-
-Record the answer. Pass it to the `cadsmith` subagent so it knows which design-for-X skill to load. If the user answers "additive" (or doesn't specify), proceed with the default path.
-
-**Do not assume and proceed silently.** The manufacturing method decision is one-way — producing 6 printed parts when the user wanted 2 wastes print time and confuses the bill of materials. A single sentence of confirmation is cheap.
+Pass the chosen method to the manufacturing subagent. If the user answers "additive" (or doesn't specify), proceed with the default. Do not assume and proceed silently — the manufacturing method decision is one-way.
 
 ## Handoff Protocol
 
 When handing off between phases, pass the key outputs explicitly:
 
-- **openrocket → cadsmith**: provide the `.ork` file path, the chosen manufacturing method (from the section above), the `interaction_mode` (`"interactive"` or `"zero-shot"`), and the final `openrocket_generate_tree` output (components in mm, plus the derived motor mount and body tube ID). The cadsmith subagent will load the matching design-for-X skill based on the method and adjust its feedback checkpoints based on the interaction mode. **Before invoking the cadsmith subagent, the openrocket subagent must have shown the user the final ASCII side profile of the rocket (from `openrocket_generate_tree.ascii_art`) in a fenced code block** — this is the user's last visual check before CAD scripts get written. If the openrocket subagent reports "design complete" without an ASCII profile, ask it to display one before proceeding.
-- **cadsmith → prusaslicer**: provide `<project_dir>/component_tree.json`, the list of generated STEP file paths in `<project_dir>/parts/step/`, and the `interaction_mode`. The manifest's `component_to_part_map` is the authoritative lookup for mapping printed parts back to OpenRocket components during calibration.
+- **openrocket → manufacturing**: provide the `.ork` file path, the chosen manufacturing method, and the `interaction_mode`. The openrocket agent must have shown the user the final ASCII side profile (from `openrocket_generate_tree.ascii_art`) in a fenced code block before handoff. The manufacturing agent will annotate `component_tree.json` and may send dimension changes back to the openrocket agent via `openrocket_component(action="update")`.
+- **manufacturing → cadsmith**: provide the annotated `component_tree.json` and `interaction_mode`. The cadsmith agent reads the tree to know which components to generate STEP files for. It does not make manufacturing decisions.
+- **cadsmith → prusaslicer**: provide `<project_dir>/component_tree.json`, the list of generated STEP file paths in `<project_dir>/parts/step/`, and the `interaction_mode`.
 - **prusaslicer → openrocket (calibration)**: provide a mapping of component name → `filament_used_g` for every printed part. Each entry becomes an `override_mass_kg` update on the corresponding `openrocket_component` (divide grams by 1000).
 
 ## Project Directory (MANDATORY STEP 0)

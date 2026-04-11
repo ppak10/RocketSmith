@@ -20,7 +20,7 @@ RocketSmith integrates with AI coding tools through their native plugin/extensio
 gemini extensions install https://github.com/ppak10/RocketSmith
 ```
 
-The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `cadsmith`, `prusaslicer`), and action skills automatically.
+The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `manufacturing`, `cadsmith`, `prusaslicer`), and action skills automatically.
 
 ### Claude Code (plugin)
 
@@ -31,7 +31,7 @@ Register the RocketSmith marketplace and install the plugin:
 /plugin install rocketsmith@rocketsmith
 ```
 
-This installs the full plugin — MCP server, orchestrator agent, domain subagents (`openrocket`, `cadsmith`, `prusaslicer`), action skills, and session hooks. Update with `/plugin update rocketsmith`.
+This installs the full plugin — MCP server, orchestrator agent, domain subagents (`openrocket`, `manufacturing`, `cadsmith`, `prusaslicer`), action skills, and session hooks. Update with `/plugin update rocketsmith`.
 
 #### Local development
 
@@ -64,8 +64,11 @@ The orchestrator will walk through simulation → CAD → slicing → mass calib
 Full documentation lives in the [wiki](https://github.com/ppak10/RocketSmith/wiki):
 
 - [Home](https://github.com/ppak10/RocketSmith/wiki/Home) — pipeline overview, domain agents, and MCP tool list
+- [OpenRocket](https://github.com/ppak10/RocketSmith/wiki/OpenRocket) — component tree generation, stability calculations, dimension models
+- [Manufacturing](https://github.com/ppak10/RocketSmith/wiki/Manufacturing) — DFAM rules, component tree annotations, fusion overrides
+- [CADSmith](https://github.com/ppak10/RocketSmith/wiki/CADSmith) — script execution, part extraction, preview pipeline, assembly
+- [Skills](https://github.com/ppak10/RocketSmith/wiki/Skills) — stability analysis, motor selection, print preparation, mass calibration
 - [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) — plugin/extension setup and dependency troubleshooting
-- [Skills](https://github.com/ppak10/RocketSmith/wiki/Skills) — stability analysis, motor selection, CAD handoff, print preparation, mass calibration
 - [Hooks](https://github.com/ppak10/RocketSmith/wiki/Hooks) — session-start dependency checks and other hooks
 
 ## Building the GUI
