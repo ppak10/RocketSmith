@@ -12,17 +12,33 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+/** A pintdantic quantity: [magnitude, unit_string] */
+type Qty = [number, string];
+
+/** A pintdantic Vec3: { x: Qty, y: Qty, z: Qty } */
+interface Vec3 {
+  x: Qty;
+  y: Qty;
+  z: Qty;
+}
+
+/** Extract the magnitude from a pintdantic quantity. */
+function mag(q: Qty): number {
+  return q[0];
+}
+
 interface AssemblyPart {
   name: string;
   stl_path: string | null;
   step_path: string | null;
-  bounding_box_mm: [number, number, number] | null;
+  bounding_box: Vec3 | null;
   color: string;
   cost: number | null;
   description: string | null;
   id: string | null;
-  position_mm: [number, number, number];
-  rotation_deg: [number, number, number];
+  position: Vec3;
+  rotation: Vec3;
 }
 
 interface AssemblyData {
@@ -30,7 +46,7 @@ interface AssemblyData {
   project_root: string | null;
   generated_at: string;
   parts: AssemblyPart[];
-  total_length_mm: number;
+  total_length: Qty;
 }
 
 const PART_COLORS = [
@@ -105,7 +121,7 @@ export function AssemblyViewer() {
               Length
             </Badge>
             <span className="text-sm font-heading">
-              {assembly.total_length_mm.toFixed(0)} mm
+              {mag(assembly.total_length).toFixed(0)} mm
             </span>
           </div>
           {nonGeomParts.length > 0 && (
@@ -158,9 +174,9 @@ export function AssemblyViewer() {
                   <span className="inline-block h-3 w-3 rounded-sm border border-border bg-foreground/10" />
                 )}
                 <span className="truncate">{part.name}</span>
-                {part.bounding_box_mm && (
+                {part.bounding_box && (
                   <span className="ml-auto text-xs text-foreground/40">
-                    {part.bounding_box_mm[2].toFixed(0)} mm
+                    {mag(part.bounding_box.z).toFixed(0)} mm
                   </span>
                 )}
                 {!part.stl_path && part.description && (
@@ -218,8 +234,12 @@ function AssemblyPartMesh({
     return geo;
   }, [geometry]);
 
-  const [rx, ry, rz] = part.rotation_deg;
-  const [px, py, pz] = part.position_mm;
+  const rx = mag(part.rotation.x);
+  const ry = mag(part.rotation.y);
+  const rz = mag(part.rotation.z);
+  const px = mag(part.position.x);
+  const py = mag(part.position.y);
+  const pz = mag(part.position.z);
 
   return (
     <mesh

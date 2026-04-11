@@ -15,7 +15,7 @@ def register_cadsmith_assembly(app: FastMCP):
         description=(
             "Generate or read an assembly.json that describes how parts "
             "fit together spatially for the 3D viewer. "
-            "Use 'generate' to build assembly.json from the parts manifest "
+            "Use 'generate' to build assembly.json from component_tree.json "
             "and STEP file bounding boxes. "
             "Use 'read' to load an existing assembly.json."
         ),
@@ -29,7 +29,7 @@ def register_cadsmith_assembly(app: FastMCP):
         Generate or read the assembly layout for the 3D viewer.
 
         Actions:
-            generate: Read parts_manifest.json and STEP files to compute
+            generate: Read component_tree.json and STEP files to compute
                       bounding boxes and positions, then write assembly.json.
             read:     Load and return an existing assembly.json.
 
@@ -40,7 +40,8 @@ def register_cadsmith_assembly(app: FastMCP):
         import json
         from datetime import datetime, timezone
 
-        from rocketsmith.cadsmith.models import AssemblyPart
+        from rocketsmith.cadsmith.models import AssemblyPart, UnitVector
+        from rocketsmith.manufacturing.models import ComponentTree, Fate, Component
 
         project_dir = resolve_path(project_dir)
         assembly_path = project_dir / "assembly.json"
@@ -66,99 +67,126 @@ def register_cadsmith_assembly(app: FastMCP):
 
         # ── action == "generate" ────────────────────────────────────────
 
-        manifest_path = project_dir / "parts_manifest.json"
-        if not manifest_path.exists():
+        tree_path = project_dir / "component_tree.json"
+        if not tree_path.exists():
             return tool_error(
-                f"parts_manifest.json not found at {manifest_path}. "
+                f"component_tree.json not found at {tree_path}. "
                 "Run the design-for-additive-manufacturing skill first.",
                 "FILE_NOT_FOUND",
-                file_path=str(manifest_path),
+                file_path=str(tree_path),
             )
 
         try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            data = json.loads(tree_path.read_text(encoding="utf-8"))
+            tree = ComponentTree.model_validate(data)
         except Exception as e:
             return tool_error(
-                f"Failed to read parts_manifest.json: {e}",
+                f"Failed to read component_tree.json: {e}",
                 "PARSE_ERROR",
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )
 
-        # Determine the ordered part list from the manifest assembly.
-        assemblies = manifest.get("assemblies", [])
-        if assemblies:
-            order = assemblies[0].get("parts_fore_to_aft", [])
-        else:
-            order = [p["name"] for p in manifest.get("parts", [])]
+        # Recursively collect components grouped by fate.
+        def _walk(
+            components: list[Component],
+        ) -> tuple[list[Component], list[Component], list[Component]]:
+            printed: list[Component] = []
+            purchased: list[Component] = []
+            skipped: list[Component] = []
+            for comp in components:
+                fate = comp.agent.fate if comp.agent else None
+                if fate == Fate.PRINT:
+                    printed.append(comp)
+                elif fate == Fate.PURCHASE:
+                    purchased.append(comp)
+                elif fate == Fate.SKIP:
+                    skipped.append(comp)
+                # Recurse into children regardless of this component's fate.
+                cp, cu, cs = _walk(comp.children)
+                printed.extend(cp)
+                purchased.extend(cu)
+                skipped.extend(cs)
+            return printed, purchased, skipped
 
-        parts_by_name = {p["name"]: p for p in manifest.get("parts", [])}
+        all_printed: list[Component] = []
+        all_purchased: list[Component] = []
+        all_skipped: list[Component] = []
+        for stage in tree.stages:
+            p, u, s = _walk(stage.components)
+            all_printed.extend(p)
+            all_purchased.extend(u)
+            all_skipped.extend(s)
 
-        # Read bounding boxes from STEP files.
+        # Build assembly parts from printed components.
         assembly_parts: list[AssemblyPart] = []
         cursor_z = 0.0
+        first_nose_seen = False
 
-        for part_name in order:
-            mfg_part = parts_by_name.get(part_name)
-            if mfg_part is None:
-                continue
-
-            step_rel = mfg_part.get("step_path", "")
-            step_abs = project_dir / step_rel
+        for comp in all_printed:
+            step_rel = comp.step_path or ""
+            step_abs = project_dir / step_rel if step_rel else Path()
             stl_rel = step_rel.replace("step/", "stl/").replace(".step", ".stl")
 
-            # Compute bounding box from STEP file.
-            bbox = None
+            # Extract geometry from STEP file.
+            extracted_bbox = None
             part_height = 0.0
-            if step_abs.exists():
+            if step_rel and step_abs.exists():
                 try:
-                    bbox, part_height = _get_bounding_box(step_abs)
+                    from rocketsmith.cadsmith.extract_part import extract_part
+
+                    extracted = extract_part(step_abs)
+                    extracted_bbox = extracted.bounding_box
+                    part_height = extracted_bbox.z.magnitude if extracted_bbox else 0.0
                 except Exception:
                     pass
 
-            # Fall back to manifest features for height.
-            if part_height == 0.0 and mfg_part.get("features"):
-                part_height = mfg_part["features"].get("length_mm", 0.0)
-                # Add shoulder length for nose cones.
-                shoulder = mfg_part["features"].get("shoulder")
-                if shoulder:
-                    part_height += shoulder.get("length_mm", 0.0)
+            # Fall back to component dimensions for height.
+            if part_height == 0.0 and comp.dimensions and comp.dimensions.length:
+                part_height = comp.dimensions.length.magnitude
 
-            # Nose cone is the first part — flip it 180 on X so
-            # the shoulder points aft (toward the next part).
-            is_nose = part_name == order[0] and "nose" in part_name.lower()
-            rotation = (180.0, 0.0, 0.0) if is_nose else (0.0, 0.0, 0.0)
+            # Nose cone — flip it 180 on X so the shoulder points aft.
+            is_nose = not first_nose_seen and "nose" in comp.name.lower()
+            if is_nose:
+                first_nose_seen = True
+            rotation = UnitVector.deg(x=180.0) if is_nose else UnitVector.deg()
 
             assembly_parts.append(
                 AssemblyPart(
-                    name=part_name,
-                    stl_path=stl_rel if (project_dir / stl_rel).exists() else None,
-                    step_path=step_rel if step_abs.exists() else None,
-                    bounding_box_mm=bbox,
-                    position_mm=(0.0, 0.0, cursor_z),
-                    rotation_deg=rotation,
+                    name=comp.name,
+                    stl_path=(
+                        stl_rel
+                        if stl_rel and (project_dir / stl_rel).exists()
+                        else None
+                    ),
+                    step_path=step_rel if step_rel and step_abs.exists() else None,
+                    bounding_box=extracted_bbox,
+                    position=UnitVector(z=cursor_z),
+                    rotation=rotation,
                 )
             )
 
             cursor_z += part_height
 
         # Add purchased items as parts with no geometry.
-        for item in manifest.get("purchased_items", []):
+        for comp in all_purchased:
             assembly_parts.append(
                 AssemblyPart(
-                    name=item.get("derived_from", "purchased_item"),
-                    description=item.get("description"),
-                    id=item.get("suggested_source"),
+                    name=comp.name,
+                    description=(
+                        comp.agent.reason if comp.agent and comp.agent.reason else None
+                    ),
                 )
             )
 
         # Add skipped items that are real physical objects (e.g. parachutes).
-        for item in manifest.get("skipped_components", []):
-            if "non-structural" in item.get("reason", ""):
+        for comp in all_skipped:
+            reason = comp.agent.reason if comp.agent else None
+            if reason and "non-structural" in reason:
                 assembly_parts.append(
                     AssemblyPart(
-                        name=item["name"],
-                        description=item.get("reason"),
+                        name=comp.name,
+                        description=reason,
                     )
                 )
 
@@ -166,7 +194,7 @@ def register_cadsmith_assembly(app: FastMCP):
             project_root=str(project_dir),
             generated_at=datetime.now(timezone.utc).isoformat(),
             parts=assembly_parts,
-            total_length_mm=cursor_z,
+            total_length=cursor_z,
         )
 
         # Write assembly.json.
@@ -178,15 +206,3 @@ def register_cadsmith_assembly(app: FastMCP):
         return tool_success(assembly)
 
     _ = cadsmith_assembly
-
-
-def _get_bounding_box(
-    step_path: Path,
-) -> tuple[tuple[float, float, float], float]:
-    """Read a STEP file and return (bbox_tuple, z_height)."""
-    from build123d import import_step
-
-    shape = import_step(str(step_path))
-    bb = shape.bounding_box()
-    bbox = (round(bb.size.X, 2), round(bb.size.Y, 2), round(bb.size.Z, 2))
-    return bbox, round(bb.size.Z, 2)

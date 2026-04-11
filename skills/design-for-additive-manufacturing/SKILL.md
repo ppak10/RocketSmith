@@ -1,6 +1,6 @@
 ---
 name: design-for-additive-manufacturing
-description: Use when translating an OpenRocket logical design into a physical parts manifest for FDM/SLA 3D printing. Decides per-component fate (print, fuse, purchase, skip), applies AM-specific geometry patterns, and emits parts_manifest.json.
+description: Use when translating an OpenRocket logical design into a physical component tree for FDM/SLA 3D printing. Decides per-component fate (print, fuse, purchase, skip), applies AM-specific geometry patterns, and emits component_tree.json.
 ---
 
 # Design for Additive Manufacturing (DFAM)
@@ -9,26 +9,26 @@ description: Use when translating an OpenRocket logical design into a physical p
 
 OpenRocket describes a rocket as a **logical design** — a tree of abstract components (nose cone, body tubes, inner tubes, couplers, fin sets, centering rings) that captures aerodynamic and mass properties. That description is manufacturing-agnostic.
 
-The physical parts list — what actually gets produced and assembled — is a function of the chosen manufacturing method applied to that logical design. This skill handles the **additive manufacturing** case: converting OpenRocket components into a printable parts manifest that the `generate-structures` skill and `cadsmith` subagent use as their authoritative source.
+The physical parts list — what actually gets produced and assembled — is a function of the chosen manufacturing method applied to that logical design. This skill handles the **additive manufacturing** case: converting OpenRocket components into a printable component tree that the `generate-structures` skill and `cadsmith` subagent use as their authoritative source.
 
 **Core principle:** OpenRocket components don't map 1:1 to printed parts. A centering ring in OR becomes "localised wall thickening" in AM. A tube coupler in OR becomes "integral shoulder on the forward section" in AM. A fin set in OR becomes "fused geometry on the lower airframe" in AM. The translation is the whole point of this skill.
 
 ## When to Use
 
 - The CAD phase is starting and the chosen manufacturing method is **additive** (FDM or SLA)
-- A `parts_manifest.json` is missing or stale for the current `.ork` file
+- A `component_tree.json` is missing or stale for the current `.ork` file
 - The user changed the design and the existing manifest needs to be regenerated
 - A user explicitly asks "what parts do I actually print for this rocket?"
 
 ## Inputs
 
-1. The component tree from `openrocket_cad_handoff(rocket_file_path=<path>)` — authoritative mm-scaled geometry and the derived motor mount / body tube ID
+1. The component tree from `openrocket_generate_tree(rocket_file_path=<path>)` — authoritative mm-scaled geometry and the derived motor mount / body tube ID
 2. The **default policy** (passed by the orchestrator): `"additive"` means print everything that can be printed and fuse aggressively; `"hybrid"` means print the nose cone and fin can but purchase body tubes and motor mount; `"traditional"` falls back to a separate skill not yet implemented
 3. Optional user overrides on specific fusion decisions
 
 ## Output
 
-A single JSON file written to `<project_dir>/parts_manifest.json` by the **`manufacturing_manifest` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `cadsmith` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
+A single JSON file written to `<project_dir>/component_tree.json` by the **`manufacturing_annotate_tree` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `cadsmith` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
 
 ## Steps
 
@@ -53,10 +53,10 @@ For non-standard designs (transitions, boattails, multi-stage, cluster mounts), 
 
 ### 3. Generate the Manifest
 
-Call the `manufacturing_manifest` MCP tool with `action="generate"`:
+Call the `manufacturing_annotate_tree` MCP tool with `action="generate"`:
 
 ```
-manufacturing_manifest(
+manufacturing_annotate_tree(
     action="generate",
     project_root="<project_dir>",
     rocket_file_path="<project_dir>/<rocket_name>.ork",
@@ -67,13 +67,13 @@ manufacturing_manifest(
 
 The tool:
 
-1. Calls `openrocket_cad_handoff` internally to get the mm-scaled component tree
+1. Calls `openrocket_generate_tree` internally to get the mm-scaled component tree
 2. Walks the tree, applies the DFAM fusion rules (defaults + any overrides you passed), and builds the part list
-3. Validates the result against the `PartsManifest` Pydantic schema
-4. Writes `<project_root>/parts_manifest.json`
+3. Validates the result against the `ComponentTree` Pydantic schema
+4. Writes `<project_root>/component_tree.json`
 5. Returns the manifest dict
 
-**Do not use the `Write` tool to hand-craft the manifest.** The Python implementation is the source of truth for the fusion rules; hand-writing is both slower (more context tokens) and error-prone (schema drift, typos, missing fields). The `manufacturing_manifest` tool is the only way to produce a manifest.
+**Do not use the `Write` tool to hand-craft the manifest.** The Python implementation is the source of truth for the fusion rules; hand-writing is both slower (more context tokens) and error-prone (schema drift, typos, missing fields). The `manufacturing_annotate_tree` tool is the only way to produce a manifest.
 
 ### 4. Translation Rules Reference
 
@@ -96,7 +96,7 @@ These are the rules the tool applies. Documented here for understanding — do n
 Report the manifest at a glance before handing off to `generate-structures`:
 
 ```
-Parts manifest for <rocket_name>:
+Component tree for <rocket_name>:
   Printed parts:
     - nose_cone          (from NoseCone)
     - upper_airframe     (from BodyTube:Upper, fused TubeCoupler:UpperAft)
@@ -215,7 +215,7 @@ Feature block:
 - A `TubeCoupler` is marked `fuse` but the design is dual-deploy → may be wrong, ask the user
 - The user requested `retention="m4_heat_set"` but no `radial_holes` modifications appear in the manifest → the design probably has no `TubeCoupler` to fuse into a shoulder. Retention modifications are tied to integral shoulders; without a shoulder there's nowhere to put the holes. Either add a coupler to the OR design or use a different mating strategy (friction fit on the nose cone shoulder, etc.)
 
-## parts_manifest.json Schema
+## component_tree.json Schema
 
 ```json
 {
@@ -295,11 +295,11 @@ Feature block:
 
 ```
 # the translation
-openrocket_cad_handoff → {components, derived, handoff_notes}
+openrocket_generate_tree → {components, derived, handoff_notes}
                       ↓
                  this skill applies policy + fusion rules
                       ↓
-              parts_manifest.json at project root
+              component_tree.json at project root
                       ↓
           generate-structures skill → cadsmith scripts → STEP files
                       ↓

@@ -1,719 +1,335 @@
-"""Design-for-additive-manufacturing translation.
+"""Design-for-additive-manufacturing annotation.
 
-Takes an OpenRocket component tree (mm-scaled via cad_handoff) and
-produces a parts manifest tailored for 3D printing. Implements the
-fusion decision rules documented in
-``skills/design-for-additive-manufacturing/SKILL.md``.
+Walks a ``ComponentTree`` (already generated from an .ork file by
+``openrocket_generate_tree``) and annotates each component's ``agent``
+field with DFAM decisions: fate assignments, fusion directives, and
+AM-specific dimension adjustments.
 
-Key rules (mirrored from the skill — keep in sync):
+Key rules:
 
-- ``NoseCone``               → always a standalone printed part
-- ``BodyTube``               → always a standalone printed part, with children fused
-- ``TrapezoidFinSet``        → always fused into its parent body tube (no standalone)
-- ``InnerTube`` (motor mount) → fused into parent body tube by default; caller may
-                                override to ``separate`` via fusion_overrides
-- ``CenteringRing``          → absorbed into the parent body tube as wall thickening
-                                when motor mount is fused; standalone part when not
-- ``TubeCoupler``            → fused into parent body tube (as integral aft shoulder)
-                                by default; caller may override to ``separate``
-- ``Parachute``              → skipped (non-structural assembly item)
-- ``MassComponent``          → skipped (ballast, added at assembly time)
-- ``LaunchLug`` / ``RailButton`` → skipped (adhesive-mounted at assembly time)
-
-The caller passes fusion decisions that require user input via
-``fusion_overrides``. Everything else uses deterministic defaults.
+- ``NoseCone``               → print (standalone, integral shoulder added)
+- ``BodyTube``               → print (standalone, children fused in)
+- ``TrapezoidFinSet``        → fuse into parent body tube (thickness bumped to min 12.7 mm)
+- ``InnerTube`` (motor mount) → fuse by default; separable via overrides
+- ``CenteringRing``          → skip when motor mount is fused; separate when not
+- ``TubeCoupler``            → fuse as integral aft shoulder by default; separable
+- ``Parachute`` etc.         → purchase/skip (non-structural)
 """
 
 from __future__ import annotations
 
 import re
-from pathlib import Path
-from typing import Any
+from datetime import datetime, timezone
 
 from rocketsmith.manufacturing.models import (
-    Assembly,
-    Decision,
-    Directories,
+    AgentAnnotation,
+    Component,
+    ComponentTree,
     Fate,
-    ManufacturingMethod,
-    Modification,
-    Part,
-    PartsManifest,
-    PurchasedItem,
-    SkippedComponent,
 )
-from rocketsmith.openrocket.cad_handoff import cad_handoff
-
-# Structural / non-physical component types that should never become their
-# own printed parts and have no fusion behaviour.
-_STRUCTURAL_WRAPPERS = {"Rocket", "AxialStage"}
-_NON_PHYSICAL_TYPES = {"Parachute", "MassComponent", "LaunchLug", "RailButton"}
 
 
-# ── DFAM defaults for additive manufacturing ──────────────────────────────────
-#
-# These constants encode the additive-manufacturing-specific design rules
-# the user has agreed on. Each is overridable per-design via fusion_overrides.
+# ── DFAM constants ─────────────────────────────────────────────────────────────
 
-# Minimum fin thickness for FDM-printed rockets. Thinner fins (≤ ~5 mm) print
-# fine but break easily on landing. ~12.7 mm (0.5") is the working default.
 _DFAM_MIN_FIN_THICKNESS_MM = 12.7
-
-# Fin-to-body fillet sizing. The root fillet must be small enough to be
-# geometrically realisable: OCC's fillet operation fails if the radius
-# approaches the fin half-thickness because the two sides of the fillet
-# (one on each broad face of the fin) self-intersect. Empirically a fillet
-# radius of ~thickness/4, capped at ``_DFAM_MAX_FIN_FILLET_MM``, is a safe
-# starting point — noticeable on the render, structurally meaningful, and
-# clear of the OCC geometric limit.
 _DFAM_FIN_FILLET_THICKNESS_FRACTION = 0.25
 _DFAM_MAX_FIN_FILLET_MM = 3.0
-
-# Default nose-cone shoulder length. Long enough for alignment and a stable
-# print bed face; not so long that it dominates the print volume.
 _DFAM_DEFAULT_NOSE_SHOULDER_LENGTH_MM = 30.0
+
+_NON_PHYSICAL_TYPES = {"Parachute", "MassComponent", "LaunchLug", "RailButton"}
+_STRUCTURAL_WRAPPERS = {"Rocket", "AxialStage"}
+
+_AGENT_NAME = "manufacturing"
 
 
 def _sanitize_name(name: str) -> str:
-    """Convert a free-text component name to a snake_case identifier.
-
-    "Nose Cone"            → "nose_cone"
-    "Upper Airframe"       → "upper_airframe"
-    "Trapezoidal Fin Set"  → "trapezoidal_fin_set"
-    """
+    """Convert a free-text component name to a snake_case identifier."""
     slug = re.sub(r"[^\w\s-]", "", name.strip())
     slug = re.sub(r"[\s\-]+", "_", slug)
     return slug.lower() or "unnamed"
 
 
-def _component_id(comp: dict[str, Any]) -> str:
-    """Return the canonical ``Type:Name`` identifier for an OR component."""
-    return f"{comp['type']}:{comp['name']}"
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
-def _build_children_map(
-    components: list[dict[str, Any]],
-) -> dict[int, list[int]]:
-    """Build a parent-index → child-indices map from the flat depth-walked list.
-
-    The component list is a pre-order traversal with ``depth`` annotated
-    per entry. A component is the parent of the next ``depth+1`` component,
-    and that parent-child relationship holds for every subsequent
-    ``depth+1`` until depth drops back to the parent's level.
-    """
-    children: dict[int, list[int]] = {i: [] for i in range(len(components))}
-    # Stack of (index, depth) for ancestors at each depth level
-    ancestors: list[tuple[int, int]] = []
-    for i, comp in enumerate(components):
-        d = comp.get("depth", 0)
-        # Pop ancestors until we find one at depth < current
-        while ancestors and ancestors[-1][1] >= d:
-            ancestors.pop()
-        if ancestors:
-            parent_idx = ancestors[-1][0]
-            children[parent_idx].append(i)
-        ancestors.append((i, d))
-    return children
+def _dim(component: Component, field: str) -> float:
+    """Extract a dimension magnitude from a component, returning 0.0 if missing."""
+    dims = component.dimensions
+    val = getattr(dims, field, None)
+    if val is None:
+        return 0.0
+    if hasattr(val, "magnitude"):
+        return float(val.magnitude)
+    return float(val)
 
 
-def _direct_children(
-    components: list[dict[str, Any]],
-    children_map: dict[int, list[int]],
-    parent_idx: int,
-    child_type: str | None = None,
-) -> list[int]:
-    """Return direct-child indices of a component, optionally filtered by type."""
-    out = []
-    for i in children_map[parent_idx]:
-        if child_type is None or components[i]["type"] == child_type:
-            out.append(i)
-    return out
+# ── Annotation helpers ─────────────────────────────────────────────────────────
 
 
-def _make_part_entry(
-    name: str,
-    directories: Directories,
-    derived_from: list[str],
-    features: dict[str, Any],
-    modifications: list[Modification] | None = None,
-) -> Part:
-    """Build a Part entry with directory-prefixed paths."""
-    return Part(
-        name=name,
-        script_path=f"{directories.scripts}/{name}.py",
-        step_path=f"{directories.step}/{name}.step",
-        gcode_path=f"{directories.gcode}/{name}.gcode",
-        derived_from=derived_from,
-        fate=Fate.PRINT,
-        features=features,
-        modifications=modifications or [],
+def _annotate(
+    component: Component,
+    fate: Fate,
+    reason: str,
+    fused_into: str | None = None,
+    **extra: object,
+) -> None:
+    """Set the agent annotation on a component."""
+    component.agent = AgentAnnotation(
+        fate=fate,
+        fused_into=fused_into,
+        reason=reason,
+        updated_by=_AGENT_NAME,
+        updated_at=_now(),
+        **extra,
     )
 
 
-def _nose_cone_features(
-    comp: dict[str, Any],
+def _annotate_nose_cone(
+    comp: Component,
     body_tube_id_mm: float | None,
-    overrides: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Extract feature block for a nose cone with an integral shoulder.
-
-    For additive manufacturing the nose cone is **solid** by default — the
-    mass penalty is small for typical sizes and the structural and slicing
-    advantages are large. The user can opt into a hollow nose cone via
-    ``fusion_overrides={"nose_cone_hollow": True, "nose_cone_wall_mm": ...}``.
-
-    Every nose cone gets an **integral shoulder** (the "coupler" portion
-    that plugs into the upper airframe) sized to the body tube ID with
-    zero clearance, matching the same convention as the integral aft
-    shoulder on body tubes. The shoulder length defaults to
-    ``_DFAM_DEFAULT_NOSE_SHOULDER_LENGTH_MM`` and is overridable via
-    ``fusion_overrides={"nose_cone_shoulder_length_mm": ...}``.
-    """
-    overrides = overrides or {}
-
-    hollow = bool(overrides.get("nose_cone_hollow", False))
-    wall_mm = float(overrides.get("nose_cone_wall_mm", 3.0))
-
-    shoulder_length_mm = float(
+    overrides: dict,
+) -> None:
+    """Annotate a nose cone as a standalone printed part."""
+    shoulder_length = float(
         overrides.get(
             "nose_cone_shoulder_length_mm",
             _DFAM_DEFAULT_NOSE_SHOULDER_LENGTH_MM,
         )
     )
-    shoulder_od_mm: float | None
-    if body_tube_id_mm is not None and body_tube_id_mm > 0:
-        # Match the body tube ID exactly (zero clearance, same convention as
-        # integral_aft_shoulder on body tubes).
-        shoulder_od_mm = float(body_tube_id_mm)
-    else:
-        shoulder_od_mm = None  # no body tube to mate with — caller will warn
+    shoulder_od = body_tube_id_mm if body_tube_id_mm and body_tube_id_mm > 0 else None
+    hollow = bool(overrides.get("nose_cone_hollow", False))
+    wall = float(overrides.get("nose_cone_wall_mm", 3.0))
 
-    return {
-        "shape": comp.get("shape", "ogive"),
-        "length_mm": comp.get("length_mm"),
-        "base_od_mm": comp.get("aft_diameter_mm"),
-        "fore_d_mm": comp.get("fore_diameter_mm", 0.0),
-        "hollow": hollow,
-        "wall_mm": wall_mm if hollow else None,
-        "shoulder": {
-            "od_mm": shoulder_od_mm,
-            "length_mm": shoulder_length_mm,
-        },
-    }
+    _annotate(
+        comp,
+        fate=Fate.PRINT,
+        reason="Nose cone is always a standalone printed part for AM",
+        dfam_shoulder_length_mm=shoulder_length,
+        dfam_shoulder_od_mm=shoulder_od,
+        dfam_hollow=hollow,
+        dfam_wall_mm=wall if hollow else None,
+    )
 
 
-def _body_tube_base_features(comp: dict[str, Any]) -> dict[str, Any]:
-    """Base feature block for a body tube (before fused children are added)."""
-    return {
-        "length_mm": comp.get("length_mm"),
-        "od_mm": comp.get("outer_diameter_mm"),
-        "id_mm": comp.get("inner_diameter_mm"),
-        "base_wall_mm": comp.get("thickness_mm", 3.0),
-        "fused": [],
-    }
-
-
-def _fin_feature_block(
-    comp: dict[str, Any],
-    overrides: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Feature block describing a fin set fused into a parent body tube.
-
-    Two AM-specific defaults are applied here:
-
-    1. **Minimum thickness**: OR's default fin thickness reflects traditional
-       balsa or fiberglass construction (a few mm). Printed fins at that
-       thickness break easily on landing. We bump any thickness below
-       ``_DFAM_MIN_FIN_THICKNESS_MM`` (12.7 mm = 0.5") up to the minimum.
-    2. **Root fillet clamped to geometry**: the fin-to-body junction is a
-       high stress concentration on the airframe, so a fillet is always
-       specified — but it must be small enough to be geometrically
-       realisable by the build123d/OCC pipeline. The default is
-       ``thickness_mm * _DFAM_FIN_FILLET_THICKNESS_FRACTION`` capped at
-       ``_DFAM_MAX_FIN_FILLET_MM``. A fillet radius approaching the fin
-       half-thickness causes OCC's fillet operation to fail because the
-       fillets on the two broad faces self-intersect.
-
-    Both are overridable via ``fusion_overrides``:
-    ``{"fin_thickness_mm": ..., "fin_fillet_mm": ...}``. If the caller
-    passes a ``fin_fillet_mm`` that exceeds the geometric cap, it is
-    clamped to the cap (a warning is not raised — the clamp is silent
-    because the default is deliberately conservative and any override
-    above it is almost certainly a unit-conversion mistake).
-    """
-    overrides = overrides or {}
-
-    or_thickness = comp.get("thickness_mm", 3.0) or 3.0
+def _annotate_fin_set(comp: Component, parent_name: str, overrides: dict) -> None:
+    """Annotate a fin set as fused into its parent body tube."""
+    or_thickness = _dim(comp, "thickness")
     if "fin_thickness_mm" in overrides:
-        thickness_mm = float(overrides["fin_thickness_mm"])
+        thickness = float(overrides["fin_thickness_mm"])
     else:
-        thickness_mm = max(float(or_thickness), _DFAM_MIN_FIN_THICKNESS_MM)
+        thickness = max(or_thickness, _DFAM_MIN_FIN_THICKNESS_MM)
 
-    # Geometric ceiling: the fillet can't exceed the fin half-thickness
-    # without OCC failing, and empirically ``_DFAM_MAX_FIN_FILLET_MM`` is
-    # the largest value that builds reliably for typical body tube radii.
-    fillet_ceiling = min(thickness_mm / 2.0, _DFAM_MAX_FIN_FILLET_MM)
+    fillet_ceiling = min(thickness / 2.0, _DFAM_MAX_FIN_FILLET_MM)
     default_fillet = min(
-        thickness_mm * _DFAM_FIN_FILLET_THICKNESS_FRACTION,
+        thickness * _DFAM_FIN_FILLET_THICKNESS_FRACTION,
         _DFAM_MAX_FIN_FILLET_MM,
     )
     if "fin_fillet_mm" in overrides:
-        fillet_mm = min(float(overrides["fin_fillet_mm"]), fillet_ceiling)
+        fillet = min(float(overrides["fin_fillet_mm"]), fillet_ceiling)
     else:
-        fillet_mm = default_fillet
+        fillet = default_fillet
 
-    return {
-        "from": _component_id(comp),
-        "as": "integrated_fins",
-        "count": comp.get("fin_count"),
-        "root_chord_mm": comp.get("root_chord_mm"),
-        "tip_chord_mm": comp.get("tip_chord_mm"),
-        "span_mm": comp.get("span_mm"),
-        "sweep_mm": comp.get("sweep_mm", 0.0),
-        "thickness_mm": thickness_mm,
-        "or_thickness_mm": or_thickness,  # preserved for auditability
-        "fillet_mm": fillet_mm,
-    }
+    _annotate(
+        comp,
+        fate=Fate.FUSE,
+        fused_into=parent_name,
+        reason="Fins always integrated into parent body tube for AM",
+        dfam_thickness_mm=thickness,
+        dfam_or_thickness_mm=or_thickness,
+        dfam_fillet_mm=fillet,
+    )
 
 
-def _motor_mount_feature_block(
-    comp: dict[str, Any], parent_length_mm: float
-) -> dict[str, Any]:
-    """Feature block for a motor mount fused as local wall thickening."""
-    length = comp.get("length_mm", 0.0)
-    return {
-        "from": _component_id(comp),
-        "as": "local_wall_thickening",
-        "bore_mm": comp.get("inner_diameter_mm"),
-        "region_start_mm": max(0.0, parent_length_mm - length),
-        "region_end_mm": parent_length_mm,
-    }
+def _annotate_motor_mount_fused(
+    comp: Component, parent_name: str, parent_length_mm: float
+) -> None:
+    """Annotate a motor mount as fused (local wall thickening)."""
+    mount_length = _dim(comp, "length")
+    _annotate(
+        comp,
+        fate=Fate.FUSE,
+        fused_into=parent_name,
+        reason="Motor mount fused as local wall thickening (default AM policy)",
+        dfam_bore_mm=_dim(comp, "id"),
+        dfam_region_start_mm=max(0.0, parent_length_mm - mount_length),
+        dfam_region_end_mm=parent_length_mm,
+    )
 
 
-def _coupler_feature_block(
-    comp: dict[str, Any], parent_body_tube: dict[str, Any]
-) -> dict[str, Any]:
-    """Feature block for a coupler fused as integral aft shoulder.
-
-    The shoulder OD is computed from the **parent body tube's inner
-    diameter**, not from the coupler component's OR-side outer
-    diameter. In traditional rocketry the coupler OD is sized to the
-    body-tube ID minus a small clearance (so the coupler can slide in
-    and be epoxied). When we fuse the coupler into the forward section
-    as an integral shoulder for AM, we want the shoulder to match the
-    mating section's ID with **zero clearance** (or a very small one
-    for assembly tolerance) — otherwise the print comes out with a
-    visible gap at the section joint.
-
-    Assumes the mating (aft) section has the same inner diameter as
-    the parent. For multi-section designs with varying diameters the
-    user can override via ``fusion_overrides``.
-    """
-    # AM assembly clearance: 0.0 mm by default (interference fit or
-    # just-touching). Traditional machining would use 0.2–0.5 mm here.
-    assembly_clearance_mm = 0.0
-    parent_id_mm = parent_body_tube.get("inner_diameter_mm", 0.0) or 0.0
-    shoulder_od_mm = max(0.0, parent_id_mm - assembly_clearance_mm)
-    return {
-        "from": _component_id(comp),
-        "as": "integral_aft_shoulder",
-        "od_mm": shoulder_od_mm,
-        "length_mm": comp.get("length_mm"),
-        "assembly_clearance_mm": assembly_clearance_mm,
-    }
+def _annotate_coupler_fused(
+    comp: Component, parent_name: str, parent_id_mm: float
+) -> None:
+    """Annotate a coupler as fused (integral aft shoulder)."""
+    _annotate(
+        comp,
+        fate=Fate.FUSE,
+        fused_into=parent_name,
+        reason="Coupler fused as integral aft shoulder (default AM policy)",
+        dfam_shoulder_od_mm=parent_id_mm,
+        dfam_shoulder_length_mm=_dim(comp, "length"),
+    )
 
 
-def _retention_modifications_for_shoulder(
-    target_z_mm: float,
-    shoulder_od_mm: float,
-    retention: str,
-) -> list[Modification]:
-    """Build the modifications list for one side of a retained joint.
-
-    Only generates modifications when retention is explicitly set to
-    something other than ``none`` or ``friction_fit``. For heat-set
-    retention this emits radial insert holes on the shoulder-emitting
-    side; the caller must separately add clearance through-holes on
-    the mating side.
-    """
-    if retention == "m4_heat_set":
-        return [
-            Modification(
-                kind="radial_holes",
-                purpose="m4_heat_set_insert",
-                count=4,
-                angular_positions_deg=[45, 135, 225, 315],
-                z_mm=target_z_mm,
-                radius_mm=shoulder_od_mm / 2,
-                hole_diameter_mm=5.7,
-                hole_depth_mm=7.0,
-            )
-        ]
-    # friction_fit and none have no modifications
-    return []
+# ── Main annotation function ──────────────────────────────────────────────────
 
 
-def _retention_clearance_modifications(
-    target_z_mm: float,
-    tube_od_mm: float,
-    retention: str,
-) -> list[Modification]:
-    """Modifications for the mating (receive) side of a retained joint.
-
-    When the shoulder-emitting side has heat-set inserts, the mating
-    tube wall needs through-holes so screws can pass through the tube
-    and thread into the inserts.
-    """
-    if retention == "m4_heat_set":
-        return [
-            Modification(
-                kind="radial_through_holes",
-                purpose="m4_clearance",
-                count=4,
-                angular_positions_deg=[45, 135, 225, 315],
-                z_mm=target_z_mm,
-                radius_mm=tube_od_mm / 2,
-                hole_diameter_mm=4.5,
-            )
-        ]
-    return []
-
-
-def _default_retention(max_diameter_mm: float | None) -> str:
-    """Retention default is "none" — no assembly hardware is generated
-    until the user explicitly asks for it.
-
-    In earlier iterations this returned ``m4_heat_set`` for larger body
-    diameters and ``friction_fit`` for LPR, but baking hardware into
-    every design by default turned out to be wrong: users want the
-    option, not the imposition. Retention modifications are now opt-in
-    via ``fusion_overrides={"retention": "m4_heat_set"}``.
-
-    The ``max_diameter_mm`` parameter is kept for forward compatibility
-    with diameter-dependent defaults if we ever want them back.
-    """
-    return "none"
-
-
-def generate_dfam_manifest(
-    rocket_file_path: Path,
-    project_root: Path,
+def annotate_dfam(
+    tree: ComponentTree,
     fusion_overrides: dict[str, str] | None = None,
-    jar_path: Path | None = None,
-) -> PartsManifest:
-    """Generate a DFAM parts manifest from an OpenRocket design file.
+) -> ComponentTree:
+    """Annotate a ComponentTree with DFAM decisions.
+
+    Walks the component hierarchy and populates each component's
+    ``agent`` field with fate, fusion, and AM-specific adjustments.
 
     Args:
-        rocket_file_path: Path to the .ork file.
-        project_root: Project directory where the manifest and CAD outputs live.
-        fusion_overrides: Optional dict of fusion decision overrides. Keys:
+        tree: A ComponentTree generated by ``openrocket_generate_tree``.
+        fusion_overrides: Optional dict of fusion decision overrides:
             - ``motor_mount_fate``: ``"fuse"`` (default) | ``"separate"``
             - ``coupler_fate``: ``"fuse"`` (default) | ``"separate"``
-            - ``retention``: ``"m4_heat_set"`` | ``"friction_fit"`` (default
-              is derived from body diameter if not specified)
-        jar_path: Optional OpenRocket JAR path (autodetected if omitted).
+            - ``nose_cone_hollow``: ``True`` | ``False`` (default)
+            - ``nose_cone_wall_mm``: wall thickness if hollow
+            - ``nose_cone_shoulder_length_mm``: shoulder length override
+            - ``fin_thickness_mm``: override minimum fin thickness
+            - ``fin_fillet_mm``: override fillet radius
 
     Returns:
-        A validated ``PartsManifest`` instance. Caller is responsible for
-        writing it to ``<project_root>/parts_manifest.json``.
+        The same ComponentTree with agent annotations populated.
     """
     overrides = fusion_overrides or {}
-
-    handoff = cad_handoff(rocket_file_path, jar_path=jar_path)
-    components = handoff["components"]
-    derived = handoff.get("derived", {})
-
-    directories = Directories()
-    children_map = _build_children_map(components)
-
-    # Fusion decisions with defaults
     motor_mount_fate = overrides.get("motor_mount_fate", "fuse")
     coupler_fate = overrides.get("coupler_fate", "fuse")
-    retention = overrides.get(
-        "retention", _default_retention(derived.get("max_diameter_mm"))
-    )
 
-    parts: list[Part] = []
-    skipped: list[SkippedComponent] = []
-    decisions: list[Decision] = []
-    component_to_part_map: dict[str, str] = {}
+    # Find the primary body tube ID for nose cone shoulder sizing.
+    body_tube_id_mm: float | None = None
+    for stage in tree.stages:
+        for comp in stage.components:
+            if comp.type == "BodyTube":
+                body_tube_id_mm = _dim(comp, "id")
+                break
+        if body_tube_id_mm:
+            break
 
-    # Pass 1: handle nose cones
-    body_tube_id_mm = derived.get("body_tube_id_mm")
-    for i, comp in enumerate(components):
-        if comp["type"] != "NoseCone":
-            continue
-        cid = _component_id(comp)
-        name = _sanitize_name(comp["name"])
-        features = _nose_cone_features(
-            comp, body_tube_id_mm=body_tube_id_mm, overrides=overrides
+    for stage in tree.stages:
+        for comp in stage.components:
+            _annotate_component(
+                comp,
+                parent_name=None,
+                body_tube_id_mm=body_tube_id_mm,
+                motor_mount_fate=motor_mount_fate,
+                coupler_fate=coupler_fate,
+                overrides=overrides,
+            )
+
+    return tree
+
+
+def _annotate_component(
+    comp: Component,
+    parent_name: str | None,
+    body_tube_id_mm: float | None,
+    motor_mount_fate: str,
+    coupler_fate: str,
+    overrides: dict,
+) -> None:
+    """Recursively annotate a component and its children."""
+    name = _sanitize_name(comp.name)
+
+    if comp.type == "NoseCone":
+        _annotate_nose_cone(comp, body_tube_id_mm, overrides)
+
+    elif comp.type == "BodyTube":
+        _annotate(
+            comp,
+            fate=Fate.PRINT,
+            reason="Body tube is always a standalone printed part for AM",
         )
-        features["retention"] = retention
-        part = _make_part_entry(name, directories, [cid], features)
-        parts.append(part)
-        component_to_part_map[cid] = name
+        # Annotate children with this tube as parent
+        for child in comp.children:
+            _annotate_component(
+                child,
+                parent_name=name,
+                body_tube_id_mm=body_tube_id_mm,
+                motor_mount_fate=motor_mount_fate,
+                coupler_fate=coupler_fate,
+                overrides=overrides,
+            )
+        return  # children already handled
 
-    # Pass 2: handle body tubes, absorbing their children
-    body_tube_names_used: set[str] = set()
-    for i, comp in enumerate(components):
-        if comp["type"] != "BodyTube":
-            continue
+    elif comp.type in ("TrapezoidFinSet", "EllipticalFinSet", "FreeformFinSet"):
+        if parent_name:
+            _annotate_fin_set(comp, parent_name, overrides)
+        else:
+            _annotate(
+                comp, fate=Fate.PRINT, reason="Orphaned fin set — no parent body tube"
+            )
 
-        base_name = _sanitize_name(comp["name"])
-        # Disambiguate duplicates by appending index
-        name = base_name
-        disambiguator = 2
-        while name in body_tube_names_used:
-            name = f"{base_name}_{disambiguator}"
-            disambiguator += 1
-        body_tube_names_used.add(name)
-
-        cid = _component_id(comp)
-        features = _body_tube_base_features(comp)
-        derived_from = [cid]
-        fused_blocks: list[dict[str, Any]] = []
-
-        # Walk direct children and decide fate of each
-        for child_idx in children_map[i]:
-            child = components[child_idx]
-            child_id = _component_id(child)
-            child_type = child["type"]
-
-            if child_type == "TrapezoidFinSet":
-                fused_blocks.append(_fin_feature_block(child, overrides))
-                derived_from.append(child_id)
-                component_to_part_map[child_id] = name
-
-            elif child_type == "InnerTube":
-                if motor_mount_fate == "fuse":
-                    fused_blocks.append(
-                        _motor_mount_feature_block(child, features["length_mm"] or 0.0)
-                    )
-                    derived_from.append(child_id)
-                    component_to_part_map[child_id] = name
-                # "separate" case handled in pass 3 below
-
-            elif child_type == "CenteringRing":
-                if motor_mount_fate == "fuse":
-                    skipped.append(
-                        SkippedComponent(
-                            name=child_id,
-                            reason=f"absorbed into {name} via local wall thickening",
-                        )
-                    )
-                    component_to_part_map[child_id] = "skipped"
-                # "separate" case handled in pass 3 below
-
-            elif child_type == "TubeCoupler":
-                if coupler_fate == "fuse":
-                    fused_blocks.append(_coupler_feature_block(child, comp))
-                    derived_from.append(child_id)
-                    component_to_part_map[child_id] = name
-                # "separate" case handled in pass 3 below
-
-            elif child_type in _NON_PHYSICAL_TYPES:
-                skipped.append(
-                    SkippedComponent(
-                        name=child_id,
-                        reason=_skip_reason_for(child_type),
-                    )
+    elif comp.type == "InnerTube":
+        if (
+            comp.dimensions.motor_mount
+            if hasattr(comp.dimensions, "motor_mount")
+            else False
+        ):
+            if motor_mount_fate == "fuse" and parent_name:
+                parent_length = 0.0
+                _annotate_motor_mount_fused(comp, parent_name, parent_length)
+            else:
+                _annotate(
+                    comp,
+                    fate=Fate.PRINT,
+                    reason="Motor mount as separate printed part (override)",
                 )
-                component_to_part_map[child_id] = "skipped"
-
-        features["fused"] = fused_blocks
-        # Retention is recorded on the features for human inspection, but
-        # the actual modification objects are populated in pass 5 below,
-        # after every part exists so we can cross-reference shoulder
-        # positions with mating tubes.
-        features["retention"] = retention
-
-        part = _make_part_entry(name, directories, derived_from, features)
-        parts.append(part)
-        component_to_part_map[cid] = name
-
-    # Pass 3: handle standalone components when fusion overrides said "separate"
-    if motor_mount_fate == "separate":
-        for comp in components:
-            if comp["type"] != "InnerTube":
-                continue
-            cid = _component_id(comp)
-            if cid in component_to_part_map:
-                continue  # already handled
-            name = _sanitize_name(comp["name"])
-            features = {
-                "length_mm": comp.get("length_mm"),
-                "outer_diameter_mm": comp.get("outer_diameter_mm"),
-                "inner_diameter_mm": comp.get("inner_diameter_mm"),
-                "wall_mm": comp.get("thickness_mm", 1.5),
-            }
-            parts.append(_make_part_entry(name, directories, [cid], features))
-            component_to_part_map[cid] = name
-
-    if motor_mount_fate == "separate":
-        # Centering rings need to become standalone parts when the motor
-        # mount is separate.
-        for comp in components:
-            if comp["type"] != "CenteringRing":
-                continue
-            cid = _component_id(comp)
-            if cid in component_to_part_map:
-                continue
-            name = _sanitize_name(comp["name"])
-            features = {
-                "outer_diameter_mm": comp.get("outer_diameter_mm"),
-                "inner_diameter_mm": comp.get("inner_diameter_mm"),
-                "thickness_mm": comp.get("thickness_mm", 5.0),
-            }
-            parts.append(_make_part_entry(name, directories, [cid], features))
-            component_to_part_map[cid] = name
-
-    if coupler_fate == "separate":
-        for comp in components:
-            if comp["type"] != "TubeCoupler":
-                continue
-            cid = _component_id(comp)
-            if cid in component_to_part_map:
-                continue
-            name = _sanitize_name(comp["name"])
-            features = {
-                "length_mm": comp.get("length_mm"),
-                "outer_diameter_mm": comp.get("outer_diameter_mm"),
-                "inner_diameter_mm": comp.get("inner_diameter_mm"),
-                "retention": retention,
-            }
-            parts.append(_make_part_entry(name, directories, [cid], features))
-            component_to_part_map[cid] = name
-
-    # Pass 4: anything we haven't touched (wrappers, orphans)
-    for comp in components:
-        cid = _component_id(comp)
-        if cid in component_to_part_map:
-            continue
-        if comp["type"] in _STRUCTURAL_WRAPPERS:
-            component_to_part_map[cid] = "skipped"
-            continue
-        if comp["type"] in _NON_PHYSICAL_TYPES:
-            skipped.append(
-                SkippedComponent(name=cid, reason=_skip_reason_for(comp["type"]))
+        else:
+            _annotate(
+                comp, fate=Fate.PRINT, reason="Inner tube as standalone printed part"
             )
-            component_to_part_map[cid] = "skipped"
-            continue
-        # Unknown orphan — skip with a note
-        skipped.append(
-            SkippedComponent(
-                name=cid,
-                reason=f"orphaned {comp['type']} with no parent body tube",
+
+    elif comp.type == "TubeCoupler":
+        if coupler_fate == "fuse" and parent_name:
+            parent_id = body_tube_id_mm or 0.0
+            _annotate_coupler_fused(comp, parent_name, parent_id)
+        else:
+            _annotate(
+                comp,
+                fate=Fate.PRINT,
+                reason="Coupler as separate printed part (override)",
             )
-        )
-        component_to_part_map[cid] = "skipped"
 
-    # Pass 5: populate retention modifications on shoulder-bearing parts
-    # and their mating sections. This is a no-op when retention == "none",
-    # which is the default.
-    if retention not in ("none", "friction_fit"):
-        for part in parts:
-            # Find any fused integral_aft_shoulder on this part
-            for fused in part.features.get("fused", []):
-                if fused.get("as") != "integral_aft_shoulder":
-                    continue
-                shoulder_length = fused.get("length_mm") or 0.0
-                shoulder_od = fused.get("od_mm") or 0.0
-                part_length = part.features.get("length_mm") or 0.0
-                # Shoulder mid-length in the part's Z frame. The shoulder
-                # extrudes past the aft face by shoulder_length, so its
-                # mid-length is at part_length + shoulder_length/2.
-                shoulder_mid_z = part_length + shoulder_length / 2
-                part.modifications.extend(
-                    _retention_modifications_for_shoulder(
-                        target_z_mm=shoulder_mid_z,
-                        shoulder_od_mm=shoulder_od,
-                        retention=retention,
-                    )
-                )
-                # The mating (aft) part needs clearance holes at its
-                # fore-end shoulder receive zone. For simplicity we look
-                # up the next body-tube-derived part in the list.
-                mating_idx = parts.index(part) + 1
-                if mating_idx < len(parts):
-                    mating = parts[mating_idx]
-                    mating_od = mating.features.get("od_mm") or 0.0
-                    # Clearance holes sit at the same shoulder mid-length
-                    # inside the mating tube's frame (Z ≈ shoulder_length/2).
-                    mating.modifications.extend(
-                        _retention_clearance_modifications(
-                            target_z_mm=shoulder_length / 2,
-                            tube_od_mm=mating_od,
-                            retention=retention,
-                        )
-                    )
-
-    # Build a default full_assembly entry if we have printable parts
-    assemblies: list[Assembly] = []
-    printable_names = [p.name for p in parts if p.fate == Fate.PRINT]
-    if printable_names:
-        assemblies.append(
-            Assembly(
-                name="full_assembly",
-                step_path=f"{directories.step}/full_assembly.step",
-                parts_fore_to_aft=printable_names,
+    elif comp.type == "CenteringRing":
+        if motor_mount_fate == "fuse" and parent_name:
+            _annotate(
+                comp,
+                fate=Fate.SKIP,
+                reason=f"Absorbed into {parent_name} via motor mount wall thickening",
             )
+        else:
+            _annotate(
+                comp, fate=Fate.PRINT, reason="Centering ring as separate printed part"
+            )
+
+    elif comp.type in _NON_PHYSICAL_TYPES:
+        _annotate(
+            comp,
+            fate=Fate.PURCHASE,
+            reason=f"{comp.type} — purchased/non-structural item",
         )
 
-    # Record decisions for auditability
-    decisions.append(
-        Decision(
-            decision="motor_mount_fate",
-            policy_default="fuse",
-            chosen=motor_mount_fate,
-            reason=(
-                "override provided"
-                if "motor_mount_fate" in overrides
-                else "default for additive policy"
-            ),
+    elif comp.type in _STRUCTURAL_WRAPPERS:
+        _annotate(
+            comp, fate=Fate.SKIP, reason="Structural wrapper — not a physical part"
         )
-    )
-    decisions.append(
-        Decision(
-            decision="coupler_fate",
-            policy_default="fuse",
-            chosen=coupler_fate,
-            reason=(
-                "override provided"
-                if "coupler_fate" in overrides
-                else "default for additive policy"
-            ),
+
+    else:
+        _annotate(comp, fate=Fate.SKIP, reason=f"Unknown component type: {comp.type}")
+
+    # Recurse into children (unless already handled by BodyTube above)
+    for child in comp.children:
+        _annotate_component(
+            child,
+            parent_name=name,
+            body_tube_id_mm=body_tube_id_mm,
+            motor_mount_fate=motor_mount_fate,
+            coupler_fate=coupler_fate,
+            overrides=overrides,
         )
-    )
-    decisions.append(
-        Decision(
-            decision="retention",
-            policy_default="none",
-            chosen=retention,
-            reason=(
-                "override provided"
-                if "retention" in overrides
-                else "default — no assembly hardware until user opts in"
-            ),
-        )
-    )
-
-    return PartsManifest(
-        source_ork=str(rocket_file_path),
-        project_root=str(project_root),
-        default_policy=ManufacturingMethod.ADDITIVE,
-        assemblies=assemblies,
-        directories=directories,
-        parts=parts,
-        skipped_components=skipped,
-        decisions=decisions,
-        component_to_part_map=component_to_part_map,
-    )
-
-
-def _skip_reason_for(type_name: str) -> str:
-    return {
-        "Parachute": "non-structural assembly item",
-        "MassComponent": "ballast, added at assembly time",
-        "LaunchLug": "adhesive-mounted at assembly time",
-        "RailButton": "adhesive-mounted at assembly time",
-    }.get(type_name, f"{type_name} is not translated by DFAM")

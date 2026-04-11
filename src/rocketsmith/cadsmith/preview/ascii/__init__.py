@@ -303,3 +303,54 @@ def animate_step_ascii(
     finally:
         sys.stdout.write("\n" + SHOW_CURSOR)
         sys.stdout.flush()
+
+
+def render_ascii_animation(
+    step_path: Path,
+    output_path: Path,
+    frames: int = 36,
+    width: int = 80,
+    height: int = 40,
+    wireframe: bool = False,
+    tolerance: float = 1.0,
+) -> Path:
+    """Render a rotating ASCII animation to a text file.
+
+    Each frame is separated by a form-feed character (``\\f``) so the
+    GUI can cycle through them as an animation.
+
+    Args:
+        step_path:   Path to the STEP file.
+        output_path: Where to save the .txt file.
+        frames:      Number of rotation frames (default 36 = 10° per frame).
+        width:       Canvas width in characters.
+        height:      Canvas height in rows.
+        wireframe:   Render edges only if True; shaded faces by default.
+        tolerance:   Tessellation tolerance in mm.
+
+    Returns:
+        output_path on success.
+    """
+    from .project import compute_scale
+
+    verts, tris, normals = _load_centered_mesh(step_path, tolerance)
+    if len(verts) == 0:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("(empty mesh — no geometry found)\n", encoding="utf-8")
+        return output_path
+
+    scale = compute_scale(verts, width, height)
+    deg_per_frame = 360.0 / frames
+
+    frame_strings: list[str] = []
+    for i in range(frames):
+        angle = i * deg_per_frame
+        rows = _render_mesh_frame(
+            verts, tris, normals, scale, angle, width, height, wireframe
+        )
+        frame_strings.append("\n".join(rows))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text("\f".join(frame_strings), encoding="utf-8")
+
+    return output_path

@@ -2,7 +2,7 @@
 
 export const OPENROCKET_DIR = "openrocket";
 export const GCODE_DIR = "gcode";
-export const MANIFEST_FILE = "parts_manifest.json";
+export const TREE_FILE = "component_tree.json";
 
 export const PARTS_DIR = "parts";
 export const PARTS_CADSMITH_DIR = "parts/cadsmith";

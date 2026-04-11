@@ -8,8 +8,8 @@ from typing import Callable, Awaitable, Optional
 from rocketsmith.gui.layout import (
     OPENROCKET_DIR,
     PARTS_DIR,
-    GCODE_DIR,
-    MANIFEST_FILE,
+    PREVIEWS_DIR,
+    TREE_FILE,
     ASSEMBLY_FILE,
 )
 
@@ -17,7 +17,7 @@ from rocketsmith.gui.layout import (
 _DIR_MAP: dict[str, str] = {
     OPENROCKET_DIR: "flight",
     PARTS_DIR: "parts",
-    GCODE_DIR: "gcode",
+    PREVIEWS_DIR: "preview",
 }
 
 # Fallback: classify by extension when the file is not in a known directory.
@@ -61,7 +61,7 @@ IGNORED_FILES: set[str] = {
 
 def _classify(path: Path, root: Path) -> str:
     """Return the event type for a file based on its location or extension."""
-    if path.name == MANIFEST_FILE and path.parent == root:
+    if path.name == TREE_FILE and path.parent == root:
         return "manifest"
     if path.name == ASSEMBLY_FILE and path.parent == root:
         return "assembly"

@@ -15,7 +15,7 @@ Mass calibration closes the loop: slice each printed part, read the filament wei
 
 ## When to Use
 
-- `cadsmith_script` has produced STEP files AND `prusaslicer_slice` has produced gcode for at least one printed part
+- `cadsmith_run_script` has produced STEP files AND `prusaslicer_slice` has produced gcode for at least one printed part
 - Before committing to a final build
 - After changing any print setting (infill, wall count, material) that would change part mass
 - When the user asks "will it still fly stable once printed?"
@@ -23,15 +23,15 @@ Mass calibration closes the loop: slice each printed part, read the filament wei
 ## Preconditions
 
 1. The design has already passed an initial stability check in the 1.0–1.5 cal range with default masses. If not, run `rocketsmith:stability-analysis` first — calibrating on an already-unstable design obscures the root cause.
-2. `<project_dir>/parts_manifest.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
+2. `<project_dir>/component_tree.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
 3. Each printed part listed in the manifest has a sliced `.gcode` file with a `filament_used_g` reading. If any part is missing, slice it first.
 
 ## Steps
 
-### 1. Load the Parts Manifest
+### 1. Load the Component Tree
 
 ```
-manifest = read_json("<project_dir>/parts_manifest.json")
+manifest = read_json("<project_dir>/component_tree.json")
 ```
 
 The two sections you care about are:
@@ -136,7 +136,7 @@ Final calibrated mass budget:
 ## Red Flags — Stop and Fix
 
 - A filament weight was passed in grams instead of kilograms (apogee will drop to near zero — obvious in the flight output)
-- The parts manifest was ignored and the mapping was guessed from filenames — always use `component_to_part_map`, never improvise
+- The component tree was ignored and the mapping was guessed from filenames — always use `component_to_part_map`, never improvise
 - A fused part's mass was pinned entirely to a single OR component when `derived_from` has multiple entries — use Option B1 (proportional distribution) for mid-power and above, or Option B2 (pin primary, zero secondaries) only for small LPR parts
 - Only some parts in the manifest had overrides applied — every printed part in the manifest must be covered, otherwise you're mixing real and default masses and skewing CG
 - An override was applied to a component whose `component_to_part_map` entry is `"skipped"` or `"purchased"` — these should not receive mass overrides from printed-part weights

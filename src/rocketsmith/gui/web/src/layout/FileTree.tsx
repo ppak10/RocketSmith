@@ -30,7 +30,7 @@ function filterForSidebar(nodes: FileNode[], parentPath = ""): FileNode[] {
       if (top === "openrocket" && node.type === "file") {
         return node.name.endsWith(".ork");
       }
-      // Hide root-level JSON files (assembly.json, parts_manifest.json)
+      // Hide root-level JSON files (assembly.json, component_tree.json)
       // — they have their own nav items.
       if (!parentPath && node.type === "file" && node.name.endsWith(".json")) {
         return false;

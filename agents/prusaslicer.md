@@ -112,8 +112,8 @@ Check or install dependencies.
 ### Slicing
 ```
 1. rocketsmith_setup(action="check")        → verify PrusaSlicer is installed (if uncertain)
-2. manufacturing_manifest(action="read", project_root=<cwd>)
-                                             → load the parts manifest — it owns
+2. read_json("<project_root>/component_tree.json")
+                                             → load the component tree — it owns
                                                the authoritative step_path and
                                                gcode_path for every printable part
 3. prusaslicer_config(action="list")        → find the relevant config file path
@@ -140,7 +140,7 @@ When slicing rocket parts, you are not just producing gcode — you are also pro
 
 **Your responsibilities:**
 
-1. **Key the mapping by part name, not OR component name.** The parts manifest already maps back to OR components via `component_to_part_map`. Your mapping uses the printed part's name (the same as `part.name` in the manifest):
+1. **Key the mapping by part name, not OR component name.** The component tree already maps back to OR components via `component_to_part_map`. Your mapping uses the printed part's name (the same as `part.name` in the manifest):
 
    ```
    {
@@ -157,7 +157,7 @@ When slicing rocket parts, you are not just producing gcode — you are also pro
 
 3. **Keep grams, not kilograms.** Report `filament_used_g` exactly as PrusaSlicer returned it. The downstream calibration step will divide by 1000 — do not pre-convert.
 
-4. **Include the mapping in your response.** The orchestrator (or the openrocket subagent on a calibration handoff) will combine this with `parts_manifest.json["component_to_part_map"]` to produce the per-OR-component override calls.
+4. **Include the mapping in your response.** The orchestrator (or the openrocket subagent on a calibration handoff) will combine this with `component_tree.json["component_to_part_map"]` to produce the per-OR-component override calls.
 
 **If `filament_used_g` is null in a slice result**, it means no filament profile was configured and the fallback density calculation could not run. Fall back to `filament_used_cm3 × density`:
 

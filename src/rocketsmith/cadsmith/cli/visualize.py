@@ -47,7 +47,7 @@ def register_cadsmith_visualize(app: typer.Typer):
         render a single static frame instead.
         """
         from rich import print as rprint
-        from rocketsmith.cadsmith.render.ascii import (
+        from rocketsmith.cadsmith.preview.ascii import (
             render_step_ascii,
             animate_step_ascii,
         )

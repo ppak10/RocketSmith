@@ -77,7 +77,7 @@ async def _files_tree_handler(request: web.Request) -> web.Response:
     """Return a recursive file tree of the project directory."""
     project_dir: Path = request.app["project_dir"]
     _VISIBLE_DIRS = {"openrocket", "parts"}
-    _VISIBLE_ROOT_FILES = {"assembly.json", "parts_manifest.json"}
+    _VISIBLE_ROOT_FILES = {"assembly.json", "component_tree.json"}
 
     def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
         entries: list[dict] = []
