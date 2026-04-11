@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from orhelper import FlightDataType, FlightEvent
 
 
-class OpenRocketSimulation(BaseModel):
-    """Flight data from a single OpenRocket simulation run."""
+class OpenRocketFlight(BaseModel):
+    """Flight data from a single OpenRocket flight run."""
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -16,8 +16,8 @@ class OpenRocketSimulation(BaseModel):
     min_stability_cal: float | None = None
 
 
-class OpenRocketSimulationSummary(BaseModel):
-    """JSON-serializable summary of a single OpenRocket simulation, for MCP output."""
+class OpenRocketFlightSummary(BaseModel):
+    """JSON-serializable summary of a single OpenRocket flight, for MCP output."""
 
     name: str
     max_altitude_m: float

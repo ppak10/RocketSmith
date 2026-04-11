@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { apiBase } from "@/lib/server";
 import type { WatchEvent } from "./useWatchSocket";
 
 export interface FileNode {
@@ -16,9 +17,7 @@ export function useFileTree(events: WatchEvent[]): FileNode[] {
   const [tree, setTree] = useState<FileNode[]>([]);
 
   const fetchTree = useCallback(() => {
-    if (window.location.protocol === "file:") return;
-
-    fetch("/api/files-tree")
+    fetch(`${apiBase()}/api/files-tree`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setTree)
       .catch(() => {});

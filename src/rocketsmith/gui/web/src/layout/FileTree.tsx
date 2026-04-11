@@ -17,18 +17,23 @@ import {
   SidebarMenuSub,
 } from "@/components/ui/sidebar";
 
-/** Filter the tree for sidebar display — hide simulations/ under openrocket/. */
+/** Filter the tree for sidebar display — hide flights/ under openrocket/. */
 function filterForSidebar(nodes: FileNode[], parentPath = ""): FileNode[] {
   return nodes
     .filter((node) => {
       const top = parentPath.split("/")[0] || node.path.split("/")[0];
-      // Under openrocket/, hide subdirectories (simulations/).
+      // Under openrocket/, hide subdirectories (flights/).
       if (top === "openrocket" && parentPath && node.type === "directory") {
         return false;
       }
       // Under openrocket/, only show .ork files.
       if (top === "openrocket" && node.type === "file") {
         return node.name.endsWith(".ork");
+      }
+      // Hide root-level JSON files (assembly.json, parts_manifest.json)
+      // — they have their own nav items.
+      if (!parentPath && node.type === "file" && node.name.endsWith(".json")) {
+        return false;
       }
       return true;
     })

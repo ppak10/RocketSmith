@@ -8,6 +8,7 @@ an explicit ``out_path`` parameter.
 OPENROCKET_DIR = "openrocket"
 GCODE_DIR = "gcode"
 MANIFEST_FILE = "parts_manifest.json"
+ASSEMBLY_FILE = "assembly.json"
 
 # Parts directory with format-specific subdirectories.
 PARTS_DIR = "parts"

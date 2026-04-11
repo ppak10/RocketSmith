@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   Moon,
   Sun,
@@ -9,15 +11,9 @@ import {
   Activity,
   MonitorOff,
 } from "lucide-react";
-import type { WatchEvent } from "../hooks/useWatchSocket";
+import type { WatchEvent, NavigateCommand } from "../hooks/useWatchSocket";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
 import {
   Sidebar,
   SidebarContent,
@@ -40,11 +36,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useProjectInfo } from "@/hooks/useProjectInfo";
 import { useFileTree } from "@/hooks/useFileTree";
-import { ActiveView } from "./ActiveView";
+import type { FileNode } from "@/hooks/useFileTree";
 import { FileTree } from "./FileTree";
-import { StepViewer } from "@/panels/StepViewer";
-import { FileViewer } from "@/panels/FileViewer";
-import { SimulationViewer } from "@/panels/SimulationViewer";
 
 interface DashboardProps {
   events: WatchEvent[];
@@ -52,132 +45,58 @@ interface DashboardProps {
   offline: boolean;
   dark: boolean;
   onToggleTheme: () => void;
-  activePanel: string;
-  activeFile: string | null;
-  onNavigate: (panel: string, file?: string) => void;
+  navigation: NavigateCommand | null;
 }
 
 const NAV_ITEMS = [
-  { id: "live", title: "Live", icon: Activity, requiresServer: true },
+  { id: "/", title: "Live", icon: Activity, requiresFile: null },
   {
-    id: "simulation",
-    title: "Simulation",
+    id: "/flights",
+    title: "Flights",
     icon: LineChart,
-    requiresServer: false,
+    requiresFile: ".ork",
+  },
+  {
+    id: "/assembly",
+    title: "Assembly",
+    icon: Box,
+    requiresFile: "assembly.json",
   },
 ];
 
-const PANEL_TITLES: Record<string, string> = {
-  live: "Live",
-  "3d-viewer": "3D Viewer",
-  "flight-profile": "Flight Profile",
-  simulation: "Simulation",
+/** Map server panel names to router paths. */
+const PANEL_TO_PATH: Record<string, string> = {
+  live: "/",
+  flight: "/flights",
+  assembly: "/assembly",
 };
 
-function PanelPlaceholder({
-  title,
-  file,
-}: {
-  title: string;
-  file: string | null;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex h-48 items-center justify-center">
-        <div className="text-center">
-          <p className="text-sm text-foreground/40">Coming soon</p>
-          {file && (
-            <p className="mt-1 text-xs text-foreground/30">{file}</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+/** Map router paths to display titles. */
+const PATH_TITLES: Record<string, string> = {
+  "/": "Live",
+  "/flights": "Flights",
+  "/assembly": "Assembly",
+};
+
+/** Check if a file matching a name or extension exists in the tree. */
+function hasFile(tree: FileNode[], match: string): boolean {
+  for (const node of tree) {
+    if (node.type === "file") {
+      if (match.startsWith(".") ? node.name.endsWith(match) : node.name === match) {
+        return true;
+      }
+    }
+    if (node.children && hasFile(node.children, match)) return true;
+  }
+  return false;
 }
 
-/**
- * Strip any absolute project-dir prefix from a file path,
- * returning a relative path suitable for API calls.
- */
-function toRelative(filePath: string, projectPath: string | null): string {
-  if (projectPath && filePath.startsWith(projectPath)) {
-    let rel = filePath.slice(projectPath.length);
-    if (rel.startsWith("/")) rel = rel.slice(1);
-    return rel;
-  }
-  // Already relative or no project info.
-  if (filePath.startsWith("/")) {
-    // Best-effort: take everything after the last known layout dir.
-    for (const dir of ["parts/", "cadsmith/", "openrocket/", "reports/", "gcode/"]) {
-      const idx = filePath.indexOf(dir);
-      if (idx >= 0) return filePath.slice(idx);
-    }
-  }
-  return filePath;
-}
-
-/** Text-viewable file extensions. */
-const TEXT_EXTS = new Set([
-  ".py", ".json", ".md", ".csv", ".txt", ".ini",
-  ".cfg", ".toml", ".yaml", ".yml", ".gcode",
-]);
-
-function getExt(path: string): string {
-  const dot = path.lastIndexOf(".");
-  return dot >= 0 ? path.slice(dot).toLowerCase() : "";
-}
-
-function PanelContent({
-  panel,
-  file,
-  events,
-  offline,
-  projectPath,
-  fileTree,
-}: {
-  panel: string;
-  file: string | null;
-  events: WatchEvent[];
-  offline: boolean;
-  projectPath: string | null;
-  fileTree: import("@/hooks/useFileTree").FileNode[];
-}) {
-  // If a file is selected, route to the appropriate viewer.
-  if (file) {
-    const ext = getExt(file);
-    const relFile = toRelative(file, projectPath);
-    if ([".step", ".stp"].includes(ext)) {
-      return <StepViewer file={relFile} />;
-    }
-    if (ext === ".ork") {
-      return <SimulationViewer file={relFile} fileTree={fileTree} />;
-    }
-    if (TEXT_EXTS.has(ext)) {
-      return <FileViewer file={relFile} />;
-    }
-  }
-
-  switch (panel) {
-    case "live":
-      return <ActiveView events={events} offline={offline} />;
-    case "3d-viewer":
-      return (
-        <PanelPlaceholder
-          title="3D Viewer"
-          file={null}
-        />
-      );
-    default:
-      return (
-        <PanelPlaceholder
-          title={PANEL_TITLES[panel] ?? panel}
-          file={file}
-        />
-      );
-  }
+/** Get the router path for a file based on its extension. */
+function fileToPath(filePath: string): string {
+  const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+  if ([".step", ".stp"].includes(ext)) return `/file/step/${filePath}`;
+  if (ext === ".ork") return "/flights";
+  return `/file/${filePath}`;
 }
 
 export function Dashboard({
@@ -186,12 +105,29 @@ export function Dashboard({
   offline,
   dark,
   onToggleTheme,
-  activePanel,
-  activeFile,
-  onNavigate,
+  navigation,
 }: DashboardProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const project = useProjectInfo();
   const fileTree = useFileTree(events);
+
+  // Handle navigation commands from the WebSocket server.
+  useEffect(() => {
+    if (navigation) {
+      const path = PANEL_TO_PATH[navigation.panel];
+      if (path) {
+        navigate(path);
+      } else if (navigation.file) {
+        navigate(fileToPath(navigation.file));
+      }
+    }
+  }, [navigation, navigate]);
+
+  const currentPath = location.pathname;
+  const title =
+    PATH_TITLES[currentPath] ??
+    (currentPath.startsWith("/file/") ? "File" : currentPath);
 
   return (
     <TooltipProvider>
@@ -220,21 +156,24 @@ export function Dashboard({
             <SidebarGroupContent>
               <SidebarMenu>
                 {NAV_ITEMS.map((item) => {
-                  const disabled = offline && item.requiresServer;
+                  const disabled = item.requiresFile
+                    ? !hasFile(fileTree, item.requiresFile)
+                    : false;
+                  const isActive =
+                    item.id === "/"
+                      ? currentPath === "/"
+                      : currentPath.startsWith(item.id);
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
-                        isActive={activePanel === item.id}
+                        isActive={isActive}
                         className={
                           disabled ? "opacity-40 pointer-events-none" : ""
                         }
-                        onClick={() => !disabled && onNavigate(item.id)}
+                        onClick={() => !disabled && navigate(item.id)}
                       >
                         <item.icon className="size-4" />
                         <span>{item.title}</span>
-                        {disabled && (
-                          <MonitorOff className="ml-auto size-3 text-foreground/30" />
-                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -249,16 +188,7 @@ export function Dashboard({
               <SidebarGroupContent>
                 <FileTree
                   tree={fileTree}
-                  onSelect={(path) => {
-                    const ext = path.slice(path.lastIndexOf(".")).toLowerCase();
-                    if (ext === ".ork") {
-                      onNavigate("simulation", path);
-                    } else if ([".step", ".stp"].includes(ext)) {
-                      onNavigate("live", path);
-                    } else {
-                      onNavigate("live", path);
-                    }
-                  }}
+                  onSelect={(path) => navigate(fileToPath(path))}
                 />
               </SidebarGroupContent>
             </SidebarGroup>
@@ -285,12 +215,7 @@ export function Dashboard({
       <SidebarInset>
         <header className="flex items-center gap-2 border-b-2 border-border bg-background px-4 py-2">
           <SidebarTrigger />
-          <h2 className="text-sm font-heading text-foreground">
-            {PANEL_TITLES[activePanel] ?? activePanel}
-          </h2>
-          {activeFile && (
-            <span className="text-xs text-foreground/50">{activeFile}</span>
-          )}
+          <h2 className="text-sm font-heading text-foreground">{title}</h2>
           <div className="ml-auto">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -325,14 +250,7 @@ export function Dashboard({
         </header>
 
         <main className="flex-1 overflow-hidden p-4">
-          <PanelContent
-            panel={activePanel}
-            file={activeFile}
-            events={events}
-            offline={offline}
-            projectPath={project?.path ?? null}
-            fileTree={fileTree}
-          />
+          <Outlet />
         </main>
       </SidebarInset>
     </TooltipProvider>

@@ -9,7 +9,6 @@ from mcp.server.fastmcp import FastMCP
 
 from rocketsmith.mcp.setup import register_setup
 from rocketsmith.openrocket.mcp import (
-    register_openrocket_simulation,
     register_openrocket_new,
     register_openrocket_inspect,
     register_openrocket_component,
@@ -23,6 +22,7 @@ from rocketsmith.prusaslicer.mcp import (
     register_prusaslicer_database,
 )
 from rocketsmith.cadsmith.mcp import (
+    register_cadsmith_assembly,
     register_cadsmith_extract,
     register_cadsmith_postprocess,
     register_cadsmith_render,
@@ -35,7 +35,6 @@ from rocketsmith.rag.mcp import register_rag_reference
 app = FastMCP(name="rocketsmith")
 
 _ = register_setup(app)
-_ = register_openrocket_simulation(app)
 _ = register_openrocket_new(app)
 _ = register_openrocket_inspect(app)
 _ = register_openrocket_component(app)
@@ -45,6 +44,7 @@ _ = register_openrocket_cad_handoff(app)
 _ = register_prusaslicer_slice(app)
 _ = register_prusaslicer_config(app)
 _ = register_prusaslicer_database(app)
+_ = register_cadsmith_assembly(app)
 _ = register_cadsmith_extract(app)
 _ = register_cadsmith_postprocess(app)
 _ = register_cadsmith_render(app)

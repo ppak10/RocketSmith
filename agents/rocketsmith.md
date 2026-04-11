@@ -3,18 +3,18 @@ name: rocketsmith
 max_turns: 100
 timeout_mins: 60
 description: >
-  Use this agent when you need to design, simulate, and build a complete rocket end-to-end. It orchestrates the openrocket, cadsmith, and prusaslicer subagents. Examples include:
+  Use this agent when you need to design, fly, and build a complete rocket end-to-end. It orchestrates the openrocket, cadsmith, and prusaslicer subagents. Examples include:
   <example>
   Context: User wants to build a complete rocket from scratch.
   user: 'Build me a rocket for a D12 motor'
-  assistant: 'I'll use the rocketsmith agent to design and simulate the rocket in OpenRocket, generate CAD parts with cadsmith, and slice them for printing.'
+  assistant: 'I'll use the rocketsmith agent to design the rocket in OpenRocket, run flight analysis, generate CAD parts with cadsmith, and slice them for printing.'
   <commentary>Full end-to-end build requires orchestrating all three subagents in sequence.</commentary>
   </example>
   <example>
-  Context: User wants a stable design simulated and ready to print.
+  Context: User wants a stable design tested and ready to print.
   user: 'Design me a stable rocket for a D12 motor and generate the STEP files'
-  assistant: 'I'll use the rocketsmith agent to run the simulation workflow then hand off to cadsmith for part generation.'
-  <commentary>Cross-domain tasks spanning simulation and CAD require the orchestrator.</commentary>
+  assistant: 'I'll use the rocketsmith agent to run the flight workflow then hand off to cadsmith for part generation.'
+  <commentary>Cross-domain tasks spanning flight design and CAD require the orchestrator.</commentary>
   </example>
 ---
 
@@ -43,7 +43,7 @@ Record the user's choice and pass it to every subagent invocation as part of the
 | Print strategy | Ask "how should we print this?" for each part before slicing | Use defaults from print-preparation skill |
 | Mass calibration | Show results, ask if adjustments are needed | Run automatically, report results |
 
-**Both modes always launch `gui_server`** before Phase 1 so the user can watch the entire pipeline — simulation results, CAD generation, and slicing — in real time.
+**Both modes always launch `gui_server`** before Phase 1 so the user can watch the entire pipeline — flight results, CAD generation, and slicing — in real time.
 
 ## ASCII Art Display Rule (MANDATORY — both modes)
 
@@ -51,7 +51,7 @@ Record the user's choice and pass it to every subagent invocation as part of the
 
 Display it at minimum:
 1. After adding or modifying components
-2. Alongside simulation results
+2. Alongside flight results
 3. Before CAD handoff (use `width=200` for maximum detail)
 
 Do not summarize or skip the ASCII art. Print the full `ascii_art` string every time.
@@ -60,7 +60,7 @@ Do not summarize or skip the ASCII art. Print the full `ascii_art` string every 
 
 | Subagent | Responsibilities |
 |----------|-----------------|
-| `openrocket` | Motor database queries, rocket design (.ork files), flight simulation, stability analysis |
+| `openrocket` | Motor database queries, rocket design (.ork files), flight runs, stability analysis |
 | `cadsmith` | Parametric CAD scripts, STEP file generation, geometry rendering and verification |
 | `prusaslicer` | Slicing STEP/STL files into gcode for FDM printing |
 
@@ -74,7 +74,7 @@ Phase 0.5 — GUI (this agent, MANDATORY)
   0.5. Launch gui_server(action="start", project_dir="<project_dir>")
        The GUI will update as files change throughout all phases.
 
-Phase 1 — Simulation (openrocket subagent)
+Phase 1 — Flight Design (openrocket subagent)
   1. Check dependencies
   2. [interactive] Ask about motor preferences, stability goals, any constraints
      [zero-shot]  Use sensible defaults from the user's request
@@ -82,8 +82,8 @@ Phase 1 — Simulation (openrocket subagent)
   4. Create .ork file and build component tree
   5. After every openrocket_inspect call, print ascii_art to the user (BOTH modes)
      This is the user's visual checkpoint — they see the rocket's shape evolve
-  6. Run simulation — iterate until stability 1.0–1.5 cal
-  7. [interactive] Present simulation results and ask if the user wants changes
+  6. Run flight — iterate until stability 1.0–1.5 cal
+  7. [interactive] Present flight results and ask if the user wants changes
 
 Phase 2 — CAD Generation (cadsmith subagent)
   7. Determine manufacturing method (see "Manufacturing Method" section below)
@@ -105,20 +105,20 @@ Phase 3 — Slicing (prusaslicer subagent)
 Phase 4 — Mass Calibration (openrocket subagent, rocketsmith:mass-calibration)
  15. Apply each filament weight as override_mass_kg, looking up the target
      OR component via the manifest's component_to_part_map
- 16. Re-run openrocket_simulation and verify stability is still 1.0–1.5 cal
+ 16. Re-run openrocket_flight(action="run") and verify stability is still 1.0–1.5 cal
  17. If stability fell out of range, fix with ballast or geometry — not by
-     disabling the override — then re-simulate
+     disabling the override — then re-run the flight
  18. [interactive] Present calibrated results and ask if adjustments are needed
      [zero-shot]  Report the final calibrated mass budget and stability margin
 ```
 
 **Interaction mode governs how chatty the pipeline is, not what work gets done.** Both modes execute the same phases and produce the same artifacts. The difference is where the agent pauses for user input vs. proceeds autonomously.
 
-Phase 4 is mandatory in both modes: a design is not flight-ready until simulation has been re-verified against real printed part weights. Printed PLA/PETG parts routinely weigh 2–4× OpenRocket's material defaults, and a design that was stable with defaults can become unstable once built.
+Phase 4 is mandatory in both modes: a design is not flight-ready until the flight has been re-verified against real printed part weights. Printed PLA/PETG parts routinely weigh 2–4× OpenRocket's material defaults, and a design that was stable with defaults can become unstable once built.
 
-## Simulation Rule (MANDATORY)
+## Flight Rule (MANDATORY)
 
-**Every conversation that modifies a structural component must end with a simulation run.** See the openrocket agent's "Simulation Data" section. Call `openrocket_simulation` to save the full timeseries data — the GUI renders charts directly from the JSON. This applies to the orchestrator and to the openrocket subagent when operating independently.
+**Every conversation that modifies a structural component must end with a flight run.** See the openrocket agent's "Flight Data" section. Call `openrocket_flight(action="run")` to save the full timeseries data — the GUI renders charts directly from the JSON. This applies to the orchestrator and to the openrocket subagent when operating independently.
 
 ## Manufacturing Method
 
@@ -192,10 +192,10 @@ The user launched Gemini CLI from the directory they want the rocket artefacts i
 
 ```
 <project_dir>/
-├── openrocket/                ← OpenRocket design + simulation data
+├── openrocket/                ← OpenRocket design + flight data
 │   ├── <rocket_name>.ork
-│   └── simulations/           ← full timeseries JSON per simulation
-│       ├── <config>_<sim_name>.json
+│   └── flights/               ← full timeseries JSON per flight
+│       ├── <flight_name>.json
 │       └── ...
 ├── parts_manifest.json        ← DFAM output, authoritative parts list
 ├── parts/                     ← all part files

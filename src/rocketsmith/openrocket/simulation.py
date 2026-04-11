@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from rocketsmith.openrocket.models import OpenRocketSimulation
+from rocketsmith.openrocket.models import OpenRocketFlight
 
 
 def _find_motor_mount(rocket, mount_name: str | None):
@@ -178,7 +178,7 @@ def create_simulation(
     )
 
     return {
-        "simulation_name": name,
+        "flight_name": name,
         "motor_designation": motor_designation,
         "mount_component": str(mount.getName()),
         "launch_rod_length_m": launch_rod_length_m,
@@ -283,7 +283,7 @@ def delete_simulation(path: Path, openrocket_path: Path, sim_name: str) -> str:
 def run_simulation(
     path: Path,
     openrocket_path: Path,
-) -> list[OpenRocketSimulation]:
+) -> list[OpenRocketFlight]:
     """
     Load an .ork or .rkt file and run all simulations defined within it.
 
@@ -292,7 +292,7 @@ def run_simulation(
         openrocket_path: Path to the OpenRocket JAR file.
 
     Returns:
-        List of OpenRocketSimulation, one per simulation in the file.
+        List of OpenRocketFlight, one per flight config in the file.
     """
     import orhelper
     from orhelper import FlightDataType, FlightEvent
@@ -337,7 +337,7 @@ def run_simulation(
                 pass
 
             results.append(
-                OpenRocketSimulation(
+                OpenRocketFlight(
                     name=str(sim.getName()),
                     timeseries=helper.get_timeseries(sim, valid_types),
                     events=helper.get_events(sim),

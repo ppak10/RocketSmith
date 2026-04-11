@@ -10,11 +10,12 @@ from rocketsmith.gui.layout import (
     PARTS_DIR,
     GCODE_DIR,
     MANIFEST_FILE,
+    ASSEMBLY_FILE,
 )
 
 # Map layout directory names to event types.
 _DIR_MAP: dict[str, str] = {
-    OPENROCKET_DIR: "simulation",
+    OPENROCKET_DIR: "flight",
     PARTS_DIR: "parts",
     GCODE_DIR: "gcode",
 }
@@ -23,7 +24,7 @@ _DIR_MAP: dict[str, str] = {
 _EXT_MAP: dict[str, str] = {
     ".step": "step",
     ".stp": "step",
-    ".ork": "simulation",
+    ".ork": "flight",
     ".png": "image",
     ".jpg": "image",
     ".jpeg": "image",
@@ -62,6 +63,8 @@ def _classify(path: Path, root: Path) -> str:
     """Return the event type for a file based on its location or extension."""
     if path.name == MANIFEST_FILE and path.parent == root:
         return "manifest"
+    if path.name == ASSEMBLY_FILE and path.parent == root:
+        return "assembly"
 
     try:
         rel = path.relative_to(root)

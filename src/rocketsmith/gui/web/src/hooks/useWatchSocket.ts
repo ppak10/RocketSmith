@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { wsUrl } from "@/lib/server";
 
 /** Event pushed by the Python watcher over WebSocket. */
 export interface WatchEvent {
   /** Category of the changed file. */
   type:
     | "step"
-    | "simulation"
+    | "flight"
+    | "assembly"
     | "report"
     | "manifest"
     | "image"
@@ -34,32 +36,22 @@ export interface NavigateCommand {
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-/** True when the page is opened via file:// or there is no host to connect to. */
-function isOfflineMode(): boolean {
-  return (
-    window.location.protocol === "file:" || window.location.host === ""
-  );
-}
-
 /**
  * Reconnecting WebSocket hook that receives file-change events and
- * navigation commands from the Python GUI server. In offline mode
- * (file:// or no host), the hook skips connecting entirely.
+ * navigation commands from the Python GUI server. When opened via
+ * file://, connects to the default backend server.
  */
 export function useWatchSocket() {
   const [events, setEvents] = useState<WatchEvent[]>([] as WatchEvent[]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [offline] = useState<boolean>(isOfflineMode);
+  const [offline, setOffline] = useState<boolean>(false);
   const [navigation, setNavigation] = useState<NavigateCommand | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const attemptsRef = useRef<number>(0);
 
   const connect = useCallback(() => {
-    if (isOfflineMode()) return;
-
-    const wsUrl = `ws://${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(wsUrl());
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -72,6 +64,8 @@ export function useWatchSocket() {
       attemptsRef.current += 1;
       if (attemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+      } else {
+        setOffline(true);
       }
     };
 
@@ -92,14 +86,12 @@ export function useWatchSocket() {
   }, []);
 
   useEffect(() => {
-    if (!offline) {
-      connect();
-    }
+    connect();
     return () => {
       clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
     };
-  }, [connect, offline]);
+  }, [connect]);
 
   return { events, connected, offline, navigation };
 }

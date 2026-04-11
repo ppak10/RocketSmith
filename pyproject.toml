@@ -34,7 +34,7 @@ rocketsmith = "rocketsmith.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"rocketsmith.data" = ["**/*.md", "**/*.ork", "**/*.step"]
+"rocketsmith.data" = ["**/*.md", "**/*.ork", "**/*.step", "gui/**/*.html", "gui/**/*.js", "gui/**/*.css"]
 
 [tool.black]
 line-length = 88

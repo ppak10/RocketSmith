@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiBase } from "@/lib/server";
 
 interface ProjectInfo {
   /** Just the directory name, e.g. "v12" */
@@ -15,9 +16,7 @@ export function useProjectInfo(): ProjectInfo | null {
   const [info, setInfo] = useState<ProjectInfo | null>(null);
 
   useEffect(() => {
-    if (window.location.protocol === "file:") return;
-
-    fetch("/api/project-info")
+    fetch(`${apiBase()}/api/project-info`)
       .then((r) => r.json())
       .then((data: { project_dir: string }) => {
         const parts = data.project_dir.split("/");

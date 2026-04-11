@@ -1,4 +1,3 @@
-from .simulate import register_openrocket_simulation
 from .new import register_openrocket_new
 from .inspect import register_openrocket_inspect
 from .component import register_openrocket_component
@@ -7,7 +6,6 @@ from .flight import register_openrocket_flight
 from .cad_handoff import register_openrocket_cad_handoff
 
 __all__ = [
-    "register_openrocket_simulation",
     "register_openrocket_new",
     "register_openrocket_inspect",
     "register_openrocket_component",

@@ -3,8 +3,24 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+/**
+ * Strip `type="module"` and `crossorigin` from built script/link tags so the
+ * bundle loads over file:// (browsers block ES modules on that protocol).
+ */
+function fileProtocolCompat() {
+  return {
+    name: "file-protocol-compat",
+    apply: "build" as const,
+    transformIndexHtml(html: string) {
+      return html
+        .replace(/ type="module"/g, " defer")
+        .replace(/ crossorigin/g, "");
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), fileProtocolCompat()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -12,13 +28,15 @@ export default defineConfig({
   },
   base: "./",
   build: {
-    outDir: "dist",
+    outDir: "../../data/gui",
     emptyOutDir: true,
     rollupOptions: {
       output: {
+        format: "iife",
         entryFileNames: "main.js",
         assetFileNames: "[name][extname]",
         chunkFileNames: "[name].js",
+        inlineDynamicImports: true,
       },
     },
   },

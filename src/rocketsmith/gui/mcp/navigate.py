@@ -27,13 +27,13 @@ def register_gui_navigate(app: FastMCP):
 
         Args:
             panel: Panel to navigate to. One of "live", "3d-viewer",
-                   "flight-profile", or "simulation".
+                   "flight-profile", or "flight".
             file: Optional relative path to a file to open in the panel
                   (e.g. "step/nose_cone.step"). Relative to project root.
         """
         import aiohttp
 
-        valid_panels = {"live", "3d-viewer", "flight-profile", "simulation"}
+        valid_panels = {"live", "3d-viewer", "flight-profile", "flight", "assembly"}
         if panel not in valid_panels:
             return tool_error(
                 f"Unknown panel: {panel!r}. Use one of: {', '.join(sorted(valid_panels))}.",

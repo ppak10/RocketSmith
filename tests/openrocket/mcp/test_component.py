@@ -428,8 +428,8 @@ async def test_mass_override_persists_across_reload(mcp_app, tmp_ork, openrocket
 
 
 @pytest.mark.anyio
-async def test_mass_override_affects_simulation(mcp_app, tmp_ork, openrocket_jar):
-    """A heavy mass override should reduce simulated apogee."""
+async def test_mass_override_affects_flight(mcp_app, tmp_ork, openrocket_jar):
+    """A heavy mass override should reduce flight apogee."""
     from rocketsmith.openrocket.simulation import (
         create_simulation,
         run_simulation,
@@ -493,7 +493,7 @@ async def test_mass_override_affects_simulation(mcp_app, tmp_ork, openrocket_jar
     heavy_alt = float(heavy.timeseries.get(FlightDataType.TYPE_ALTITUDE).max())
 
     assert heavy_alt < base_alt * 0.5, (
-        f"Mass override did not affect simulation: baseline {base_alt:.1f} m "
+        f"Mass override did not affect flight: baseline {base_alt:.1f} m "
         f"vs overridden {heavy_alt:.1f} m"
     )
 

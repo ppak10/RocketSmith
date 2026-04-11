@@ -2,24 +2,27 @@ from mcp.server.fastmcp import FastMCP
 
 
 def register_openrocket_flight(app: FastMCP):
+    import json
     from pathlib import Path
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
+    from rocketsmith.openrocket.models import OpenRocketFlightSummary
 
     @app.tool(
         title="OpenRocket or RockSim Flight",
         description=(
-            "Create or delete a simulation entry in an OpenRocket .ork or RockSim .rkt file. "
-            "Use 'create' to assign a motor to a mount and add a simulation ready to run. "
-            "Use 'delete' to remove a simulation by name. "
-            "Run simulations with the openrocket_simulate tool after creating them."
+            "Create, delete, or run flight configurations in an OpenRocket .ork "
+            "or RockSim .rkt file. "
+            "Use 'create' to assign a motor to a mount and add a flight config. "
+            "Use 'delete' to remove a flight config by name. "
+            "Use 'run' to execute all flight configs and save full timeseries data."
         ),
         structured_output=True,
     )
     async def openrocket_flight(
-        action: Literal["create", "delete"],
+        action: Literal["create", "delete", "run"],
         rocket_file_path: Path,
         motor_designation: str | None = None,
         sim_name: str | None = None,
@@ -29,16 +32,21 @@ def register_openrocket_flight(app: FastMCP):
         launch_altitude_m: float = 0.0,
         launch_temperature_c: float | None = None,
         wind_speed_ms: float = 0.0,
+        project_dir: Path | None = None,
         openrocket_path: Path | None = None,
-    ) -> Union[ToolSuccess[dict], ToolError]:
+    ) -> Union[
+        ToolSuccess[dict], ToolSuccess[list[OpenRocketFlightSummary]], ToolError
+    ]:
         """
-        Create or delete a simulation entry in an .ork or .rkt file.
+        Create, delete, or run flight configurations in an .ork or .rkt file.
 
         Actions:
             create: Assign a motor to a mount component, create a flight
-                    configuration, and add a named simulation. The file is
-                    saved in-place and is ready to pass to openrocket_simulate.
-            delete: Remove a named simulation. Requires 'sim_name'.
+                    configuration, and add a named flight entry. The file is
+                    saved in-place and is ready to run.
+            delete: Remove a named flight entry. Requires 'sim_name'.
+            run:    Execute all flight configs in the file and save full
+                    timeseries data as JSON.
 
         Motor lookup:
             motor_designation is matched against the common name (e.g. 'H128W')
@@ -51,22 +59,26 @@ def register_openrocket_flight(app: FastMCP):
             mount, pass its name as mount_name.
 
         Args:
-            action: 'create' or 'delete'.
+            action: 'create', 'delete', or 'run'.
             rocket_file_path: Path to the .ork or .rkt design file.
             motor_designation: Motor common name or designation (required for create).
-            sim_name: Name for the simulation (create: defaults to motor designation;
-                      delete: name of the simulation to remove).
+            sim_name: Name for the flight config (create: defaults to motor designation;
+                      delete: name of the flight config to remove).
             mount_name: Named component to use as motor mount (create only, optional).
             launch_rod_length_m: Launch rod length in metres (default 1.0).
             launch_rod_angle_deg: Rod angle from vertical in degrees (default 0.0).
             launch_altitude_m: Launch site altitude in metres ASL (default 0.0).
             launch_temperature_c: Launch temperature in °C. Uses ISA standard if None.
             wind_speed_ms: Average wind speed in m/s (default 0.0).
+            project_dir: Project directory (run only). If omitted, defaults to the
+                         rocket file's grandparent (assuming the file lives at
+                         ``<project_dir>/openrocket/<name>.ork``).
             openrocket_path: Optional path to the OpenRocket JAR file.
         """
         from rocketsmith.openrocket.simulation import (
             create_simulation,
             delete_simulation,
+            run_simulation,
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
 
@@ -115,6 +127,115 @@ def register_openrocket_flight(app: FastMCP):
                 )
                 return tool_success({"deleted": deleted})
 
+            elif action == "run":
+                from orhelper import FlightDataType, FlightEvent
+
+                # Determine project directory and flight data output dir.
+                if project_dir is not None:
+                    proj = resolve_path(project_dir)
+                else:
+                    # Convention: <project_dir>/openrocket/<name>.ork
+                    proj = rocket_file_path.parent.parent
+
+                flight_dir = proj / "openrocket" / "flights"
+                flight_dir.mkdir(parents=True, exist_ok=True)
+
+                # Config name from the .ork filename (without extension).
+                config_name = rocket_file_path.stem
+
+                simulations = run_simulation(
+                    path=rocket_file_path,
+                    openrocket_path=openrocket_path,
+                )
+
+                summaries = []
+                for sim in simulations:
+                    # Sanitize flight name for filename.
+                    safe_name = (
+                        sim.name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+                    )
+                    json_filename = f"{safe_name}.json"
+                    json_path = flight_dir / json_filename
+
+                    # Build JSON-serializable timeseries.
+                    timeseries_data: dict[str, list[float]] = {}
+                    for fdt, arr in sim.timeseries.items():
+                        timeseries_data[fdt.name] = arr.tolist()
+
+                    # Build JSON-serializable events.
+                    events_data: dict[str, list[float]] = {}
+                    for evt, times in sim.events.items():
+                        events_data[evt.name] = times
+
+                    # Extract scalar summaries.
+                    altitude = sim.timeseries.get(FlightDataType.TYPE_ALTITUDE)
+                    velocity = sim.timeseries.get(FlightDataType.TYPE_VELOCITY_TOTAL)
+                    time_arr = sim.timeseries.get(FlightDataType.TYPE_TIME)
+                    stability = sim.timeseries.get(FlightDataType.TYPE_STABILITY)
+
+                    max_altitude_m = (
+                        float(altitude.max()) if altitude is not None else 0.0
+                    )
+                    max_velocity_ms = (
+                        float(velocity.max()) if velocity is not None else 0.0
+                    )
+                    flight_time_s = (
+                        float(time_arr.max()) if time_arr is not None else 0.0
+                    )
+
+                    apogee_events = sim.events.get(FlightEvent.APOGEE)
+                    time_to_apogee_s = (
+                        float(apogee_events[0]) if apogee_events else None
+                    )
+
+                    if (
+                        sim.min_stability_cal is not None
+                        or sim.max_stability_cal is not None
+                    ):
+                        min_stability_cal = sim.min_stability_cal
+                        max_stability_cal = sim.max_stability_cal
+                    else:
+                        min_stability_cal = (
+                            float(stability.min()) if stability is not None else None
+                        )
+                        max_stability_cal = (
+                            float(stability.max()) if stability is not None else None
+                        )
+
+                    # Write the full timeseries JSON.
+                    output = {
+                        "flight_name": sim.name,
+                        "config": config_name,
+                        "summary": {
+                            "max_altitude_m": max_altitude_m,
+                            "max_velocity_ms": max_velocity_ms,
+                            "time_to_apogee_s": time_to_apogee_s,
+                            "flight_time_s": flight_time_s,
+                            "min_stability_cal": min_stability_cal,
+                            "max_stability_cal": max_stability_cal,
+                        },
+                        "timeseries": timeseries_data,
+                        "events": events_data,
+                    }
+
+                    with open(json_path, "w", encoding="utf-8") as f:
+                        json.dump(output, f, indent=2)
+
+                    summaries.append(
+                        OpenRocketFlightSummary(
+                            name=sim.name,
+                            max_altitude_m=max_altitude_m,
+                            max_velocity_ms=max_velocity_ms,
+                            time_to_apogee_s=time_to_apogee_s,
+                            flight_time_s=flight_time_s,
+                            min_stability_cal=min_stability_cal,
+                            max_stability_cal=max_stability_cal,
+                            timeseries_path=str(json_path),
+                        )
+                    )
+
+                return tool_success(summaries)
+
         except FileNotFoundError as e:
             return tool_error(
                 str(e),
@@ -132,8 +253,8 @@ def register_openrocket_flight(app: FastMCP):
 
         except Exception as e:
             return tool_error(
-                f"Failed to {action} simulation",
-                "SIMULATION_FAILED",
+                f"Failed to {action} flight",
+                "FLIGHT_FAILED",
                 file_path=str(rocket_file_path),
                 action=action,
                 exception_type=type(e).__name__,

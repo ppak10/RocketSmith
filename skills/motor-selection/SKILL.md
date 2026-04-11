@@ -76,15 +76,15 @@ If below 5:1, the rocket will leave the rod slowly and be vulnerable to weatherc
 
 Query `rag_reference(action="search", collection="motor_reviews", query=f"{motor_designation} {manufacturer}", n_results=3)` for real-world reports (delay reliability, ignition problems, CATO reports, observed vs. predicted apogee). Weigh any hits against the theoretical numbers. Proceed if no results or on errors.
 
-### 6. Simulate Candidates
+### 6. Fly Candidates
 
 For each candidate motor:
-1. `openrocket_flight(action="create", motor=<designation>)` — assign motor
-2. `openrocket_simulation` — run simulation
+1. `openrocket_flight(action="create", motor_designation=<designation>)` — assign motor
+2. `openrocket_flight(action="run")` — run flight
 3. Note `max_altitude_m` and `min_stability_cal`
 4. `openrocket_flight(action="delete")` before trying the next candidate
 
-Pick the motor that hits the target apogee while keeping stability ≥ 1.0 cal throughout flight.
+Pick the motor that hits the target apogee while keeping stability >= 1.0 cal throughout flight.
 
 ### 7. Confirm Fit
 
@@ -96,7 +96,7 @@ After selecting a motor, verify:
 ## Red Flags — Stop and Check
 
 - Assigning a motor designation not returned by `openrocket_database` — it won't load
-- Skipping simulation and trusting the rule-of-thumb estimate alone
+- Skipping the flight run and trusting the rule-of-thumb estimate alone
 - Thrust-to-weight < 2:1 — unsafe launch, not just sub-optimal
 - Changing motor class without re-checking stability (heavier motors shift CG aft)
 
@@ -106,5 +106,5 @@ After selecting a motor, verify:
 Impulse needed ≈ target_apogee / 40
 Motor must fit: diameter ≤ mount ID, length ≤ mount length
 Thrust-to-weight ≥ 5:1 recommended off the rod
-Always simulate — rule of thumb is a starting point only
+Always run the flight — rule of thumb is a starting point only
 ```

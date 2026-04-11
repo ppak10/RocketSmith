@@ -89,6 +89,7 @@ def register_gui_server(app: FastMCP):
         host: Optional[str],
         port: Optional[int],
     ) -> Union[ToolSuccess[dict], ToolError]:
+        import shutil
         import subprocess
         import sys
         import time
@@ -99,9 +100,26 @@ def register_gui_server(app: FastMCP):
             return result
         resolved = result
 
+        # Copy built GUI files into the project root.
+        gui_data_dir = Path(__file__).resolve().parent.parent.parent / "data" / "gui"
+        if not gui_data_dir.is_dir():
+            return tool_error(
+                f"GUI build output not found at {gui_data_dir}. "
+                "Run 'npm run build' in src/rocketsmith/gui/web/ first.",
+                "GUI_NOT_BUILT",
+            )
+
+        copied_files = []
+        for src_file in gui_data_dir.iterdir():
+            if src_file.is_file():
+                dst = resolved / src_file.name
+                shutil.copy2(src_file, dst)
+                copied_files.append(src_file.name)
+
         bind_host = host if host is not None else DEFAULT_HOST
         bind_port = port if port is not None else DEFAULT_PORT
 
+        # Start the Python backend (WebSocket + API) for live updates.
         cmd = [
             sys.executable,
             "-c",
@@ -121,31 +139,32 @@ def register_gui_server(app: FastMCP):
             )
         except Exception as e:
             return tool_error(
-                f"Failed to launch GUI server: {e}",
+                f"Failed to launch backend server: {e}",
                 "SERVER_LAUNCH_FAILED",
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )
 
-        url = f"http://{bind_host}:{bind_port}"
-
         # Write PID file so the SessionEnd hook can clean up.
         pid_file = resolved / PID_FILENAME
         pid_file.write_text(str(proc.pid))
 
-        # Give the server a moment to bind before opening the browser.
+        # Open index.html directly in the browser (file:// protocol).
+        index_path = resolved / "index.html"
         time.sleep(0.5)
-        webbrowser.open(url)
+        webbrowser.open(index_path.as_uri())
 
         return tool_success(
             {
                 "pid": proc.pid,
-                "url": url,
+                "server_url": f"http://{bind_host}:{bind_port}",
                 "project_dir": str(resolved),
+                "files_copied": copied_files,
+                "index": str(index_path),
                 "message": (
-                    f"GUI launched at {url}. "
-                    "The browser should open automatically. "
-                    "The GUI will update as files change in the project directory."
+                    f"GUI files copied to {resolved} and opened in browser. "
+                    f"Backend server running at http://{bind_host}:{bind_port} "
+                    "for live file updates and API access."
                 ),
             }
         )

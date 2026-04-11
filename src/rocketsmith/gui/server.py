@@ -11,12 +11,28 @@ from rocketsmith.gui.watcher import watch
 
 logger = logging.getLogger(__name__)
 
-# Directory containing the built React bundle.
-_DIST_DIR = Path(__file__).resolve().parent / "web" / "dist"
+# Directory containing the built React bundle (compiled into data/gui/).
+_DIST_DIR = Path(__file__).resolve().parent.parent / "data" / "gui"
+
+
+_CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+}
+
+
+@web.middleware
+async def _cors_middleware(request: web.Request, handler):
+    if request.method == "OPTIONS":
+        return web.Response(headers=_CORS_HEADERS)
+    response = await handler(request)
+    response.headers.update(_CORS_HEADERS)
+    return response
 
 
 def _build_app(project_dir: Path) -> web.Application:
-    app = web.Application()
+    app = web.Application(middlewares=[_cors_middleware])
     app["project_dir"] = project_dir
     app["ws_clients"] = set()
 
@@ -25,17 +41,10 @@ def _build_app(project_dir: Path) -> web.Application:
     app.router.add_get("/api/files/{path:.*}", _project_file_handler)
     app.router.add_post("/api/navigate", _navigate_handler)
     app.router.add_get("/api/files-tree", _files_tree_handler)
-    app.router.add_get("/", _index_handler)
-    # Serve the built bundle files (main.js, index.css, etc.).
-    app.router.add_static("/", _DIST_DIR)
 
     app.on_startup.append(_start_watcher)
     app.on_shutdown.append(_stop_watcher)
     return app
-
-
-async def _index_handler(request: web.Request) -> web.FileResponse:
-    return web.FileResponse(_DIST_DIR / "index.html")
 
 
 async def _project_info_handler(request: web.Request) -> web.Response:
@@ -68,6 +77,7 @@ async def _files_tree_handler(request: web.Request) -> web.Response:
     """Return a recursive file tree of the project directory."""
     project_dir: Path = request.app["project_dir"]
     _VISIBLE_DIRS = {"openrocket", "parts"}
+    _VISIBLE_ROOT_FILES = {"assembly.json", "parts_manifest.json"}
 
     def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
         entries: list[dict] = []
@@ -78,9 +88,12 @@ async def _files_tree_handler(request: web.Request) -> web.Response:
         for item in items:
             if item.name.startswith("."):
                 continue
-            # At the top level, only show whitelisted folders.
-            if not rel_prefix and item.is_dir() and item.name not in _VISIBLE_DIRS:
-                continue
+            # At the top level, only show whitelisted folders and files.
+            if not rel_prefix:
+                if item.is_dir() and item.name not in _VISIBLE_DIRS:
+                    continue
+                if item.is_file() and item.name not in _VISIBLE_ROOT_FILES:
+                    continue
             rel = (
                 f"{rel_prefix}{item.name}"
                 if not rel_prefix

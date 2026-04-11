@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
+import { apiBase } from "@/lib/server";
 import {
   LineChart,
   Line,
@@ -21,10 +22,12 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { useFileTree } from "@/hooks/useFileTree";
 import type { FileNode } from "@/hooks/useFileTree";
+import type { WatchEvent } from "@/hooks/useWatchSocket";
 
-interface SimulationData {
-  simulation_name: string;
+interface FlightData {
+  flight_name: string;
   config: string;
   summary: {
     max_altitude_m: number;
@@ -38,6 +41,14 @@ interface SimulationData {
   events: Record<string, number[]>;
 }
 
+/** Normalize legacy simulation_name to flight_name. */
+function normalizeFlightData(raw: Record<string, unknown>): FlightData {
+  return {
+    ...raw,
+    flight_name: (raw.flight_name ?? raw.simulation_name ?? "Unknown") as string,
+  } as FlightData;
+}
+
 const CHARTS = [
   { id: "altitude", title: "Altitude", yKey: "TYPE_ALTITUDE", yLabel: "m" },
   { id: "velocity", title: "Velocity", yKey: "TYPE_VELOCITY_TOTAL", yLabel: "m/s" },
@@ -47,17 +58,13 @@ const CHARTS = [
   { id: "drag", title: "Drag Coeff", yKey: "TYPE_DRAG_COEFF", yLabel: "Cd" },
 ];
 
-interface SimulationViewerProps {
-  /** Relative path to the .ork file */
-  file: string;
-  /** Full file tree from the server (used to discover simulation JSONs) */
-  fileTree: FileNode[];
+interface FlightViewerProps {
+  events: WatchEvent[];
 }
 
-/** Walk the file tree to find simulation JSONs matching a config name. */
-function findSimulationFiles(
+/** Walk the file tree to find flight JSONs under openrocket/flights/ or openrocket/simulations/. */
+function findFlightFiles(
   tree: FileNode[],
-  configName: string,
 ): string[] {
   const paths: string[] = [];
 
@@ -65,8 +72,8 @@ function findSimulationFiles(
     for (const node of nodes) {
       if (
         node.type === "file" &&
-        node.path.startsWith("openrocket/simulations/") &&
-        node.name.startsWith(configName + "_") &&
+        (node.path.startsWith("openrocket/flights/") ||
+          node.path.startsWith("openrocket/simulations/")) &&
         node.name.endsWith(".json")
       ) {
         paths.push(node.path);
@@ -79,19 +86,15 @@ function findSimulationFiles(
   return paths.sort();
 }
 
-export function SimulationViewer({ file, fileTree }: SimulationViewerProps) {
-  const [simulations, setSimulations] = useState<SimulationData[]>([]);
+export function FlightViewer({ events }: FlightViewerProps) {
+  const fileTree = useFileTree(events);
+  const [simulations, setSimulations] = useState<FlightData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSim, setActiveSim] = useState("");
 
-  const configName = useMemo(() => {
-    const name = file.split("/").pop() ?? file;
-    return name.endsWith(".ork") ? name.slice(0, -4) : name;
-  }, [file]);
-
   useEffect(() => {
     setLoading(true);
-    const simFiles = findSimulationFiles(fileTree, configName);
+    const simFiles = findFlightFiles(fileTree);
 
     if (simFiles.length === 0) {
       setSimulations([]);
@@ -101,23 +104,23 @@ export function SimulationViewer({ file, fileTree }: SimulationViewerProps) {
 
     Promise.all(
       simFiles.map((path) =>
-        fetch(`/api/files/${path}`)
+        fetch(`${apiBase()}/api/files/${path}`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null),
       ),
     ).then((results) => {
-      const valid = results.filter(Boolean) as SimulationData[];
+      const valid = results.filter(Boolean).map(normalizeFlightData);
       setSimulations(valid);
-      if (valid.length > 0) setActiveSim(valid[0].simulation_name);
+      if (valid.length > 0) setActiveSim(valid[0].flight_name);
       setLoading(false);
     });
-  }, [configName, fileTree]);
+  }, [fileTree]);
 
   if (loading) {
     return (
       <Card className="h-full">
         <CardContent className="flex h-full items-center justify-center">
-          <p className="text-sm text-foreground/40">Loading simulations...</p>
+          <p className="text-sm text-foreground/40">Loading flight data...</p>
         </CardContent>
       </Card>
     );
@@ -127,32 +130,32 @@ export function SimulationViewer({ file, fileTree }: SimulationViewerProps) {
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle className="text-sm">{configName}.ork</CardTitle>
+          <CardTitle className="text-sm">Flights</CardTitle>
         </CardHeader>
         <CardContent className="flex h-48 items-center justify-center">
           <p className="text-sm text-foreground/40">
-            No simulation data found. Run openrocket_simulation to generate it.
+            No flight data found. Run openrocket_flight(action="run") to generate it.
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  const currentSim = simulations.find((s) => s.simulation_name === activeSim);
+  const currentSim = simulations.find((s) => s.flight_name === activeSim);
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-auto">
       <Tabs value={activeSim} onValueChange={setActiveSim}>
         <TabsList>
           {simulations.map((sim) => (
-            <TabsTrigger key={sim.simulation_name} value={sim.simulation_name}>
-              {sim.simulation_name}
+            <TabsTrigger key={sim.flight_name} value={sim.flight_name}>
+              {sim.flight_name}
             </TabsTrigger>
           ))}
         </TabsList>
 
         {simulations.map((sim) => (
-          <TabsContent key={sim.simulation_name} value={sim.simulation_name}>
+          <TabsContent key={sim.flight_name} value={sim.flight_name}>
             <SummaryCard summary={sim.summary} />
           </TabsContent>
         ))}
@@ -163,7 +166,7 @@ export function SimulationViewer({ file, fileTree }: SimulationViewerProps) {
   );
 }
 
-function SummaryCard({ summary }: { summary: SimulationData["summary"] }) {
+function SummaryCard({ summary }: { summary: FlightData["summary"] }) {
   const items = [
     { label: "Max Altitude", value: `${summary.max_altitude_m.toFixed(1)} m` },
     { label: "Max Velocity", value: `${summary.max_velocity_ms.toFixed(1)} m/s` },
@@ -199,7 +202,7 @@ function SummaryCard({ summary }: { summary: SimulationData["summary"] }) {
   );
 }
 
-function SimCharts({ sim }: { sim: SimulationData }) {
+function SimCharts({ sim }: { sim: FlightData }) {
   const time = sim.timeseries.TYPE_TIME;
   if (!time) return null;
 

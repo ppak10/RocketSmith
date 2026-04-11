@@ -1,4 +1,5 @@
 import { Suspense, useRef, useMemo } from "react";
+import { apiBase } from "@/lib/server";
 import {
   Box,
   LineChart,
@@ -32,7 +33,8 @@ const TYPE_META: Record<
   { icon: typeof Box; label: string; verb: string }
 > = {
   parts: { icon: Box, label: "PART", verb: "Generating" },
-  simulation: { icon: LineChart, label: "SIM", verb: "Simulating" },
+  flight: { icon: LineChart, label: "FLIGHT", verb: "Running flight" },
+  assembly: { icon: Box, label: "ASSEMBLY", verb: "Building assembly" },
   report: { icon: FileText, label: "REPORT", verb: "Reporting" },
   manifest: { icon: Package, label: "MANIFEST", verb: "Building manifest" },
   gcode: { icon: Printer, label: "GCODE", verb: "Slicing" },
@@ -171,7 +173,7 @@ function PartModel({ url }: { url: string }) {
 }
 
 function PartPreview3D({ stem }: { stem: string }) {
-  const meshUrl = `/api/files/parts/stl/${stem}.stl`;
+  const meshUrl = `${apiBase()}/api/files/parts/stl/${stem}.stl`;
 
   return (
     <div className="h-64 w-full rounded-base border-2 border-border bg-secondary-background overflow-hidden">
@@ -275,7 +277,7 @@ function PreviewPlaceholder({ text }: { text?: string }) {
 }
 
 function ActivePreview({ event }: { event: WatchEvent }) {
-  const fileUrl = `/api/files/${event.relative_path}`;
+  const fileUrl = `${apiBase()}/api/files/${event.relative_path}`;
   const name = getFilename(event.path);
 
   if (isImageFile(event.path)) {

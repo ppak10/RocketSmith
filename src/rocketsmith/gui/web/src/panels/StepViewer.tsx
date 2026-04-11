@@ -1,4 +1,5 @@
 import { Suspense, useRef, useMemo } from "react";
+import { apiBase } from "@/lib/server";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, Environment, Center } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
@@ -58,7 +59,7 @@ export function StepViewer({ file }: StepViewerProps) {
   const stlPath = file
     .replace(/parts\/step\//, "parts/stl/")
     .replace(/\.step$/i, ".stl");
-  const stlUrl = `/api/files/${stlPath}`;
+  const stlUrl = `${apiBase()}/api/files/${stlPath}`;
   const filename = file.split("/").pop() ?? file;
 
   return (

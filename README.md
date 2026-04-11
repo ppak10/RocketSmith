@@ -68,6 +68,18 @@ Full documentation lives in the [wiki](https://github.com/ppak10/RocketSmith/wik
 - [Skills](https://github.com/ppak10/RocketSmith/wiki/Skills) — stability analysis, motor selection, CAD handoff, print preparation, mass calibration
 - [Hooks](https://github.com/ppak10/RocketSmith/wiki/Hooks) — session-start dependency checks and other hooks
 
+## Building the GUI
+
+The GUI frontend (React/TypeScript) must be compiled before changes are reflected in production mode. The built files live in `src/rocketsmith/data/gui/` and are committed to the repo so users don't need to build them.
+
+```bash
+cd src/rocketsmith/gui/web
+npm install
+npm run build
+```
+
+A pre-commit hook automatically rebuilds the GUI when frontend source files change.
+
 ## Requirements
 
 - **Java runtime** — required by OpenRocket
