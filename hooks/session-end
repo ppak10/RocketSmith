@@ -1,0 +1,15 @@
+#!/bin/sh
+# SessionEnd hook: stop any running GUI server(s).
+# Reads .gui.pid from the working directory and sends SIGTERM.
+# The PID file may contain multiple PIDs (one per line) in dev mode.
+
+PID_FILE="${PWD}/.gui.pid"
+
+if [ -f "$PID_FILE" ]; then
+    while IFS= read -r PID; do
+        if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+            kill "$PID" 2>/dev/null
+        fi
+    done < "$PID_FILE"
+    rm -f "$PID_FILE"
+fi

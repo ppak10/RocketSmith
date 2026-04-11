@@ -1,6 +1,10 @@
 from mcp.server.fastmcp import FastMCP
 
+DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 24880
+DEV_PORT = 5173
+WS_PORT = 24881
+PID_FILENAME = ".gui.pid"
 
 
 def register_gui_server(app: FastMCP):
@@ -12,11 +16,12 @@ def register_gui_server(app: FastMCP):
 
     @app.tool(
         name="gui_server",
-        title="Dashboard Server",
+        title="GUI Server",
         description=(
-            "Manage the RocketSmith dashboard server. "
-            "Use action='start' to launch the dashboard in the user's browser. "
-            "Use action='stop' to shut down a running dashboard server by PID."
+            "Manage the RocketSmith GUI server. "
+            "Use action='start' to launch the GUI in the user's browser (serves the built bundle). "
+            "Use action='dev' to launch in development mode with Vite HMR for frontend hot-reloading. "
+            "Use action='stop' to shut down a running GUI server by PID."
         ),
         structured_output=True,
     )
@@ -24,40 +29,39 @@ def register_gui_server(app: FastMCP):
         action: str,
         project_dir: Optional[str] = None,
         pid: Optional[int] = None,
+        host: Optional[str] = None,
         port: Optional[int] = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
-        Start or stop the RocketSmith dashboard server.
+        Start, dev, or stop the RocketSmith GUI server.
 
         Args:
-            action: Either "start" or "stop".
-            project_dir: (start only) Path to the project directory to watch.
-            pid: (stop only) PID of the dashboard server to stop.
+            action: One of "start", "dev", or "stop".
+            project_dir: (start/dev) Path to the project directory to watch.
+            pid: (stop only) PID of the GUI server to stop.
+            host: (start/dev) Host IP to bind to. Defaults to 127.0.0.1.
             port: (start only) Port to bind to. Defaults to 24880.
+                  In dev mode, Vite runs on 5173 and the WebSocket server on 24881.
         """
         if action == "start":
-            return await _start(project_dir, port)
+            return await _start(project_dir, host, port)
+        elif action == "dev":
+            return await _dev(project_dir, host)
         elif action == "stop":
             return await _stop(pid)
         else:
             return tool_error(
-                f"Unknown action: {action!r}. Use 'start' or 'stop'.",
+                f"Unknown action: {action!r}. Use 'start', 'dev', or 'stop'.",
                 "INVALID_ACTION",
                 action=action,
             )
 
-    async def _start(
+    async def _validate_project_dir(
         project_dir: Optional[str],
-        port: Optional[int],
-    ) -> Union[ToolSuccess[dict], ToolError]:
-        import subprocess
-        import sys
-        import time
-        import webbrowser
-
+    ) -> Union[Path, ToolError]:
         if project_dir is None:
             return tool_error(
-                "project_dir is required for action='start'",
+                "project_dir is required",
                 "MISSING_PARAMETER",
                 parameter="project_dir",
             )
@@ -78,6 +82,24 @@ def register_gui_server(app: FastMCP):
                 project_dir=str(resolved),
             )
 
+        return resolved
+
+    async def _start(
+        project_dir: Optional[str],
+        host: Optional[str],
+        port: Optional[int],
+    ) -> Union[ToolSuccess[dict], ToolError]:
+        import subprocess
+        import sys
+        import time
+        import webbrowser
+
+        result = await _validate_project_dir(project_dir)
+        if isinstance(result, ToolError):
+            return result
+        resolved = result
+
+        bind_host = host if host is not None else DEFAULT_HOST
         bind_port = port if port is not None else DEFAULT_PORT
 
         cmd = [
@@ -86,7 +108,7 @@ def register_gui_server(app: FastMCP):
             (
                 "from pathlib import Path; "
                 "from rocketsmith.gui.server import run; "
-                f"run(Path({str(resolved)!r}), port={bind_port})"
+                f"run(Path({str(resolved)!r}), host={bind_host!r}, port={bind_port})"
             ),
         ]
 
@@ -99,13 +121,17 @@ def register_gui_server(app: FastMCP):
             )
         except Exception as e:
             return tool_error(
-                f"Failed to launch dashboard server: {e}",
+                f"Failed to launch GUI server: {e}",
                 "SERVER_LAUNCH_FAILED",
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )
 
-        url = f"http://127.0.0.1:{bind_port}"
+        url = f"http://{bind_host}:{bind_port}"
+
+        # Write PID file so the SessionEnd hook can clean up.
+        pid_file = resolved / PID_FILENAME
+        pid_file.write_text(str(proc.pid))
 
         # Give the server a moment to bind before opening the browser.
         time.sleep(0.5)
@@ -117,9 +143,100 @@ def register_gui_server(app: FastMCP):
                 "url": url,
                 "project_dir": str(resolved),
                 "message": (
-                    f"Dashboard launched at {url}. "
+                    f"GUI launched at {url}. "
                     "The browser should open automatically. "
-                    "The dashboard will update as files change in the project directory."
+                    "The GUI will update as files change in the project directory."
+                ),
+            }
+        )
+
+    async def _dev(
+        project_dir: Optional[str],
+        host: Optional[str],
+    ) -> Union[ToolSuccess[dict], ToolError]:
+        import subprocess
+        import sys
+        import time
+        import webbrowser
+
+        result = await _validate_project_dir(project_dir)
+        if isinstance(result, ToolError):
+            return result
+        resolved = result
+
+        bind_host = host if host is not None else DEFAULT_HOST
+        web_dir = Path(__file__).resolve().parent.parent / "web"
+
+        # 1. Start the Python WebSocket server (file watcher only, no static files).
+        ws_cmd = [
+            sys.executable,
+            "-c",
+            (
+                "from pathlib import Path; "
+                "from rocketsmith.gui.server import run; "
+                f"run(Path({str(resolved)!r}), host={bind_host!r}, port={WS_PORT})"
+            ),
+        ]
+
+        try:
+            ws_proc = subprocess.Popen(
+                ws_cmd,
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            return tool_error(
+                f"Failed to launch WebSocket server: {e}",
+                "SERVER_LAUNCH_FAILED",
+                exception_type=type(e).__name__,
+                exception_message=str(e),
+            )
+
+        # 2. Start the Vite dev server with HMR.
+        vite_cmd = ["npx", "vite", "--host", bind_host, "--port", str(DEV_PORT)]
+
+        try:
+            vite_proc = subprocess.Popen(
+                vite_cmd,
+                cwd=str(web_dir),
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            # Clean up the WS server if Vite fails to start.
+            import os
+            import signal
+
+            os.kill(ws_proc.pid, signal.SIGTERM)
+            return tool_error(
+                f"Failed to launch Vite dev server: {e}",
+                "VITE_LAUNCH_FAILED",
+                exception_type=type(e).__name__,
+                exception_message=str(e),
+            )
+
+        # Write both PIDs so the SessionEnd hook can clean up.
+        pid_file = resolved / PID_FILENAME
+        pid_file.write_text(f"{vite_proc.pid}\n{ws_proc.pid}")
+
+        url = f"http://{bind_host}:{DEV_PORT}"
+
+        time.sleep(1.0)
+        webbrowser.open(url)
+
+        return tool_success(
+            {
+                "vite_pid": vite_proc.pid,
+                "ws_pid": ws_proc.pid,
+                "url": url,
+                "ws_url": f"ws://{bind_host}:{WS_PORT}/ws",
+                "project_dir": str(resolved),
+                "message": (
+                    f"GUI dev server launched at {url} (Vite HMR). "
+                    f"WebSocket server on port {WS_PORT}. "
+                    "Frontend changes will hot-reload automatically."
                 ),
             }
         )
@@ -155,7 +272,7 @@ def register_gui_server(app: FastMCP):
         return tool_success(
             {
                 "pid": pid,
-                "message": f"Dashboard server (PID {pid}) has been stopped.",
+                "message": f"GUI server (PID {pid}) has been stopped.",
             }
         )
 

@@ -7,7 +7,7 @@ def register_cadsmith_render(app: FastMCP):
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
-    from rocketsmith.gui.layout import IMAGES_DIR, STEP_DIR
+    from rocketsmith.gui.layout import PARTS_PNG_DIR, PARTS_STEP_DIR
 
     @app.tool(
         name="cadsmith_render",
@@ -155,10 +155,13 @@ async def _render_image(
 
     if out_path is not None:
         png_path = out_path
-    elif step_file_path.parent.name == STEP_DIR:
-        images_dir = step_file_path.parent.parent / IMAGES_DIR
-        images_dir.mkdir(parents=True, exist_ok=True)
-        png_path = images_dir / (step_file_path.stem + ".png")
+    elif (
+        step_file_path.parent.name == "step"
+        and step_file_path.parent.parent.name == "parts"
+    ):
+        png_dir = step_file_path.parent.parent / "png"
+        png_dir.mkdir(parents=True, exist_ok=True)
+        png_path = png_dir / (step_file_path.stem + ".png")
     else:
         png_path = step_file_path.with_suffix(".png")
 

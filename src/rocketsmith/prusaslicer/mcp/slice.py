@@ -8,7 +8,7 @@ def register_prusaslicer_slice(app: FastMCP):
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
     from rocketsmith.prusaslicer.models import Material, PrusaSlicerResult
-    from rocketsmith.gui.layout import GCODE_DIR, STEP_DIR
+    from rocketsmith.gui.layout import GCODE_DIR
 
     @app.tool(
         title="Slice Model with PrusaSlicer",
@@ -53,8 +53,11 @@ def register_prusaslicer_slice(app: FastMCP):
 
         if out_path is not None:
             output_path = out_path
-        elif model_file_path.parent.name == STEP_DIR:
-            gcode_dir = model_file_path.parent.parent / GCODE_DIR
+        elif (
+            model_file_path.parent.name == "step"
+            and model_file_path.parent.parent.name == "parts"
+        ):
+            gcode_dir = model_file_path.parent.parent.parent / GCODE_DIR
             gcode_dir.mkdir(parents=True, exist_ok=True)
             output_path = gcode_dir / (model_file_path.stem + ".gcode")
         else:

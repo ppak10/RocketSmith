@@ -102,7 +102,7 @@ Components marked `"skipped"` or `"purchased"` in `component_to_part_map` are no
 ### 4. Re-Run the Simulation
 
 ```
-openrocket_simulate(rocket_file_path=<path>)
+openrocket_simulation(rocket_file_path=<path>)
 ```
 
 Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
@@ -116,7 +116,7 @@ Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
 | Climbed above 1.5 | ✓ | ✗ | Reduce nose weight, or increase fin area modestly |
 | Apogee dropped > 25% | — | — | Consider stepping up one motor class |
 
-Apply fixes one at a time. After each fix, re-run `openrocket_simulate` (the overrides are already in place — you don't need to re-apply them).
+Apply fixes one at a time. After each fix, re-run `openrocket_simulation` (the overrides are already in place — you don't need to re-apply them).
 
 ### 6. Confirm and Record
 
@@ -150,7 +150,7 @@ Final calibrated mass budget:
 override_mass_kg = filament_used_g / 1000
 
 # re-sim after every override pass
-openrocket_simulate(rocket_file_path=<path>)
+openrocket_simulation(rocket_file_path=<path>)
 
 # check stability stayed in [1.0, 1.5]
 assert 1.0 <= min_stability_cal <= 1.5

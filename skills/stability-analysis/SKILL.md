@@ -75,7 +75,7 @@ Work one change at a time. Re-simulate after each.
 ### 4. Iterate
 
 After each change:
-1. `openrocket_simulate` — check new `min_stability_cal`
+1. `openrocket_simulation` — check new `min_stability_cal`
 2. Also check `max_stability_cal` — stability varies over the flight as propellant burns
 3. Stop when 1.0–1.5 cal across the full flight
 

@@ -35,16 +35,6 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 
 **Regardless of mode**, the skills' checkpoint rules for complex features (fillets, revolves, polar arrays, fused geometry) still apply — but in zero-shot mode, treat them as autonomous verification points rather than user-facing pauses unless something looks wrong.
 
-## Live Dashboard (MANDATORY — both modes)
-
-**Before generating any STEP files, launch the `gui_server` tool.** Point it at the project directory. The dashboard watches for file changes (STEP files, simulation results, renders, manifests) and updates panels in the browser in real time.
-
-```
-gui_server(action="start", project_dir="<project_dir>")
-```
-
-This is not optional. Even in zero-shot mode, the user should be able to watch the build happen in real time. Launch the dashboard once at the start — do not re-launch it for each part (file watching handles updates automatically). If the dashboard fails to launch, warn the user but continue with generation.
-
 ## Setup
 
 **Dependency status is injected into context automatically at session start by a `SessionStart` hook.** Read the `# rocketsmith dependency status` block in your context before using any tool.
@@ -64,12 +54,7 @@ This is not optional. Even in zero-shot mode, the user should be able to watch t
 - `cadsmith_render` — Render a STEP file for visual inspection (`step_file_path`, `format`)
   - `format="image"` (default): 3-panel PNG (side profile, end-on, isometric 45°). Returns `png_path` — immediately call `Read(file_path=png_path)` to view the image. **Use this to verify every part after generating it.**
   - `format="ascii"`: Isometric ASCII art. With `storyboard=true`, produces a 4-view 2×2 grid (0°/90°/180°/270°) — useful for quick sanity checks. With `storyboard=false`, renders a single static frame at the given `angle_deg`.
-  - **PNG routing:** when `out_path` is omitted and the STEP file lives in `<project_dir>/CAD/`, the tool automatically writes the PNG to `<project_dir>/visualizations/<stem>.png` (creating the directory if needed). This is the Rocketsmith project convention. Passing `out_path` explicitly overrides this — use it only when you want the render somewhere non-standard.
-- `gui_server` — Manage the RocketSmith dashboard server (`action`, `project_dir`, `pid`, `port`)
-  - `action="start"`: Launch the dashboard, watch project directory for changes, open browser
-  - `action="stop"`: Stop a running dashboard server by PID
-  - Default port is 24880
-  - **Launch once at the start of CAD generation (step 4 of the workflow) — do not skip this**
+  - **PNG routing:** when `out_path` is omitted and the STEP file lives in `parts/step/`, the tool automatically writes the PNG to `parts/png/<stem>.png`. Passing `out_path` explicitly overrides this.
 - `cadsmith_extract` — Extract volume, bounding box, and centre of mass from a STEP file (`step_file_path`)
   - Use to verify dimensions numerically after visual inspection
 - `openrocket_cad_handoff` — Convert an `.ork` design into mm-scaled CAD parameters (`rocket_file_path`)
@@ -96,11 +81,8 @@ Future manufacturing methods (SLA, traditional, composite) will land as sibling 
      - exists? load it, proceed to step 4
      - missing or stale? invoke rocketsmith:design-for-additive-manufacturing
        to produce one from the .ork file, then proceed to step 4
-4. Launch gui_server (MANDATORY, both modes):
-     gui_server(action="start", project_dir="<project_dir>")
-     The dashboard will update as files are written.
-5. Follow rocketsmith:generate-structures (Pass 1):
-     a. Create <project_dir>/cadsmith, <project_dir>/CAD, <project_dir>/visualizations
+4. Follow rocketsmith:generate-structures (Pass 1):
+     a. Create <project_dir>/parts/cadsmith, <project_dir>/parts/step, <project_dir>/parts/stl, <project_dir>/parts/png, <project_dir>/parts/gif
      b. For each part in manifest["parts"], build base geometry from features only
         [interactive] Pause for user feedback after every part render
         [zero-shot]   Verify autonomously; pause only on errors or ambiguous geometry
@@ -120,7 +102,7 @@ Future manufacturing methods (SLA, traditional, composite) will land as sibling 
    If every part's modifications list is empty, skip Pass 2 entirely.
 7. Report to the orchestrator:
      - Path to parts_manifest.json
-     - List of STEP file paths in <project_dir>/CAD/
+     - List of STEP file paths in <project_dir>/parts/step/
      - Any parts that required retries or user-requested changes
      - Total parts generated vs manifest count (should match exactly)
      - Viewer PID (so downstream agents know it's running)
@@ -147,7 +129,7 @@ CAD generation complete:
   project_dir: <absolute path>
   manifest: <project_dir>/parts_manifest.json
   parts generated: <N> of <M> (from manifest)
-  output directory: <project_dir>/CAD/
+  output directory: <project_dir>/parts/step/
 
   Parts:
     - nose_cone.step       (<volume_cm3> cm³, bbox <LxWxH mm>)

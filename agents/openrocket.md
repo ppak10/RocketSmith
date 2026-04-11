@@ -8,7 +8,7 @@ description: >
   Context: User wants to design a rocket from scratch.
   user: 'Design me a stable rocket for a D12 motor'
   assistant: 'I'll use the openrocket agent to query the motor database, build the component tree, assign the motor, and run a simulation.'
-  <commentary>Rocket design requires orchestrating openrocket_database, openrocket_component, openrocket_flight, and openrocket_simulate in sequence.</commentary>
+  <commentary>Rocket design requires orchestrating openrocket_database, openrocket_component, openrocket_flight, and openrocket_simulation in sequence.</commentary>
   </example>
   <example>
   Context: User needs motor selection help.
@@ -84,11 +84,9 @@ You are an expert rocket design engineer specializing in OpenRocket simulation. 
   - Motor matched by common name or designation (e.g. `D12`, `H128W-14A`)
   - Motor mount auto-detected: prefers the first `inner-tube`, falls back to the first `body-tube` (the fallback body tube has `motor_mount=true` set automatically during simulation creation). Adding an inner-tube is still preferred — it gives explicit control over motor mount geometry
   - Launch parameters: `launch_rod_length_m`, `launch_rod_angle_deg`, `launch_altitude_m`, `launch_temperature_c`, `wind_speed_ms`
-- `openrocket_simulate` — Run all simulations in an `.ork` file (`rocket_file_path`)
-  - Returns per-simulation: `max_altitude_m`, `max_velocity_ms`, `time_to_apogee_s`, `flight_time_s`, `min_stability_cal`, `max_stability_cal`
-- `openrocket_report` — Run all simulations and generate a flight report for each (`rocket_file_path`, `project_root`)
-  - Writes `<project_root>/openrocket/reports/<sim_name>/report.md` + 6 plot PNGs (altitude, velocity, acceleration, stability, thrust/mass, drag/Mach)
-  - Returns per-simulation: paths to report and plots, plus summary numbers
+- `openrocket_simulation` — Run all simulations in an `.ork` file and save full timeseries data (`rocket_file_path`, `project_dir`)
+  - Writes JSON to `openrocket/simulations/<config>_<sim_name>.json` with full timeseries (altitude, velocity, acceleration, stability, thrust, drag, mass, etc.) and events
+  - Returns per-simulation summaries: `max_altitude_m`, `max_velocity_ms`, `time_to_apogee_s`, `flight_time_s`, `min_stability_cal`, `max_stability_cal`, `timeseries_path`
 
 ## Workflow
 
@@ -102,7 +100,7 @@ You are an expert rocket design engineer specializing in OpenRocket simulation. 
 5. coupler check              → see "Multi-Section Coupler Rule" below
 6. openrocket_inspect         → verify tree before simulating
 7. openrocket_flight(create)  → assign motor, set launch conditions
-8. openrocket_simulate        → run simulation, review results
+8. openrocket_simulation      → run simulation, save timeseries, review results
 9. iterate                    → adjust until stability 1.0–1.5 cal
 ```
 
@@ -131,18 +129,18 @@ Display it at minimum at these three moments: (1) after adding or modifying comp
 
 Call `openrocket_cad_handoff` (not raw `openrocket_inspect`) when passing dimensions to the cadsmith subagent — it converts metres to millimetres. Display the ASCII art one last time before the handoff.
 
-### Flight Report (MANDATORY — end of every session)
+### Simulation Data (MANDATORY — end of every session)
 
-**Every conversation that modifies a structural component must end with a flight report.** This is the final deliverable that closes the loop: design change → simulation → visual confirmation.
+**Every conversation that modifies a structural component must end with a simulation run.** This closes the loop: design change → simulation → data saved for the GUI.
 
 After all design changes are complete:
 
 1. Ensure a simulation exists — if not, create one with `openrocket_flight(action="create", ...)`.
-2. Call `openrocket_report(rocket_file_path=..., project_root=...)`.
-3. `Read` the generated `report.md` and at least the altitude and stability plots.
-4. Summarize the key numbers (max altitude, max velocity, stability range) in your final message.
+2. Call `openrocket_simulation(rocket_file_path=..., project_dir=...)`.
+3. Review the returned summaries (max altitude, max velocity, stability range).
+4. Summarize the key numbers in your final message.
 
-"Structural component" = any `.ork` change that affects flight: nose cone, body tubes, fins, motors, couplers, mass overrides, etc. If the `.ork` hasn't changed, no report is needed.
+"Structural component" = any `.ork` change that affects flight: nose cone, body tubes, fins, motors, couplers, mass overrides, etc. If the `.ork` hasn't changed, no simulation is needed.
 
 ### Mass calibration (post-slice)
 
@@ -157,7 +155,7 @@ for each {component_name: filament_used_g} entry:
         override_mass_kg=filament_used_g / 1000,   # grams → kilograms
     )
 
-openrocket_simulate(rocket_file_path=<path>)       → re-run simulation
+openrocket_simulation(rocket_file_path=<path>)       → re-run simulation
 compare min_stability_cal before vs. after
 ```
 

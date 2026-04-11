@@ -1,4 +1,4 @@
-"""Lightweight dashboard server: static files + WebSocket push."""
+"""Lightweight gui server: static files + WebSocket push."""
 
 import asyncio
 import json
@@ -21,9 +21,13 @@ def _build_app(project_dir: Path) -> web.Application:
     app["ws_clients"] = set()
 
     app.router.add_get("/ws", _ws_handler)
+    app.router.add_get("/api/project-info", _project_info_handler)
+    app.router.add_get("/api/files/{path:.*}", _project_file_handler)
+    app.router.add_post("/api/navigate", _navigate_handler)
+    app.router.add_get("/api/files-tree", _files_tree_handler)
     app.router.add_get("/", _index_handler)
-    # Static files for assets (JS/CSS bundles).
-    app.router.add_static("/assets", _DIST_DIR / "assets")
+    # Serve the built bundle files (main.js, index.css, etc.).
+    app.router.add_static("/", _DIST_DIR)
 
     app.on_startup.append(_start_watcher)
     app.on_shutdown.append(_stop_watcher)
@@ -32,6 +36,89 @@ def _build_app(project_dir: Path) -> web.Application:
 
 async def _index_handler(request: web.Request) -> web.FileResponse:
     return web.FileResponse(_DIST_DIR / "index.html")
+
+
+async def _project_info_handler(request: web.Request) -> web.Response:
+    """Return the project directory path so the frontend knows the root."""
+    project_dir: Path = request.app["project_dir"]
+    return web.json_response({"project_dir": str(project_dir)})
+
+
+async def _project_file_handler(request: web.Request) -> web.Response:
+    """Serve a file from the project directory.
+
+    The path is relative to the project root. Only files inside the
+    project directory are served (path traversal is rejected).
+    """
+    project_dir: Path = request.app["project_dir"]
+    rel_path = request.match_info["path"]
+    file_path = (project_dir / rel_path).resolve()
+
+    # Guard against path traversal.
+    if not str(file_path).startswith(str(project_dir.resolve())):
+        return web.Response(status=403, text="Forbidden")
+
+    if not file_path.is_file():
+        return web.Response(status=404, text="Not found")
+
+    return web.FileResponse(file_path)
+
+
+async def _files_tree_handler(request: web.Request) -> web.Response:
+    """Return a recursive file tree of the project directory."""
+    project_dir: Path = request.app["project_dir"]
+    _VISIBLE_DIRS = {"openrocket", "parts"}
+
+    def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
+        entries: list[dict] = []
+        try:
+            items = sorted(root.iterdir(), key=lambda p: (not p.is_dir(), p.name))
+        except OSError:
+            return entries
+        for item in items:
+            if item.name.startswith("."):
+                continue
+            # At the top level, only show whitelisted folders.
+            if not rel_prefix and item.is_dir() and item.name not in _VISIBLE_DIRS:
+                continue
+            rel = (
+                f"{rel_prefix}{item.name}"
+                if not rel_prefix
+                else f"{rel_prefix}/{item.name}"
+            )
+            if item.is_dir():
+                children = _build_tree(item, rel)
+                if children:
+                    entries.append(
+                        {
+                            "name": item.name,
+                            "type": "directory",
+                            "path": rel,
+                            "children": children,
+                        }
+                    )
+            else:
+                entries.append({"name": item.name, "type": "file", "path": rel})
+        return entries
+
+    tree = _build_tree(project_dir)
+    return web.json_response(tree)
+
+
+async def _navigate_handler(request: web.Request) -> web.Response:
+    """Receive a navigation command and broadcast it to all WebSocket clients."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.Response(status=400, text="Invalid JSON")
+
+    command = {
+        "command": "navigate",
+        "panel": data.get("panel"),
+        "file": data.get("file"),
+    }
+    await _broadcast(request.app, command)
+    return web.json_response({"ok": True})
 
 
 async def _ws_handler(request: web.Request) -> web.WebSocketResponse:
@@ -47,10 +134,8 @@ async def _ws_handler(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
-async def _broadcast(
-    app: web.Application, event_type: str, path: str, timestamp: str
-) -> None:
-    msg = json.dumps({"type": event_type, "path": path, "timestamp": timestamp})
+async def _broadcast(app: web.Application, event: dict) -> None:
+    msg = json.dumps(event)
     stale = set()
     for ws in app["ws_clients"]:
         try:
@@ -63,8 +148,8 @@ async def _broadcast(
 async def _start_watcher(app: web.Application) -> None:
     project_dir: Path = app["project_dir"]
 
-    async def on_change(event_type: str, path: str, timestamp: str) -> None:
-        await _broadcast(app, event_type, path, timestamp)
+    async def on_change(event: dict) -> None:
+        await _broadcast(app, event)
 
     app["watcher_task"] = asyncio.create_task(watch(project_dir, on_change))
 
@@ -79,12 +164,13 @@ async def _stop_watcher(app: web.Application) -> None:
             pass
 
 
-def run(project_dir: Path, port: int = 0) -> None:
-    """Start the dashboard server.
+def run(project_dir: Path, host: str = "127.0.0.1", port: int = 0) -> None:
+    """Start the gui server.
 
     Args:
         project_dir: Project directory to watch for file changes.
+        host: Host IP to bind to.  Defaults to ``127.0.0.1``.
         port: Port to bind to.  ``0`` picks a random available port.
     """
     app = _build_app(project_dir)
-    web.run_app(app, host="127.0.0.1", port=port, print=lambda msg: logger.info(msg))
+    web.run_app(app, host=host, port=port, print=lambda msg: logger.info(msg))

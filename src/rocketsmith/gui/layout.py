@@ -6,9 +6,13 @@ an explicit ``out_path`` parameter.
 """
 
 OPENROCKET_DIR = "openrocket"
-REPORTS_DIR = "reports"
-CADSMITH_DIR = "cadsmith"
-STEP_DIR = "step"
-IMAGES_DIR = "images"
 GCODE_DIR = "gcode"
 MANIFEST_FILE = "parts_manifest.json"
+
+# Parts directory with format-specific subdirectories.
+PARTS_DIR = "parts"
+PARTS_CADSMITH_DIR = "parts/cadsmith"
+PARTS_STEP_DIR = "parts/step"
+PARTS_STL_DIR = "parts/stl"
+PARTS_GIF_DIR = "parts/gif"
+PARTS_PNG_DIR = "parts/png"

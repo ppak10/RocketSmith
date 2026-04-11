@@ -89,6 +89,11 @@ async def test_start_launches_server(tool, tmp_path, monkeypatch):
     assert result.data["project_dir"] == str(tmp_path)
     assert len(opened) == 1
 
+    # Check PID file was written
+    pid_file = tmp_path / ".gui.pid"
+    assert pid_file.exists()
+    assert pid_file.read_text() == str(result.data["pid"])
+
     os.kill(result.data["pid"], signal.SIGTERM)
 
 

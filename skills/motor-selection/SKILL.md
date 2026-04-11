@@ -80,7 +80,7 @@ Query `rag_reference(action="search", collection="motor_reviews", query=f"{motor
 
 For each candidate motor:
 1. `openrocket_flight(action="create", motor=<designation>)` — assign motor
-2. `openrocket_simulate` — run simulation
+2. `openrocket_simulation` — run simulation
 3. Note `max_altitude_m` and `min_stability_cal`
 4. `openrocket_flight(action="delete")` before trying the next candidate
 

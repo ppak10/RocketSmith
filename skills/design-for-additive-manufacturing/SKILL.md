@@ -227,15 +227,15 @@ Feature block:
 
   "directories": {
     "scripts": "cadsmith",
-    "step": "CAD",
+    "parts/step": "parts/step",
     "gcode": "gcode"
   },
 
   "parts": [
     {
       "name": "<snake_case part name>",
-      "script_path": "cadsmith/<name>.py",
-      "step_path": "CAD/<name>.step",
+      "script_path": "parts/cadsmith/<name>.py",
+      "step_path": "parts/step/<name>.step",
       "gcode_path": "gcode/<name>.gcode",
       "derived_from": ["<OR component identifier>", "..."],
       "fate": "print",
@@ -263,7 +263,7 @@ Feature block:
   "assemblies": [
     {
       "name": "<assembly name>",
-      "step_path": "CAD/<assembly name>.step",
+      "step_path": "parts/step/<assembly name>.step",
       "parts_fore_to_aft": ["<part name>", "..."]
     }
   ],

@@ -1,7 +1,8 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_openrocket_simulate(app: FastMCP):
+def register_openrocket_simulation(app: FastMCP):
+    import json
     from pathlib import Path
     from typing import Union
 
@@ -10,32 +11,35 @@ def register_openrocket_simulate(app: FastMCP):
     from rocketsmith.openrocket.models import OpenRocketSimulationSummary
 
     @app.tool(
-        title="Run OpenRocket or RockSim Simulation",
-        description="Run all simulations in an OpenRocket .ork or RockSim .rkt file and return flight summaries.",
+        name="openrocket_simulation",
+        title="Run OpenRocket Simulation",
+        description=(
+            "Run all simulations in an OpenRocket .ork or RockSim .rkt file. "
+            "Saves the full timeseries data as JSON under "
+            "openrocket/simulations/<config>_<sim_name>.json and returns "
+            "flight summaries with paths to the JSON files."
+        ),
         structured_output=True,
     )
-    async def openrocket_simulate(
+    async def openrocket_simulation(
         rocket_file_path: Path,
+        project_dir: Path | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[list[OpenRocketSimulationSummary]], ToolError]:
         """
-        Run all simulations defined in an OpenRocket (.ork) or RockSim (.rkt) design file.
+        Run all simulations and save full timeseries data as JSON.
 
-        Returns a summary per simulation including max_altitude_m, max_velocity_ms,
-        time_to_apogee_s, flight_time_s, min_stability_cal, and max_stability_cal.
-
-        Note on stability values: min_stability_cal and max_stability_cal may return
-        null if the OpenRocket JAR does not expose TYPE_STABILITY in its timeseries API.
-        If null, compute stability manually from the component tree:
-            stability_cal = (CP_from_nose_m - CG_from_nose_m) / reference_diameter_m
-        where reference_diameter_m is the maximum body diameter. Use openrocket_inspect
-        to read the component tree and derive CG/CP positions, or apply the Barrowman
-        equations directly from component dimensions.
+        Each simulation's data is written to
+        ``<project_dir>/openrocket/simulations/<config>_<sim_name>.json``
+        containing all flight data types (altitude, velocity, stability,
+        thrust, drag coefficients, etc.) as arrays indexed by time.
 
         Args:
             rocket_file_path: Path to the .ork or .rkt design file.
-            openrocket_path: Optional path to the OpenRocket JAR file. If not
-                             provided, the installed JAR is located automatically.
+            project_dir: Project directory. If omitted, defaults to the
+                         rocket file's grandparent (assuming the file lives
+                         at ``<project_dir>/openrocket/<name>.ork``).
+            openrocket_path: Optional path to the OpenRocket JAR file.
         """
         from orhelper import FlightDataType, FlightEvent
         from rocketsmith.openrocket.simulation import run_simulation
@@ -49,6 +53,19 @@ def register_openrocket_simulate(app: FastMCP):
                 file_path=str(rocket_file_path),
             )
 
+        # Determine project directory and simulations output dir.
+        if project_dir is not None:
+            proj = resolve_path(project_dir)
+        else:
+            # Convention: <project_dir>/openrocket/<name>.ork
+            proj = rocket_file_path.parent.parent
+
+        sim_dir = proj / "openrocket" / "simulations"
+        sim_dir.mkdir(parents=True, exist_ok=True)
+
+        # Config name from the .ork filename (without extension).
+        config_name = rocket_file_path.stem
+
         try:
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
@@ -60,19 +77,36 @@ def register_openrocket_simulate(app: FastMCP):
 
             summaries = []
             for sim in simulations:
+                # Sanitize simulation name for filename.
+                safe_name = (
+                    sim.name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+                )
+                json_filename = f"{config_name}_{safe_name}.json"
+                json_path = sim_dir / json_filename
+
+                # Build JSON-serializable timeseries.
+                timeseries_data: dict[str, list[float]] = {}
+                for fdt, arr in sim.timeseries.items():
+                    timeseries_data[fdt.name] = arr.tolist()
+
+                # Build JSON-serializable events.
+                events_data: dict[str, list[float]] = {}
+                for evt, times in sim.events.items():
+                    events_data[evt.name] = times
+
+                # Extract scalar summaries.
                 altitude = sim.timeseries.get(FlightDataType.TYPE_ALTITUDE)
                 velocity = sim.timeseries.get(FlightDataType.TYPE_VELOCITY_TOTAL)
-                time = sim.timeseries.get(FlightDataType.TYPE_TIME)
+                time_arr = sim.timeseries.get(FlightDataType.TYPE_TIME)
                 stability = sim.timeseries.get(FlightDataType.TYPE_STABILITY)
 
                 max_altitude_m = float(altitude.max()) if altitude is not None else 0.0
                 max_velocity_ms = float(velocity.max()) if velocity is not None else 0.0
-                flight_time_s = float(time.max()) if time is not None else 0.0
+                flight_time_s = float(time_arr.max()) if time_arr is not None else 0.0
 
                 apogee_events = sim.events.get(FlightEvent.APOGEE)
                 time_to_apogee_s = float(apogee_events[0]) if apogee_events else None
 
-                # Prefer FlightData direct values; fall back to timeseries
                 if (
                     sim.min_stability_cal is not None
                     or sim.max_stability_cal is not None
@@ -87,6 +121,25 @@ def register_openrocket_simulate(app: FastMCP):
                         float(stability.max()) if stability is not None else None
                     )
 
+                # Write the full timeseries JSON.
+                output = {
+                    "simulation_name": sim.name,
+                    "config": config_name,
+                    "summary": {
+                        "max_altitude_m": max_altitude_m,
+                        "max_velocity_ms": max_velocity_ms,
+                        "time_to_apogee_s": time_to_apogee_s,
+                        "flight_time_s": flight_time_s,
+                        "min_stability_cal": min_stability_cal,
+                        "max_stability_cal": max_stability_cal,
+                    },
+                    "timeseries": timeseries_data,
+                    "events": events_data,
+                }
+
+                with open(json_path, "w", encoding="utf-8") as f:
+                    json.dump(output, f, indent=2)
+
                 summaries.append(
                     OpenRocketSimulationSummary(
                         name=sim.name,
@@ -96,6 +149,7 @@ def register_openrocket_simulate(app: FastMCP):
                         flight_time_s=flight_time_s,
                         min_stability_cal=min_stability_cal,
                         max_stability_cal=max_stability_cal,
+                        timeseries_path=str(json_path),
                     )
                 )
 
@@ -111,11 +165,11 @@ def register_openrocket_simulate(app: FastMCP):
 
         except Exception as e:
             return tool_error(
-                "Failed to run design file simulation",
+                "Failed to run simulation",
                 "SIMULATION_FAILED",
                 file_path=str(rocket_file_path),
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )
 
-    _ = openrocket_simulate
+    _ = openrocket_simulation
