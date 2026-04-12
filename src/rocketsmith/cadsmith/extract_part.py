@@ -10,6 +10,7 @@ SUPPORTED_SUFFIXES = {".step", ".stp", ".brep"}
 def extract_part(
     path: Path,
     material_density_kg_m3: float | None = None,
+    display_name: str | None = None,
 ) -> Part:
     """Extract geometric properties from a STEP or BREP file.
 
@@ -17,6 +18,8 @@ def extract_part(
         path: Path to the STEP (.step/.stp) or BREP (.brep) file.
         material_density_kg_m3: Optional material density. When provided,
             mass is calculated from volume x density.
+        display_name: Optional human-readable name for the part.
+            Falls back to the filename stem if not provided.
 
     Returns:
         Part with volume, surface area, bounding box, centre of mass,
@@ -53,6 +56,7 @@ def extract_part(
 
     return Part(
         name=path.stem,
+        display_name=display_name,
         **path_kwargs,
         volume=Quantity(round(shape.volume, 2), "mm**3"),
         surface_area=Quantity(round(shape.area, 2), "mm**2"),

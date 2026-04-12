@@ -122,22 +122,47 @@ def register_cadsmith_assembly(app: FastMCP):
         assembly_parts: list[AssemblyPart] = []
         cursor_z = 0.0
         first_nose_seen = False
+        parts_dir = project_dir / "parts"
+        parts_dir.mkdir(parents=True, exist_ok=True)
 
-        for comp in all_printed:
+        color_palette = [
+            "#fb8500",
+            "#e57700",
+            "#cc6a00",
+            "#b35c00",
+            "#ff9e33",
+            "#ffb766",
+            "#ffa940",
+            "#f29000",
+        ]
+
+        from pint import Quantity
+
+        for ci, comp in enumerate(all_printed):
             step_rel = comp.step_path or ""
             step_abs = project_dir / step_rel if step_rel else Path()
-            stl_rel = step_rel.replace("step/", "stl/").replace(".step", ".stl")
 
-            # Extract geometry from STEP file.
-            extracted_bbox = None
+            # Convert component name to snake_case stem.
+            stem = comp.name.lower().replace(" ", "_")
+            part_file = f"parts/{stem}.json"
+
+            # Extract geometry and write part JSON.
             part_height = 0.0
             if step_rel and step_abs.exists():
                 try:
                     from rocketsmith.cadsmith.extract_part import extract_part
 
-                    extracted = extract_part(step_abs)
-                    extracted_bbox = extracted.bounding_box
-                    part_height = extracted_bbox.z.magnitude if extracted_bbox else 0.0
+                    extracted = extract_part(step_abs, display_name=comp.name)
+                    part_height = (
+                        extracted.bounding_box.z.magnitude
+                        if extracted.bounding_box
+                        else 0.0
+                    )
+                    # Write part JSON.
+                    out_path = project_dir / part_file
+                    out_path.write_text(
+                        extracted.model_dump_json(indent=2), encoding="utf-8"
+                    )
                 except Exception:
                     pass
 
@@ -145,50 +170,55 @@ def register_cadsmith_assembly(app: FastMCP):
             if part_height == 0.0 and comp.dimensions and comp.dimensions.length:
                 part_height = comp.dimensions.length.magnitude
 
-            # Nose cone — flip it 180 on X so the shoulder points aft.
-            is_nose = not first_nose_seen and "nose" in comp.name.lower()
-            if is_nose:
+            # Compute joint offset — how much the *next* part should overlap
+            # into this one.  Shoulder lengths on nose cones and coupler
+            # lengths on tube couplers represent insertion depth.
+            joint_offset_mm = 0.0
+            agent = comp.agent
+            if agent and getattr(agent, "dfam_shoulder_length_mm", None):
+                joint_offset_mm = agent.dfam_shoulder_length_mm
+            elif (
+                comp.type == "TubeCoupler"
+                and comp.dimensions
+                and comp.dimensions.length
+            ):
+                # Couplers insert half their length into each tube.
+                joint_offset_mm = comp.dimensions.length.magnitude / 2
+
+            # Nose cones and transition shoulders point aft — invert them.
+            invert = not first_nose_seen and "nose" in comp.name.lower()
+            if invert:
                 first_nose_seen = True
-            rotation = UnitVector.deg(x=180.0) if is_nose else UnitVector.deg()
+
+            # For inverted parts, the geometry extends backward from the
+            # cursor.  Position at cursor + part_height so the base (after
+            # flip) sits at cursor.
+            pos_z = cursor_z + part_height if invert else cursor_z
 
             assembly_parts.append(
                 AssemblyPart(
-                    name=comp.name,
-                    stl_path=(
-                        stl_rel
-                        if stl_rel and (project_dir / stl_rel).exists()
-                        else None
-                    ),
-                    step_path=step_rel if step_rel and step_abs.exists() else None,
-                    bounding_box=extracted_bbox,
-                    position=UnitVector(z=cursor_z),
-                    rotation=rotation,
-                )
-            )
-
-            cursor_z += part_height
-
-        # Add purchased items as parts with no geometry.
-        for comp in all_purchased:
-            assembly_parts.append(
-                AssemblyPart(
-                    name=comp.name,
-                    description=(
-                        comp.agent.reason if comp.agent and comp.agent.reason else None
+                    part_file=part_file,
+                    position=UnitVector(z=pos_z),
+                    color=color_palette[ci % len(color_palette)],
+                    invert_z=invert,
+                    joint_offset=(
+                        Quantity(joint_offset_mm, "mm") if joint_offset_mm > 0 else None
                     ),
                 )
             )
 
-        # Add skipped items that are real physical objects (e.g. parachutes).
-        for comp in all_skipped:
+            # Advance cursor by part height, minus shoulder overlap so the
+            # next part slides into this one.
+            cursor_z += part_height - joint_offset_mm
+
+        # Add purchased/skipped items — no part JSON, just a reference stub.
+        for comp in [*all_purchased, *all_skipped]:
             reason = comp.agent.reason if comp.agent else None
-            if reason and "non-structural" in reason:
-                assembly_parts.append(
-                    AssemblyPart(
-                        name=comp.name,
-                        description=reason,
-                    )
-                )
+            if comp in all_skipped and not (reason and "non-structural" in reason):
+                continue
+            stem = comp.name.lower().replace(" ", "_")
+            part_file = f"parts/{stem}.json"
+            assembly_parts.append(AssemblyPart(part_file=part_file))
 
         assembly = Assembly(
             project_root=str(project_dir),

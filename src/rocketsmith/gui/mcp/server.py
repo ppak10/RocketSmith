@@ -274,13 +274,20 @@ def register_gui_server(app: FastMCP):
             )
 
         try:
-            os.kill(pid, signal.SIGTERM)
+            # Kill the entire process group. The server was started with
+            # start_new_session=True, so PID == PGID. This ensures child
+            # processes (node under npx, asyncio tasks) are also terminated.
+            os.killpg(pid, signal.SIGTERM)
         except ProcessLookupError:
-            return tool_error(
-                f"No process found with PID {pid}",
-                "PROCESS_NOT_FOUND",
-                pid=pid,
-            )
+            # Process group gone — try the individual PID as fallback.
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                return tool_error(
+                    f"No process found with PID {pid}",
+                    "PROCESS_NOT_FOUND",
+                    pid=pid,
+                )
         except PermissionError:
             return tool_error(
                 f"Permission denied when trying to stop PID {pid}",

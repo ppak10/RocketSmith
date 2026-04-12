@@ -24,6 +24,8 @@ def register_cadsmith_extract_part(app: FastMCP):
     async def cadsmith_extract_part(
         file_path: Path,
         material_density_kg_m3: float | None = None,
+        display_name: str | None = None,
+        project_dir: Path | None = None,
     ) -> Union[ToolSuccess[Part], ToolError]:
         """
         Extract geometric properties from a STEP or BREP file.
@@ -34,6 +36,10 @@ def register_cadsmith_extract_part(app: FastMCP):
                 When provided, mass is calculated from volume × density.
                 Common values: PETG ≈ 1250, PLA ≈ 1240, ABS ≈ 1050,
                 Aluminium ≈ 2700, Carbon fibre ≈ 1600.
+            display_name: Optional human-readable name for the part
+                (e.g. "Nose Cone"). Falls back to the filename stem.
+            project_dir: Optional project directory. When provided, saves
+                the part JSON to <project_dir>/parts/<name>.json.
         """
         from rocketsmith.cadsmith.extract_part import extract_part
 
@@ -55,8 +61,19 @@ def register_cadsmith_extract_part(app: FastMCP):
 
         try:
             part = extract_part(
-                file_path, material_density_kg_m3=material_density_kg_m3
+                file_path,
+                material_density_kg_m3=material_density_kg_m3,
+                display_name=display_name,
             )
+
+            # Write part JSON to parts/<name>.json if project_dir is given.
+            if project_dir is not None:
+                resolved_dir = resolve_path(project_dir)
+                parts_dir = resolved_dir / "parts"
+                parts_dir.mkdir(parents=True, exist_ok=True)
+                out_path = parts_dir / f"{file_path.stem}.json"
+                out_path.write_text(part.model_dump_json(indent=2), encoding="utf-8")
+
             return tool_success(part)
 
         except FileNotFoundError as e:

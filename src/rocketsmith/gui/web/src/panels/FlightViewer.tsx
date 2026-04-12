@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiBase } from "@/lib/server";
 import {
   LineChart,
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
 import {
   ChartContainer,
   ChartTooltip,
@@ -144,7 +145,7 @@ export function FlightViewer({ events }: FlightViewerProps) {
   const currentSim = simulations.find((s) => s.flight_name === activeSim);
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto">
+    <div className="flex flex-col gap-4 p-4">
       <Tabs value={activeSim} onValueChange={setActiveSim}>
         <TabsList>
           {simulations.map((sim) => (
@@ -153,12 +154,6 @@ export function FlightViewer({ events }: FlightViewerProps) {
             </TabsTrigger>
           ))}
         </TabsList>
-
-        {simulations.map((sim) => (
-          <TabsContent key={sim.flight_name} value={sim.flight_name}>
-            <SummaryCard summary={sim.summary} />
-          </TabsContent>
-        ))}
       </Tabs>
 
       {currentSim && <SimCharts sim={currentSim} />}
@@ -166,7 +161,7 @@ export function FlightViewer({ events }: FlightViewerProps) {
   );
 }
 
-function SummaryCard({ summary }: { summary: FlightData["summary"] }) {
+function SummaryBadges({ summary }: { summary: FlightData["summary"] }) {
   const items = [
     { label: "Max Altitude", value: `${summary.max_altitude_m.toFixed(1)} m` },
     { label: "Max Velocity", value: `${summary.max_velocity_ms.toFixed(1)} m/s` },
@@ -187,18 +182,16 @@ function SummaryCard({ summary }: { summary: FlightData["summary"] }) {
   ];
 
   return (
-    <Card>
-      <CardContent className="flex flex-wrap gap-3 py-3">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <Badge variant="neutral" className="text-[10px] px-1.5 py-0">
-              {item.label}
-            </Badge>
-            <span className="text-sm font-heading">{item.value}</span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+    <div className="flex flex-wrap gap-3">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5">
+          <Badge variant="neutral" className="text-[10px] px-1.5 py-0">
+            {item.label}
+          </Badge>
+          <span className="text-sm font-heading">{item.value}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -206,22 +199,48 @@ function SimCharts({ sim }: { sim: FlightData }) {
   const time = sim.timeseries.TYPE_TIME;
   if (!time) return null;
 
+  const tMin = time[0];
+  const tMax = time[time.length - 1];
+  const [range, setRange] = useState([tMin, tMax]);
+
+  // Reset range when switching flights.
+  useEffect(() => {
+    setRange([tMin, tMax]);
+  }, [tMin, tMax]);
+
   const apogee = sim.events.APOGEE?.[0];
   const burnout = sim.events.BURNOUT?.[0];
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="flex flex-col gap-4">
+      <SummaryBadges summary={sim.summary} />
+      <Card>
+        <CardContent className="flex items-center gap-4 py-3">
+          <span className="text-xs font-mono whitespace-nowrap">{range[0].toFixed(1)}s</span>
+          <Slider
+            value={range}
+            onValueChange={setRange}
+            min={tMin}
+            max={tMax}
+            step={0.1}
+          />
+          <span className="text-xs font-mono whitespace-nowrap">{range[1].toFixed(1)}s</span>
+        </CardContent>
+      </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {CHARTS.map((chart) => {
         const yData = sim.timeseries[chart.yKey];
         if (!yData) return null;
 
-        const data = time.map((t, i) => ({
-          time: parseFloat(t.toFixed(3)),
-          value: parseFloat(yData[i]?.toFixed(4) ?? "0"),
-        }));
+        const data = time
+          .map((t, i) => ({
+            time: parseFloat(t.toFixed(3)),
+            value: parseFloat(yData[i]?.toFixed(4) ?? "0"),
+          }))
+          .filter((d) => d.time >= range[0] && d.time <= range[1]);
 
         const chartConfig: ChartConfig = {
-          value: { label: chart.title, color: "var(--chart-1)" },
+          value: { label: "", color: "var(--chart-1)" },
         };
 
         return (
@@ -237,9 +256,9 @@ function SimCharts({ sim }: { sim: FlightData }) {
                     stroke="var(--border)"
                     opacity={0.3}
                   />
-                  <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <XAxis dataKey="time" type="number" domain={["dataMin", "dataMax"]} tick={{ fontSize: 10 }} label={{ value: "s", position: "insideBottomRight", offset: -5, fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} label={{ value: chart.yLabel, position: "insideTopLeft", offset: -5, fontSize: 10 }} />
+                  <ChartTooltip content={<ChartTooltipContent hideLabel hideIndicator={false} indicator="dot" formatter={(value: number | string) => (<><div className="size-2.5 shrink-0 rounded-[2px] border border-border" style={{ backgroundColor: "var(--color-value)" }} /><span className="text-foreground font-mono font-medium tabular-nums">{value} {chart.yLabel}</span></>)} />} />
                   <Line
                     type="monotone"
                     dataKey="value"
@@ -252,6 +271,7 @@ function SimCharts({ sim }: { sim: FlightData }) {
                       x={parseFloat(burnout.toFixed(3))}
                       stroke="var(--chart-5)"
                       strokeDasharray="4 4"
+                      label={{ value: "BURNOUT", position: "insideTopLeft", fontSize: 9, fill: "var(--chart-5)" }}
                     />
                   )}
                   {apogee != null && (
@@ -259,6 +279,7 @@ function SimCharts({ sim }: { sim: FlightData }) {
                       x={parseFloat(apogee.toFixed(3))}
                       stroke="var(--chart-4)"
                       strokeDasharray="4 4"
+                      label={{ value: "APOGEE", position: "insideTopRight", fontSize: 9, fill: "var(--chart-4)" }}
                     />
                   )}
                 </LineChart>
@@ -267,6 +288,7 @@ function SimCharts({ sim }: { sim: FlightData }) {
           </Card>
         );
       })}
+      </div>
     </div>
   );
 }

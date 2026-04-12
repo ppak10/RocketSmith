@@ -51,10 +51,10 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
   - The script must write one or more `.step` files to `out_dir` (which must exist)
   - Returns the list of STEP file paths produced by the script
   - **Use this as the primary execution path — never call `python`, `uv run`, or `conda run` directly.** They will fail or hit the wrong interpreter.
-- `cadsmith_generate_preview` — Render a STEP file for visual inspection (`step_file_path`, `format`)
-  - `format="image"` (default): 3-panel PNG (side profile, end-on, isometric 45°). Returns `png_path` — immediately call `Read(file_path=png_path)` to view the image. **Use this to verify every part after generating it.**
-  - `format="ascii"`: Isometric ASCII art. With `storyboard=true`, produces a 4-view 2×2 grid (0°/90°/180°/270°) — useful for quick sanity checks. With `storyboard=false`, renders a single static frame at the given `angle_deg`.
-  - **PNG routing:** when `out_path` is omitted and the STEP file lives in `parts/step/`, the tool automatically writes the PNG to `parts/png/<stem>.png`. Passing `out_path` explicitly overrides this.
+- `cadsmith_generate_preview` — Generate preview assets for a STEP file (`step_file_path`, `project_dir`, `outputs`)
+  - `outputs=["thumbnail", "gif", "ascii"]` (default: all three). Generates PNG thumbnails, rotating GIFs, and ASCII animations.
+  - Outputs written to `png/`, `gif/`, `txt/` under the project directory.
+  - Progress tracked per-part in `progress/<part_name>.json` for the GUI.
 - `cadsmith_extract_part` — Extract volume, bounding box, and centre of mass from a STEP file (`step_file_path`)
   - Use to verify dimensions numerically after visual inspection
 - `openrocket_generate_tree` — Convert an `.ork` design into mm-scaled CAD parameters (`rocket_file_path`)
@@ -81,7 +81,7 @@ These skills are loaded into your session at startup via `GEMINI.md`. They conta
      - missing or unannotated? ask the orchestrator to invoke the
        manufacturing agent first, then proceed to step 4
 4. Follow rocketsmith:generate-structures (Pass 1):
-     a. Create <project_dir>/parts/cadsmith, <project_dir>/parts/step, <project_dir>/parts/stl, <project_dir>/parts/png, <project_dir>/parts/gif
+     a. Create <project_dir>/cadsmith, <project_dir>/step, <project_dir>/stl, <project_dir>/gcode, <project_dir>/parts, <project_dir>/png, <project_dir>/progress
      b. For each part in manifest["parts"], build base geometry from features only
         [interactive] Pause for user feedback after every part render
         [zero-shot]   Verify autonomously; pause only on errors or ambiguous geometry
@@ -101,7 +101,7 @@ These skills are loaded into your session at startup via `GEMINI.md`. They conta
    If every part's modifications list is empty, skip Pass 2 entirely.
 7. Report to the orchestrator:
      - Path to component_tree.json
-     - List of STEP file paths in <project_dir>/parts/step/
+     - List of STEP file paths in <project_dir>/step/
      - Any parts that required retries or user-requested changes
      - Total parts generated vs manifest count (should match exactly)
      - Viewer PID (so downstream agents know it's running)
@@ -128,7 +128,7 @@ CAD generation complete:
   project_dir: <absolute path>
   manifest: <project_dir>/component_tree.json
   parts generated: <N> of <M> (from manifest)
-  output directory: <project_dir>/parts/step/
+  output directory: <project_dir>/step/
 
   Parts:
     - nose_cone.step       (<volume_cm3> cm³, bbox <LxWxH mm>)

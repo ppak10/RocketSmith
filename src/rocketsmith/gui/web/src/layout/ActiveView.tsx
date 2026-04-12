@@ -1,4 +1,4 @@
-import { Suspense, useRef, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { apiBase } from "@/lib/server";
 import {
   Box,
@@ -22,6 +22,11 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { RocketProfile } from "@/components/RocketProfile";
+import { useFileTree } from "@/hooks/useFileTree";
+import type { FileNode } from "@/hooks/useFileTree";
 
 interface ActiveViewProps {
   events: WatchEvent[];
@@ -32,7 +37,11 @@ const TYPE_META: Record<
   string,
   { icon: typeof Box; label: string; verb: string }
 > = {
-  parts: { icon: Box, label: "PART", verb: "Generating" },
+  cadsmith: { icon: Cog, label: "CADSMITH", verb: "Writing script" },
+  step: { icon: Box, label: "STEP", verb: "Generating" },
+  stl: { icon: Box, label: "STL", verb: "Exporting" },
+  parts: { icon: Box, label: "PART", verb: "Extracting" },
+  openrocket: { icon: LineChart, label: "OPENROCKET", verb: "Updating design" },
   flight: { icon: LineChart, label: "FLIGHT", verb: "Running flight" },
   assembly: { icon: Box, label: "ASSEMBLY", verb: "Building assembly" },
   report: { icon: FileText, label: "REPORT", verb: "Reporting" },
@@ -42,7 +51,8 @@ const TYPE_META: Record<
   unknown: { icon: Cog, label: "FILE", verb: "Processing" },
 };
 
-/** Part format extensions we track for grouped badges. */
+/** Top-level format directories we track for grouped badges. */
+const FORMAT_DIRS = new Set(["cadsmith", "step", "stl", "gcode"]);
 const PART_FORMATS = ["cadsmith", "step", "stl", "png", "gif"] as const;
 
 /** Text extensions for diff preview. */
@@ -83,15 +93,13 @@ function timeAgo(timestamp: string): string {
 }
 
 /**
- * Check if an event is a part file (lives under parts/<format>/).
- * Returns the format subfolder name or null.
+ * Check if an event is a part file (lives under a top-level format dir).
+ * Returns the format directory name or null.
  */
 function getPartFormat(event: WatchEvent): string | null {
   const rel = event.relative_path;
-  if (!rel.startsWith("parts/")) return null;
-  const parts = rel.split("/");
-  // parts/<format>/<file>
-  if (parts.length >= 3) return parts[1];
+  const topDir = rel.split("/")[0];
+  if (FORMAT_DIRS.has(topDir)) return topDir;
   return null;
 }
 
@@ -173,7 +181,7 @@ function PartModel({ url }: { url: string }) {
 }
 
 function PartPreview3D({ stem }: { stem: string }) {
-  const meshUrl = `${apiBase()}/api/files/parts/stl/${stem}.stl`;
+  const meshUrl = `${apiBase()}/api/files/stl/${stem}.stl`;
 
   return (
     <div className="h-64 w-full rounded-base border-2 border-border bg-secondary-background overflow-hidden">
@@ -341,10 +349,231 @@ function ActivePartCard({ group }: { group: PartGroup }) {
   );
 }
 
+// ── Progress tracking ──────────────────────────────────────────────────────
+
+interface PartProgress {
+  part_name: string;
+  outputs: Record<string, { status: string; path: string | null }>;
+}
+
+function findProgressFiles(tree: FileNode[]): string[] {
+  const paths: string[] = [];
+  function walk(nodes: FileNode[]) {
+    for (const node of nodes) {
+      if (
+        node.type === "file" &&
+        node.path.startsWith("progress/") &&
+        node.name.endsWith(".json")
+      ) {
+        paths.push(node.path);
+      }
+      if (node.children) walk(node.children);
+    }
+  }
+  walk(tree);
+  return paths.sort();
+}
+
+function useProgressData(events: WatchEvent[]) {
+  const fileTree = useFileTree(events);
+  const [progress, setProgress] = useState<PartProgress[]>([]);
+
+  const fetchProgress = useCallback(() => {
+    const files = findProgressFiles(fileTree);
+    if (files.length === 0) {
+      setProgress([]);
+      return;
+    }
+    Promise.all(
+      files.map((p) =>
+        fetch(`${apiBase()}/api/files/${p}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ),
+    ).then((results) => setProgress(results.filter(Boolean)));
+  }, [fileTree]);
+
+  useEffect(() => {
+    fetchProgress();
+  }, [fetchProgress]);
+
+  return progress;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  done: "default",
+  in_progress: "neutral",
+  pending: "neutral",
+  failed: "neutral",
+};
+
+function ProgressCard({ parts }: { parts: PartProgress[] }) {
+  if (parts.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Build Progress</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {parts.map((part) => {
+          const outputs = Object.entries(part.outputs);
+          const total = outputs.length;
+          const done = outputs.filter(([, v]) => v.status === "done").length;
+          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+          return (
+            <div key={part.part_name} className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-heading">{part.part_name}</span>
+                <span className="text-xs text-foreground/50">
+                  {done}/{total}
+                </span>
+              </div>
+              <Progress value={pct} />
+              <div className="flex flex-wrap gap-1">
+                {outputs.map(([name, info]) => (
+                  <Badge
+                    key={name}
+                    variant={info.status === "done" ? "default" : info.status === "failed" ? "default" : "neutral"}
+                    className="text-[9px] px-1.5 py-0"
+                  >
+                    {info.status === "failed" ? "✗ " : info.status === "done" ? "✓ " : ""}{name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Session log ────────────────────────────────────────────────────────────
+
+interface LogEntry {
+  timestamp: string;
+  level: "info" | "warn" | "error" | "success";
+  source: string;
+  message: string;
+  detail?: string;
+}
+
+function eventsToLogs(events: WatchEvent[]): LogEntry[] {
+  return events.map((e) => {
+    const meta = TYPE_META[e.type] ?? TYPE_META.unknown;
+    const filename = e.relative_path?.split("/").pop() ?? "";
+    return {
+      timestamp: e.timestamp,
+      level: "info" as const,
+      source: meta.label.toLowerCase(),
+      message: `${meta.verb} ${filename}`,
+    };
+  });
+}
+
+const LEVEL_STYLE: Record<string, string> = {
+  info: "text-foreground/70",
+  warn: "text-yellow-600 dark:text-yellow-400",
+  error: "text-red-600 dark:text-red-400",
+  success: "text-green-600 dark:text-green-400",
+};
+
+const LEVEL_BADGE: Record<string, "default" | "neutral"> = {
+  info: "neutral",
+  warn: "default",
+  error: "default",
+  success: "default",
+};
+
+function SessionLogCard({ logs }: { logs: LogEntry[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs.length]);
+
+  if (logs.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Session Log</CardTitle>
+      </CardHeader>
+      <CardContent className="max-h-80 overflow-y-auto">
+        <ul className="space-y-1">
+          {logs.map((entry, i) => {
+            const time = new Date(entry.timestamp);
+            const timeStr = time.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
+
+            return (
+              <li
+                key={i}
+                className={`flex items-start gap-2 text-xs ${LEVEL_STYLE[entry.level] ?? LEVEL_STYLE.info}`}
+              >
+                <span className="shrink-0 font-mono text-foreground/30">
+                  {timeStr}
+                </span>
+                <Badge
+                  variant={LEVEL_BADGE[entry.level] ?? "neutral"}
+                  className="text-[9px] px-1 py-0 uppercase shrink-0"
+                >
+                  {entry.source}
+                </Badge>
+                <span className="break-words">
+                  {entry.message}
+                  {entry.detail && (
+                    <span className="text-foreground/40 ml-1">
+                      — {entry.detail}
+                    </span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div ref={bottomRef} />
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main view ───────────────────────────────────────────────────────────────
 
 export function ActiveView({ events, offline }: ActiveViewProps) {
   const asciiFrame = useRotatingAscii();
+  const progressData = useProgressData(events);
+
+  // Historical logs from file + live logs from events.
+  const [historicalLogs, setHistoricalLogs] = useState<LogEntry[]>([]);
+  useEffect(() => {
+    fetch(`${apiBase()}/api/files/logs/session.jsonl`)
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((text) => {
+        if (!text) return;
+        const entries = text
+          .trim()
+          .split("\n")
+          .map((line) => {
+            try { return JSON.parse(line) as LogEntry; }
+            catch { return null; }
+          })
+          .filter(Boolean) as LogEntry[];
+        setHistoricalLogs(entries);
+      })
+      .catch(() => {});
+  }, []);
+
+  const liveLogs = useMemo(() => eventsToLogs(events), [events]);
+  const sessionLogs = useMemo(
+    () => [...historicalLogs, ...liveLogs],
+    [historicalLogs, liveLogs],
+  );
 
   // Separate part events from non-part events.
   const { partGroups, nonPartEvents, latestNonPart } = useMemo(() => {
@@ -366,101 +595,53 @@ export function ActiveView({ events, offline }: ActiveViewProps) {
     };
   }, [events]);
 
-  if (offline || events.length === 0) {
+  if (offline || (events.length === 0 && sessionLogs.length === 0)) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
+        <div className="relative inline-flex items-center justify-center">
           <pre className="select-none text-[3px] leading-[3px] font-semibold text-foreground/20 sm:text-[4px] sm:leading-[4px] xl:text-[6px] xl:leading-[6px]">
             {asciiFrame}
           </pre>
-          <div className="text-center">
-            <p className="text-sm font-heading text-foreground/40">
-              {offline ? "Offline mode" : "Waiting for activity..."}
-            </p>
-            <p className="mt-1 text-xs text-foreground/30">
-              {offline
-                ? "Start the GUI server to enable live updates"
-                : "The agent hasn't started yet"}
-            </p>
+          <div className="absolute inset-0 flex items-start justify-center">
+            <Alert className="w-auto">
+              <AlertTitle>
+                {offline ? "Offline mode" : "Waiting for activity..."}
+              </AlertTitle>
+              <AlertDescription>
+                {offline
+                  ? "Start the GUI server to enable live updates"
+                  : "The agent hasn't started yet"}
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
       </div>
     );
   }
 
-  // Determine what to show as the "active" card.
-  // If the latest event overall is a part event, show the part card.
-  // Otherwise show the non-part active card.
-  const latestEvent = events[events.length - 1];
-  const latestIsPart = getPartFormat(latestEvent) !== null;
+  // Filter to renderable event types: parts, assembly, manifest.
+  const RENDERABLE_TYPES = new Set(["manifest", "assembly"]);
+  const renderableNonPart = [...nonPartEvents]
+    .reverse()
+    .find((e) => RENDERABLE_TYPES.has(e.type)) ?? null;
+
+  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+  const latestIsPart = latestEvent ? getPartFormat(latestEvent) !== null : false;
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto">
+    <div className="flex flex-col gap-4 p-4">
       {/* Active operation */}
       {latestIsPart && partGroups.length > 0 ? (
         <ActivePartCard group={partGroups[0]} />
-      ) : latestNonPart ? (
-        <ActiveNonPartCard event={latestNonPart} />
+      ) : renderableNonPart ? (
+        <ActiveNonPartCard event={renderableNonPart} />
       ) : null}
 
-      {/* Recent activity — parts grouped, non-parts listed */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent className="max-h-64 overflow-y-auto">
-          <ul className="space-y-2">
-            {/* Part groups */}
-            {partGroups.slice(latestIsPart ? 1 : 0).map((g) => (
-              <li
-                key={`part-${g.stem}`}
-                className="flex items-center gap-2 text-sm text-foreground/70"
-              >
-                <Box className="size-3.5 shrink-0" />
-                <span className="truncate">{g.stem}</span>
-                <div className="flex items-center gap-1 ml-auto shrink-0">
-                  {PART_FORMATS.map((fmt) => (
-                    <Badge
-                      key={fmt}
-                      variant={g.formats.has(fmt) ? "default" : "neutral"}
-                      className="text-[9px] px-1 py-0 uppercase"
-                    >
-                      {fmt}
-                    </Badge>
-                  ))}
-                </div>
-              </li>
-            ))}
+      {/* Build progress */}
+      <ProgressCard parts={progressData} />
 
-            {/* Non-part events */}
-            {[...nonPartEvents]
-              .reverse()
-              .slice(latestIsPart ? 0 : 1)
-              .map((e, i) => {
-                const m = TYPE_META[e.type] ?? TYPE_META.unknown;
-                const Icon = m.icon;
-                return (
-                  <li
-                    key={`evt-${i}`}
-                    className="flex items-center gap-2 text-sm text-foreground/70"
-                  >
-                    <Icon className="size-3.5 shrink-0" />
-                    <Badge
-                      variant="neutral"
-                      className="text-[10px] px-1.5 py-0"
-                    >
-                      {m.label}
-                    </Badge>
-                    <span className="truncate">{getFilename(e.path)}</span>
-                    <span className="ml-auto shrink-0 text-xs text-foreground/40">
-                      {timeAgo(e.timestamp)}
-                    </span>
-                  </li>
-                );
-              })}
-          </ul>
-        </CardContent>
-      </Card>
+      {/* Session log */}
+      <SessionLogCard logs={sessionLogs} />
     </div>
   );
 }
@@ -470,6 +651,7 @@ export function ActiveView({ events, offline }: ActiveViewProps) {
 function ActiveNonPartCard({ event }: { event: WatchEvent }) {
   const meta = TYPE_META[event.type] ?? TYPE_META.unknown;
   const ActiveIcon = meta.icon;
+  const showTree = event.type === "manifest" || event.type === "assembly";
 
   return (
     <Card className="border-main">
@@ -493,11 +675,69 @@ function ActiveNonPartCard({ event }: { event: WatchEvent }) {
         </div>
       </CardHeader>
       <CardContent>
-        <ActivePreview event={event} />
-        <p className="mt-2 truncate text-xs text-foreground/50">
-          {event.path}
-        </p>
+        {showTree ? (
+          <ComponentTreePreview />
+        ) : (
+          <>
+            <ActivePreview event={event} />
+            <p className="mt-2 truncate text-xs text-foreground/50">
+              {event.path}
+            </p>
+          </>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function ComponentTreePreview() {
+  const [treeData, setTreeData] = useState<any | null>(null);
+
+  useEffect(() => {
+    fetch(`${apiBase()}/api/files/component_tree.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setTreeData(data))
+      .catch(() => {});
+  }, []);
+
+  if (!treeData?.stages) return null;
+
+  const comps: any[] = [];
+  const walk = (nodes: any[]) => {
+    for (const n of nodes) {
+      comps.push(n);
+      if (n.children) walk(n.children);
+    }
+  };
+  for (const stage of treeData.stages) walk(stage.components);
+
+  return (
+    <div className="space-y-3">
+      <RocketProfile stages={treeData.stages} />
+      <ul className="space-y-1">
+        {comps.map((comp) => {
+          const fate = comp.agent?.fate ?? "unknown";
+          const mass = comp.mass;
+          const massStr = mass
+            ? `${(mass[0] * (mass[1]?.includes("kilogram") ? 1000 : 1)).toFixed(1)} g`
+            : null;
+          return (
+            <li key={comp.name} className="flex items-center gap-2 text-sm">
+              <Badge
+                variant={fate === "print" ? "default" : "neutral"}
+                className="text-[9px] px-1.5 py-0 uppercase shrink-0"
+              >
+                {fate}
+              </Badge>
+              <span className="truncate">{comp.name}</span>
+              <span className="text-xs text-foreground/40 shrink-0">{comp.type}</span>
+              {massStr && (
+                <span className="ml-auto text-xs text-foreground/50 shrink-0">{massStr}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

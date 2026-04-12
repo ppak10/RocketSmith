@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 
 interface StepViewerProps {
-  /** Relative path to a file in parts/step/. The viewer loads the corresponding STL from parts/stl/. */
+  /** Relative path to a file in step/. The viewer loads the corresponding STL from stl/. */
   file: string;
 }
 
@@ -55,15 +55,15 @@ function StlModel({ url }: { url: string }) {
 }
 
 export function StepViewer({ file }: StepViewerProps) {
-  // Convert parts/step/nose_cone.step → parts/stl/nose_cone.stl
+  // Convert step/nose_cone.step → stl/nose_cone.stl
   const stlPath = file
-    .replace(/parts\/step\//, "parts/stl/")
+    .replace(/^step\//, "stl/")
     .replace(/\.step$/i, ".stl");
   const stlUrl = `${apiBase()}/api/files/${stlPath}`;
   const filename = file.split("/").pop() ?? file;
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="flex flex-col m-4">
       <CardHeader>
         <CardTitle className="text-sm">{filename}</CardTitle>
         <p className="text-xs text-foreground/50">{file}</p>

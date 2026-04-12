@@ -31,10 +31,10 @@ This skill is **rocketry-agnostic** — it knows about build123d and parts and a
 
 ## Output
 
-- `<project_root>/parts/cadsmith/<name>.py` — one parametric script per part (base geometry only)
-- `<project_root>/parts/step/<name>.step` — the STEP file exported by each script
-- `<project_root>/parts/step/full_assembly.step` — composed from all individual parts if `manifest["assemblies"]` is non-empty
-- `<project_root>/parts/png/<name>.png` — 3-panel render of each part for visual verification
+- `<project_root>/cadsmith/<name>.py` — one parametric script per part (base geometry only)
+- `<project_root>/step/<name>.step` — the STEP file exported by each script
+- `<project_root>/step/full_assembly.step` — composed from all individual parts if `manifest["assemblies"]` is non-empty
+- `<project_root>/png/<name>.png` — 3-panel render of each part for visual verification
 
 ## Steps
 
@@ -49,7 +49,7 @@ Verify it has `schema_version`, `parts`, `directories`, and `assemblies`. If any
 ### 2. Create Directories
 
 ```
-Bash("mkdir -p <project_root>/cadsmith <project_root>/parts/step <project_root>/parts/stl <project_root>/parts/png <project_root>/parts/gif")
+Bash("mkdir -p <project_root>/cadsmith <project_root>/step <project_root>/stl <project_root>/gcode <project_root>/parts <project_root>/png <project_root>/progress")
 ```
 
 ### 3. Generate Each Part's Base Geometry
@@ -58,16 +58,16 @@ For each entry in `manifest["parts"]`:
 
 1. **Write the script** with the `Write` tool. Use the script structure below and build only the features in `features` — ignore `modifications` entirely at this stage. For any part with **more than one shape-producing operation** (nose cone with shoulder + ogive, airframe with integrated fins, tube with integral aft shoulder, etc.) follow the iterative per-feature loop in **Build Iteratively — Verify Each Feature** below. Single-feature parts (plain body tube, plain ring) can be written in one shot.
 2. **Execute** via `cadsmith_run_script(script_path=<scripts_dir>/<name>.py, out_dir=<step_dir>)`.
-3. **Render** via `cadsmith_generate_preview(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `parts/step/` to the sibling `parts/png/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<images_dir>/<name>.png` explicitly. The PNG has **three panels — side (eye at −X, low Z on the left → high Z on the right), end (eye at +Z, showing the high-Z face), isometric 45°** — check all three, not just the iso view. Note that panel labels describe the **part-local frame**, not the rocket-logical frame — for a nose cone built per convention, low Z is the shoulder (rocket-aft) and high Z is the tip (rocket-fore). The rocket-frame view only exists in the assembly render.
+3. **Render** via `cadsmith_generate_preview(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `step/` to the sibling `png/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<images_dir>/<name>.png` explicitly. The PNG has **three panels — side (eye at −X, low Z on the left → high Z on the right), end (eye at +Z, showing the high-Z face), isometric 45°** — check all three, not just the iso view. Note that panel labels describe the **part-local frame**, not the rocket-logical frame — for a nose cone built per convention, low Z is the shoulder (rocket-aft) and high Z is the tip (rocket-fore). The rocket-frame view only exists in the assembly render.
 4. **Verify** via `cadsmith_extract_part` that the bounding box matches `features["length_mm"]` and `features["od_mm"]`.
 
 Do not proceed if a part fails verification. Fix the script and re-run.
 
 ### 4. Generate the Full Assembly
 
-After all individual parts are verified, produce `assemblies/full_assembly.step` (well, `parts/step/full_assembly.step` per the layout convention). Each entry in `manifest["assemblies"]` becomes one assembly STEP:
+After all individual parts are verified, produce `assemblies/full_assembly.step` (well, `step/full_assembly.step` per the layout convention). Each entry in `manifest["assemblies"]` becomes one assembly STEP:
 
-1. Write a composition script in `parts/cadsmith/<assembly_name>.py` that imports each part in the `parts_fore_to_aft` list.
+1. Write a composition script in `cadsmith/<assembly_name>.py` that imports each part in the `parts_fore_to_aft` list.
 2. Position each part along Z by cumulative offsets derived from each part's `features["length_mm"]`.
 3. Compose via `Compound` and export to the assembly's `step_path`.
 4. Render with `cadsmith_generate_preview` and `Read` the result. The assembly render is the **first check for cross-part issues** — shoulder alignment, visible gaps, off-axis fins. Spend more time looking at this one than at any individual part render.
@@ -93,11 +93,11 @@ ID_MM = 58.0
 # ... other parameters from features ...
 
 # --- Resolve output path relative to this script's location ---
-# This script lives at <project_root>/parts/cadsmith/<name>.py
-# STEP file goes to <project_root>/parts/step/<name>.step
+# This script lives at <project_root>/cadsmith/<name>.py
+# STEP file goes to <project_root>/step/<name>.step
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-OUTPUT = PROJECT_ROOT / "parts" / "step" / "<name>.step"
+OUTPUT = PROJECT_ROOT / "step" / "<name>.step"
 
 # --- Build ---
 with BuildPart() as part:
@@ -111,7 +111,7 @@ export_step(part.part, str(OUTPUT))
 
 Key rules:
 
-- **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/parts/cadsmith/<name>.py` and writes to `<project_root>/parts/step/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
+- **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/cadsmith/<name>.py` and writes to `<project_root>/step/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
 - **Never embed an absolute path** like `/Users/someone/rockets/my_rocket/step/...` in a script. That breaks the moment anyone else opens the repo.
 - **Parameters are named constants at the top** — match the manifest's feature block exactly.
 - **Imports limited to `build123d`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
@@ -299,7 +299,7 @@ SHOULDER_LEN_MM = 30.0       # shoulder length (from manifest features.shoulder.
 # --- Resolve output path relative to this script's location ---
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-OUTPUT = PROJECT_ROOT / "parts" / "step" / "nose_cone.step"
+OUTPUT = PROJECT_ROOT / "step" / "nose_cone.step"
 
 # --- Tangent ogive profile ---
 BASE_R_MM = BASE_OD_MM / 2
@@ -461,7 +461,7 @@ from pathlib import Path
 # Resolve paths relative to this script's location (same pattern as per-part scripts)
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-CAD_DIR = PROJECT_ROOT / "parts" / "step"
+CAD_DIR = PROJECT_ROOT / "step"
 
 # Import and re-orient each part into the assembly frame.
 # Nose cones are built shoulder-down for printing; flip 180° about X so
@@ -512,7 +512,7 @@ For feature types or build123d API patterns not covered above, query `rag_refere
 
 After each successful `cadsmith_run_script` call:
 
-1. **`cadsmith_generate_preview(step_file_path, out_path=<images_dir>/<name>.png)`** — writes the PNG into `parts/png/`
+1. **`cadsmith_generate_preview(step_file_path, out_path=<images_dir>/<name>.png)`** — writes the PNG into `png/`
 2. **`Read(file_path=<png_path>)`** — visually inspect:
    - Does the overall shape match the feature block's intent?
    - Are any expected geometric features visible and correctly placed?

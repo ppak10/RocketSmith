@@ -7,24 +7,40 @@ from typing import Callable, Awaitable, Optional
 
 from rocketsmith.gui.layout import (
     OPENROCKET_DIR,
+    CADSMITH_DIR,
+    STEP_DIR,
+    STL_DIR,
+    GCODE_DIR,
     PARTS_DIR,
-    PREVIEWS_DIR,
+    PNG_DIR,
+    GIF_DIR,
+    TXT_DIR,
+    PROGRESS_DIR,
+    LOGS_DIR,
     TREE_FILE,
     ASSEMBLY_FILE,
 )
 
 # Map layout directory names to event types.
 _DIR_MAP: dict[str, str] = {
-    OPENROCKET_DIR: "flight",
+    OPENROCKET_DIR: "openrocket",
+    CADSMITH_DIR: "cadsmith",
+    STEP_DIR: "step",
+    STL_DIR: "stl",
+    GCODE_DIR: "gcode",
     PARTS_DIR: "parts",
-    PREVIEWS_DIR: "preview",
+    PNG_DIR: "preview",
+    GIF_DIR: "preview",
+    TXT_DIR: "preview",
+    PROGRESS_DIR: "preview",
+    LOGS_DIR: "log",
 }
 
 # Fallback: classify by extension when the file is not in a known directory.
 _EXT_MAP: dict[str, str] = {
     ".step": "step",
     ".stp": "step",
-    ".ork": "flight",
+    ".ork": "openrocket",
     ".png": "image",
     ".jpg": "image",
     ".jpeg": "image",

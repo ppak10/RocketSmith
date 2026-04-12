@@ -14,8 +14,8 @@ def register_cadsmith_generate_preview(app: FastMCP):
         description=(
             "Generate preview assets for a STEP file: PNG thumbnail, "
             "rotating GIF, and/or ASCII animation. Outputs are written to "
-            "<project_dir>/previews/<format>/<part_name>.<ext>. "
-            "Progress is tracked in previews/preview_progress.json "
+            "<project_dir>/<format>/<part_name>.<ext>. "
+            "Progress is tracked in progress/<part_name>.json "
             "so the GUI can display a live progress bar."
         ),
         structured_output=True,
@@ -60,13 +60,12 @@ def register_cadsmith_generate_preview(app: FastMCP):
             )
 
         part_name = step_file_path.stem
-        previews_dir = project_dir / "previews"
 
-        png_path = previews_dir / "png" / f"{part_name}.png"
-        gif_path = previews_dir / "gif" / f"{part_name}.gif"
-        txt_path = previews_dir / "txt" / f"{part_name}.txt"
+        png_path = project_dir / "png" / f"{part_name}.png"
+        gif_path = project_dir / "gif" / f"{part_name}.gif"
+        txt_path = project_dir / "txt" / f"{part_name}.txt"
 
-        progress = PreviewProgress(previews_dir, part_name, sorted(requested))
+        progress = PreviewProgress(project_dir, part_name, sorted(requested))
 
         def _run_thumbnail() -> tuple[str, Path]:
             from rocketsmith.cadsmith.preview.image import render_step_png

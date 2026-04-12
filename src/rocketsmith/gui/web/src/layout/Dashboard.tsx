@@ -1,18 +1,16 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   Moon,
   Sun,
   Rocket,
-  Wifi,
-  WifiOff,
   Box,
   LineChart,
   Activity,
-  MonitorOff,
+  Network,
 } from "lucide-react";
 import type { WatchEvent, NavigateCommand } from "../hooks/useWatchSocket";
-import { Badge } from "@/components/ui/badge";
+import { apiBase } from "@/lib/server";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -25,19 +23,11 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
-  SidebarFooter,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useProjectInfo } from "@/hooks/useProjectInfo";
 import { useFileTree } from "@/hooks/useFileTree";
 import type { FileNode } from "@/hooks/useFileTree";
-import { FileTree } from "./FileTree";
 
 interface DashboardProps {
   events: WatchEvent[];
@@ -46,10 +36,17 @@ interface DashboardProps {
   dark: boolean;
   onToggleTheme: () => void;
   navigation: NavigateCommand | null;
+  clearNavigation: () => void;
 }
 
 const NAV_ITEMS = [
   { id: "/", title: "Live", icon: Activity, requiresFile: null },
+  {
+    id: "/component-tree",
+    title: "Component Tree",
+    icon: Network,
+    requiresFile: "component_tree.json",
+  },
   {
     id: "/flights",
     title: "Flights",
@@ -64,17 +61,11 @@ const NAV_ITEMS = [
   },
 ];
 
-/** Map server panel names to router paths. */
-const PANEL_TO_PATH: Record<string, string> = {
-  live: "/",
-  flight: "/flights",
-  assembly: "/assembly",
-};
-
 /** Map router paths to display titles. */
 const PATH_TITLES: Record<string, string> = {
   "/": "Live",
   "/flights": "Flights",
+  "/component-tree": "Component Tree",
   "/assembly": "Assembly",
 };
 
@@ -91,14 +82,6 @@ function hasFile(tree: FileNode[], match: string): boolean {
   return false;
 }
 
-/** Get the router path for a file based on its extension. */
-function fileToPath(filePath: string): string {
-  const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
-  if ([".step", ".stp"].includes(ext)) return `/file/step/${filePath}`;
-  if (ext === ".ork") return "/flights";
-  return `/file/${filePath}`;
-}
-
 export function Dashboard({
   events,
   connected,
@@ -106,43 +89,70 @@ export function Dashboard({
   dark,
   onToggleTheme,
   navigation,
+  clearNavigation,
 }: DashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const project = useProjectInfo();
   const fileTree = useFileTree(events);
 
+  // Find part JSON files under parts/ and fetch display names.
+  const partFileNodes = useMemo(() => {
+    const partsNode = fileTree.find((n) => n.name === "parts" && n.type === "directory");
+    if (!partsNode?.children) return [];
+    return partsNode.children
+      .filter((n) => n.type === "file" && n.name.endsWith(".json"))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [fileTree]);
+
+  const [partDisplayNames, setPartDisplayNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (partFileNodes.length === 0) return;
+    Promise.all(
+      partFileNodes.map((pf) =>
+        fetch(`${apiBase()}/api/files/${pf.path}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      const names: Record<string, string> = {};
+      results.forEach((data, i) => {
+        if (data?.display_name) {
+          names[partFileNodes[i].path] = data.display_name;
+        }
+      });
+      setPartDisplayNames(names);
+    });
+  }, [partFileNodes]);
+
   // Handle navigation commands from the WebSocket server.
   useEffect(() => {
     if (navigation) {
-      const path = PANEL_TO_PATH[navigation.panel];
-      if (path) {
-        navigate(path);
-      } else if (navigation.file) {
-        navigate(fileToPath(navigation.file));
-      }
+      navigate(navigation.path);
+      clearNavigation();
     }
-  }, [navigation, navigate]);
+  }, [navigation, navigate, clearNavigation]);
 
   const currentPath = location.pathname;
-  const title =
-    PATH_TITLES[currentPath] ??
-    (currentPath.startsWith("/file/") ? "File" : currentPath);
+  const title = useMemo(() => {
+    if (PATH_TITLES[currentPath]) return PATH_TITLES[currentPath];
+    if (currentPath.startsWith("/parts/")) {
+      const partPath = currentPath.replace(/^\//, "");
+      return partDisplayNames[partPath] ?? partPath.split("/").pop()?.replace(".json", "") ?? "Part";
+    }
+    return currentPath;
+  }, [currentPath, partDisplayNames]);
 
   return (
-    <TooltipProvider>
+    <>
       <Sidebar>
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground">
-                  <Rocket className="size-4" />
-                </div>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-heading">RocketSmith</span>
-                  <span className="text-xs">Dashboard</span>
-                </div>
+              <SidebarMenuButton size="lg" className="pointer-events-none">
+                <Rocket className="size-5" />
+                <span className="font-heading">RocketSmith</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -174,6 +184,24 @@ export function Dashboard({
                       >
                         <item.icon className="size-4" />
                         <span>{item.title}</span>
+                        {item.id === "/" && (
+                          <span
+                            className={`ml-auto inline-block size-2 rounded-full ${
+                              offline
+                                ? "bg-foreground/20"
+                                : connected
+                                  ? "bg-green-500"
+                                  : "bg-red-500 animate-pulse"
+                            }`}
+                            title={
+                              offline
+                                ? "Offline"
+                                : connected
+                                  ? "Connected"
+                                  : "Disconnected"
+                            }
+                          />
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -182,77 +210,53 @@ export function Dashboard({
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {!offline && fileTree.length > 0 && (
+          {partFileNodes.length > 0 && (
             <SidebarGroup>
-              <SidebarGroupLabel>Files</SidebarGroupLabel>
+              <SidebarGroupLabel>Parts</SidebarGroupLabel>
               <SidebarGroupContent>
-                <FileTree
-                  tree={fileTree}
-                  onSelect={(path) => navigate(fileToPath(path))}
-                />
+                <SidebarMenu>
+                  {partFileNodes.map((pf) => {
+                    const partPath = `/${pf.path}`;
+                    const label = partDisplayNames[pf.path] ?? pf.name.replace(/\.json$/, "");
+                    return (
+                      <SidebarMenuItem key={pf.path}>
+                        <SidebarMenuButton
+                          isActive={currentPath === partPath}
+                          onClick={() => navigate(partPath)}
+                        >
+                          <Box className="size-4" />
+                          <span>{label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           )}
         </SidebarContent>
 
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <div className="flex items-center justify-start px-2 py-1">
-                <Button variant="neutral" size="icon" onClick={onToggleTheme}>
-                  {dark ? (
-                    <Sun className="h-4 w-4" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex items-center gap-2 border-b-2 border-border bg-background px-4 py-2">
+        <header className="relative flex items-center gap-2 border-b-2 border-border bg-background px-4 py-2">
           <SidebarTrigger />
-          <h2 className="text-sm font-heading text-foreground">{title}</h2>
+          <h2 className="absolute left-1/2 -translate-x-1/2 text-sm font-heading text-foreground">{title}</h2>
           <div className="ml-auto">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant={connected ? "neutral" : "default"}>
-                  {offline ? (
-                    <>
-                      <MonitorOff className="h-3 w-3" />
-                      offline
-                    </>
-                  ) : connected ? (
-                    <>
-                      <Wifi className="h-3 w-3" />
-                      connected
-                    </>
-                  ) : (
-                    <>
-                      <WifiOff className="h-3 w-3" />
-                      disconnected
-                    </>
-                  )}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                {offline
-                  ? "Running in offline mode — no server connection"
-                  : connected
-                    ? "Receiving file-change events"
-                    : "Attempting to reconnect..."}
-              </TooltipContent>
-            </Tooltip>
+            <Button variant="neutral" size="icon" className="size-7" onClick={onToggleTheme}>
+              {dark ? (
+                <Sun className="h-3.5 w-3.5" />
+              ) : (
+                <Moon className="h-3.5 w-3.5" />
+              )}
+            </Button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-hidden p-4">
+        <main className="flex-1 min-w-0 overflow-auto">
           <Outlet />
         </main>
       </SidebarInset>
-    </TooltipProvider>
+    </>
   );
 }

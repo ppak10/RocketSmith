@@ -5,7 +5,11 @@ import { wsUrl } from "@/lib/server";
 export interface WatchEvent {
   /** Category of the changed file. */
   type:
+    | "cadsmith"
     | "step"
+    | "stl"
+    | "parts"
+    | "openrocket"
     | "flight"
     | "assembly"
     | "report"
@@ -29,9 +33,9 @@ export interface WatchEvent {
 /** Navigation command sent by the gui_navigate MCP tool. */
 export interface NavigateCommand {
   command: "navigate";
-  panel: string;
-  file: string | null;
+  path: string;
 }
+
 
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -93,5 +97,7 @@ export function useWatchSocket() {
     };
   }, [connect]);
 
-  return { events, connected, offline, navigation };
+  const clearNavigation = useCallback(() => setNavigation(null), []);
+
+  return { events, connected, offline, navigation, clearNavigation };
 }

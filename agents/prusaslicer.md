@@ -14,7 +14,7 @@ description: >
   <example>
   Context: User wants to slice all rocket parts in one go.
   user: 'Slice all the parts'
-  assistant: 'I'll use the prusaslicer agent to slice each STEP file in the parts/step/ directory and write gcode to gcode/.'
+  assistant: 'I'll use the prusaslicer agent to slice each STEP file in the step/ directory and write gcode to gcode/.'
   <commentary>Batch slicing requires calling prusaslicer_slice once per part file.</commentary>
   </example>
   <example>
@@ -132,7 +132,7 @@ Check or install dependencies.
 7. Report gcode paths, print metadata, AND the calibration mapping
 ```
 
-**Critical: always pass `out_path` explicitly to `prusaslicer_slice`.** The default behavior is to write the gcode next to the STEP file (i.e. into `parts/step/`), which is wrong — gcode belongs in `gcode/`. The manifest's `gcode_path` field tells you exactly where each file should go. Use it verbatim.
+**Critical: always pass `out_path` explicitly to `prusaslicer_slice`.** The default behavior is to write the gcode next to the STEP file (i.e. into `step/`), which is wrong — gcode belongs in `gcode/`. The manifest's `gcode_path` field tells you exactly where each file should go. Use it verbatim.
 
 ## Calibration Handoff
 

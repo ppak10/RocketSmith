@@ -1,9 +1,9 @@
 """File-based progress tracking for preview generation.
 
 Each part gets its own progress file at
-``previews/progress/<part_name>.json`` so multiple parts can generate
+``progress/<part_name>.json`` so multiple parts can generate
 previews concurrently without conflicts. The GUI watcher polls the
-``previews/progress/`` directory to display live progress.
+``progress/`` directory to display live progress.
 """
 
 from __future__ import annotations
@@ -18,10 +18,10 @@ PROGRESS_DIR = "progress"
 
 
 class PreviewProgress:
-    """Manages a per-part progress file in previews/progress/."""
+    """Manages a per-part progress file in progress/."""
 
-    def __init__(self, previews_dir: Path, part_name: str, outputs: list[str]) -> None:
-        self._path = previews_dir / PROGRESS_DIR / f"{part_name}.json"
+    def __init__(self, project_dir: Path, part_name: str, outputs: list[str]) -> None:
+        self._path = project_dir / PROGRESS_DIR / f"{part_name}.json"
         self._part_name = part_name
         self._state: dict[str, dict[str, str | None]] = {
             name: {"status": "pending", "path": None} for name in outputs

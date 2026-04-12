@@ -85,7 +85,7 @@ async def test_start_launches_server(tool, tmp_path, monkeypatch):
 
     assert result.success is True
     assert result.data["pid"] > 0
-    assert result.data["url"].startswith("http://127.0.0.1:")
+    assert result.data["server_url"].startswith("http://127.0.0.1:")
     assert result.data["project_dir"] == str(tmp_path)
     assert len(opened) == 1
 
@@ -104,7 +104,7 @@ async def test_start_uses_default_port(tool, tmp_path, monkeypatch):
     result = await tool.fn(action="start", project_dir=str(tmp_path))
 
     assert result.success is True
-    assert result.data["url"] == "http://127.0.0.1:24880"
+    assert result.data["server_url"] == "http://127.0.0.1:24880"
 
     os.kill(result.data["pid"], signal.SIGTERM)
 

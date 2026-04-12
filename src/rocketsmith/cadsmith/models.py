@@ -35,6 +35,7 @@ class Part(QuantityModel):
     """A single part — printed or purchased."""
 
     name: str
+    display_name: str | None = None
     stl_path: str | None = None
     step_path: str | None = None
     brep_path: str | None = None
@@ -49,11 +50,20 @@ class Part(QuantityModel):
     mass: QuantityField | None = None
 
 
-class AssemblyPart(Part):
-    """A part placed in the assembly with position and rotation."""
+class AssemblyPart(QuantityModel):
+    """A part placed in the assembly — references a part JSON file."""
 
+    part_file: str
+    """Relative path to the part JSON (e.g. "parts/nose_cone.json")."""
     position: UnitVector = Field(default_factory=UnitVector)
     rotation: UnitVector = Field(default_factory=lambda: UnitVector.deg())
+    color: str = "#cccccc"
+    invert_z: bool = False
+    """When true, the part is flipped 180° around X so its geometry extends
+    in the negative Z direction from its position."""
+    joint_offset: QuantityField | None = None
+    """Overlap with the previous part (e.g. shoulder insertion depth in mm).
+    Positive means this part overlaps into the previous one."""
 
 
 class Assembly(QuantityModel):

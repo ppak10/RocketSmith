@@ -50,6 +50,7 @@ def register_openrocket_component(app: FastMCP):
         override_mass_kg: float | None = None,
         override_mass_enabled: bool | None = None,
         openrocket_path: Path | None = None,
+        project_dir: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Perform a CRUD operation on a single rocket component in an .ork or .rkt file.
@@ -130,6 +131,9 @@ def register_openrocket_component(app: FastMCP):
             material_name: Material to apply by name (create/update).
             material_type: Restrict material search to 'bulk', 'surface', or 'line'.
             openrocket_path: Optional path to the OpenRocket JAR file.
+            project_dir: Optional project directory. When provided,
+                component_tree.json is automatically regenerated after
+                create, update, or delete operations.
         """
         from rocketsmith.openrocket.components import (
             create_component,
@@ -138,6 +142,22 @@ def register_openrocket_component(app: FastMCP):
             delete_component,
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
+
+        def _regen_tree() -> None:
+            """Regenerate component_tree.json if project_dir is set."""
+            if project_dir is None:
+                return
+            try:
+                from rocketsmith.openrocket.generate_tree import generate_tree
+
+                resolved_project = resolve_path(project_dir)
+                generate_tree(
+                    rocket_file_path=rocket_file_path,
+                    project_dir=resolved_project,
+                    jar_path=openrocket_path,
+                )
+            except Exception:
+                pass  # Best-effort — don't fail the component op
 
         rocket_file_path = resolve_path(rocket_file_path)
         if not rocket_file_path.exists():
@@ -194,6 +214,7 @@ def register_openrocket_component(app: FastMCP):
                     material_type=material_type,
                     **props,
                 )
+                _regen_tree()
                 return tool_success(result)
 
             elif action == "read":
@@ -225,6 +246,7 @@ def register_openrocket_component(app: FastMCP):
                     material_type=material_type,
                     **props,
                 )
+                _regen_tree()
                 return tool_success(result)
 
             elif action == "delete":
@@ -238,6 +260,7 @@ def register_openrocket_component(app: FastMCP):
                     component_name=component_name,
                     jar_path=openrocket_path,
                 )
+                _regen_tree()
                 return tool_success({"deleted": deleted_name})
 
         except FileNotFoundError as e:

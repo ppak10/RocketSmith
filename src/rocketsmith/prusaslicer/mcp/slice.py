@@ -8,7 +8,6 @@ def register_prusaslicer_slice(app: FastMCP):
     from rocketsmith.mcp.types import ToolSuccess, ToolError
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
     from rocketsmith.prusaslicer.models import Material, PrusaSlicerResult
-    from rocketsmith.gui.layout import PARTS_GCODE_DIR
 
     @app.tool(
         title="Slice Model with PrusaSlicer",

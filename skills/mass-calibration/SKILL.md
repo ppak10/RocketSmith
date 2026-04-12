@@ -118,7 +118,17 @@ Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
 
 Apply fixes one at a time. After each fix, re-run `openrocket_flight(action="run")` (the overrides are already in place — you don't need to re-apply them).
 
-### 6. Confirm and Record
+### 6. Regenerate the Component Tree
+
+After all mass overrides are applied and the flight is verified stable, regenerate the component tree so it reflects the calibrated masses:
+
+```
+openrocket_generate_tree(rocket_file_path=<path>, project_dir=<project_dir>)
+```
+
+This updates `component_tree.json` with the new `override_mass` values from the `.ork` file, keeping the component tree in sync with the flight-verified design. The GUI's component tree page and rocket profile will then show the correct calibrated masses.
+
+### 7. Confirm and Record
 
 Once stability is back in range, report the final mass budget to the user:
 

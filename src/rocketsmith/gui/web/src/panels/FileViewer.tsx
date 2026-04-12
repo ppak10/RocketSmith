@@ -28,7 +28,7 @@ export function FileViewer({ file }: FileViewerProps) {
   const filename = file.split("/").pop() ?? file;
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="flex flex-col m-4">
       <CardHeader>
         <CardTitle className="text-sm">{filename}</CardTitle>
         <p className="text-xs text-foreground/50">{file}</p>
