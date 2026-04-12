@@ -14,6 +14,186 @@ logger = logging.getLogger(__name__)
 # Directory containing the built React bundle (compiled into data/gui/).
 _DIST_DIR = Path(__file__).resolve().parent.parent / "data" / "gui"
 
+# Whitelists for the file tree exposed to the GUI.
+_VISIBLE_DIRS = {
+    "openrocket",
+    "cadsmith",
+    "step",
+    "stl",
+    "gcode",
+    "parts",
+    "png",
+    "gif",
+    "txt",
+    "progress",
+    "logs",
+}
+_VISIBLE_ROOT_FILES = {"assembly.json", "component_tree.json"}
+
+FILES_TREE_FILE = "files-tree.json"
+
+
+def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
+    """Build a recursive file tree of the project directory."""
+    entries: list[dict] = []
+    try:
+        items = sorted(root.iterdir(), key=lambda p: (not p.is_dir(), p.name))
+    except OSError:
+        return entries
+    for item in items:
+        if item.name.startswith("."):
+            continue
+        # At the top level, only show whitelisted folders and files.
+        if not rel_prefix:
+            if item.is_dir() and item.name not in _VISIBLE_DIRS:
+                continue
+            if item.is_file() and item.name not in _VISIBLE_ROOT_FILES:
+                continue
+        rel = (
+            f"{rel_prefix}{item.name}"
+            if not rel_prefix
+            else f"{rel_prefix}/{item.name}"
+        )
+        if item.is_dir():
+            children = _build_tree(item, rel)
+            if children:
+                entries.append(
+                    {
+                        "name": item.name,
+                        "type": "directory",
+                        "path": rel,
+                        "children": children,
+                    }
+                )
+        else:
+            entries.append({"name": item.name, "type": "file", "path": rel})
+    return entries
+
+
+def write_files_tree_snapshot(project_dir: Path) -> None:
+    """Write a files-tree.json snapshot for offline GUI use."""
+    tree = _build_tree(project_dir)
+    out = project_dir / FILES_TREE_FILE
+    try:
+        out.write_text(json.dumps(tree))
+    except OSError:
+        logger.debug("Failed to write %s", out)
+
+
+# Text extensions that are safe to inline into the offline data bundle.
+_TEXT_EXTENSIONS = {
+    ".json",
+    ".jsonl",
+    ".md",
+    ".py",
+    ".csv",
+    ".txt",
+    ".ini",
+    ".cfg",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".gcode",
+}
+
+# Binary extensions to base64-encode into the offline bundle.
+_BINARY_EXTENSIONS = {".stl"}
+
+# Max size for a single file to be inlined (500 KB).
+_MAX_INLINE_SIZE = 500_000
+
+
+def _sanitize(obj):
+    """Replace NaN/Infinity floats with None for JSON serialization."""
+    import math
+
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
+
+
+def _collect_offline_files(project_dir: Path, tree: list[dict]) -> dict:
+    """Walk the file tree and read all text/binary files into a dict keyed by relative path.
+
+    Text files are stored as strings (JSON files are parsed + sanitized).
+    Binary files (e.g. STL) are stored as ``{"__b64__": "<base64>"}`` so the
+    frontend can convert them to blob URLs.
+    """
+    import base64
+
+    files: dict = {}
+
+    def _walk(nodes: list[dict]) -> None:
+        for node in nodes:
+            if node["type"] == "directory":
+                _walk(node.get("children", []))
+            else:
+                rel = node["path"]
+                full = project_dir / rel
+                ext = full.suffix.lower()
+                is_text = ext in _TEXT_EXTENSIONS
+                is_binary = ext in _BINARY_EXTENSIONS
+                if not is_text and not is_binary:
+                    continue
+                try:
+                    if full.stat().st_size > _MAX_INLINE_SIZE:
+                        continue
+                except OSError:
+                    continue
+
+                if is_binary:
+                    try:
+                        raw = full.read_bytes()
+                        files[rel] = {"__b64__": base64.b64encode(raw).decode("ascii")}
+                    except OSError:
+                        continue
+                else:
+                    try:
+                        text = full.read_text(errors="replace")
+                    except OSError:
+                        continue
+                    if ext == ".json":
+                        try:
+                            files[rel] = _sanitize(json.loads(text))
+                        except json.JSONDecodeError:
+                            files[rel] = text
+                    else:
+                        files[rel] = text
+
+    _walk(tree)
+    return files
+
+
+def write_offline_data(project_dir: Path) -> None:
+    """Write offline-data.js containing all JSON/text data for file:// use.
+
+    This file is loaded via a <script> tag (which works over file://,
+    unlike fetch) and populates window.__OFFLINE_DATA__.
+    """
+    tree = _build_tree(project_dir)
+    files = _collect_offline_files(project_dir, tree)
+
+    payload = {
+        "filesTree": tree,
+        "projectInfo": {"name": project_dir.name, "path": str(project_dir)},
+        "files": files,
+    }
+
+    js = (
+        "window.__OFFLINE_DATA__ = "
+        + json.dumps(payload, separators=(",", ":"))
+        + ";\n"
+    )
+    out = project_dir / "offline-data.js"
+    try:
+        out.write_text(js)
+    except OSError:
+        logger.debug("Failed to write %s", out)
+
 
 _CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -99,57 +279,9 @@ async def _project_file_handler(request: web.Request) -> web.Response:
 async def _files_tree_handler(request: web.Request) -> web.Response:
     """Return a recursive file tree of the project directory."""
     project_dir: Path = request.app["project_dir"]
-    _VISIBLE_DIRS = {
-        "openrocket",
-        "cadsmith",
-        "step",
-        "stl",
-        "gcode",
-        "parts",
-        "png",
-        "gif",
-        "txt",
-        "progress",
-        "logs",
-    }
-    _VISIBLE_ROOT_FILES = {"assembly.json", "component_tree.json"}
-
-    def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
-        entries: list[dict] = []
-        try:
-            items = sorted(root.iterdir(), key=lambda p: (not p.is_dir(), p.name))
-        except OSError:
-            return entries
-        for item in items:
-            if item.name.startswith("."):
-                continue
-            # At the top level, only show whitelisted folders and files.
-            if not rel_prefix:
-                if item.is_dir() and item.name not in _VISIBLE_DIRS:
-                    continue
-                if item.is_file() and item.name not in _VISIBLE_ROOT_FILES:
-                    continue
-            rel = (
-                f"{rel_prefix}{item.name}"
-                if not rel_prefix
-                else f"{rel_prefix}/{item.name}"
-            )
-            if item.is_dir():
-                children = _build_tree(item, rel)
-                if children:
-                    entries.append(
-                        {
-                            "name": item.name,
-                            "type": "directory",
-                            "path": rel,
-                            "children": children,
-                        }
-                    )
-            else:
-                entries.append({"name": item.name, "type": "file", "path": rel})
-        return entries
-
     tree = _build_tree(project_dir)
+    # Keep the offline snapshot fresh.
+    write_files_tree_snapshot(project_dir)
     return web.json_response(tree)
 
 
@@ -195,6 +327,10 @@ async def _broadcast(app: web.Application, event: dict) -> None:
 async def _start_watcher(app: web.Application) -> None:
     project_dir: Path = app["project_dir"]
 
+    # Write initial snapshots.
+    write_files_tree_snapshot(project_dir)
+    write_offline_data(project_dir)
+
     # Event type labels for the session log.
     _TYPE_VERBS = {
         "openrocket": "Updating design",
@@ -208,8 +344,28 @@ async def _start_watcher(app: web.Application) -> None:
         "preview": "Rendering",
     }
 
+    # Debounced snapshot writer — at most once every 5 seconds.
+    _snapshot_handle: asyncio.TimerHandle | None = None
+
+    async def _write_and_broadcast() -> None:
+        tree = _build_tree(project_dir)
+        write_files_tree_snapshot(project_dir)
+        write_offline_data(project_dir)
+        # Push the updated tree to connected clients so the sidebar refreshes.
+        await _broadcast(app, {"type": "files-tree", "tree": tree})
+
+    def _schedule_snapshot() -> None:
+        nonlocal _snapshot_handle
+        if _snapshot_handle is not None:
+            _snapshot_handle.cancel()
+        loop = asyncio.get_event_loop()
+        _snapshot_handle = loop.call_later(
+            5.0, lambda: asyncio.ensure_future(_write_and_broadcast())
+        )
+
     async def on_change(event: dict) -> None:
         await _broadcast(app, event)
+        _schedule_snapshot()
 
         # Auto-log watcher events to session.jsonl (skip logs/ to avoid loops).
         rel = event.get("relative_path", "")

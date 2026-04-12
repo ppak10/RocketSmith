@@ -1,5 +1,5 @@
 import { Suspense, useRef, useMemo } from "react";
-import { apiBase } from "@/lib/server";
+import { fileUrl, hasOfflineFile } from "@/lib/server";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, Environment, Center } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
@@ -59,7 +59,7 @@ export function StepViewer({ file }: StepViewerProps) {
   const stlPath = file
     .replace(/^step\//, "stl/")
     .replace(/\.step$/i, ".stl");
-  const stlUrl = `${apiBase()}/api/files/${stlPath}`;
+  const stlUrl = fileUrl(stlPath);
   const filename = file.split("/").pop() ?? file;
 
   return (
@@ -69,18 +69,24 @@ export function StepViewer({ file }: StepViewerProps) {
         <p className="text-xs text-foreground/50">{file}</p>
       </CardHeader>
       <CardContent className="flex-1 min-h-0">
-        <div className="h-full w-full rounded-base border-2 border-border bg-secondary-background overflow-hidden">
-          <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[5, 5, 5]} intensity={0.8} />
-            <directionalLight position={[-3, 2, -2]} intensity={0.3} />
-            <Environment preset="studio" />
-            <Suspense fallback={null}>
-              <StlModel url={stlUrl} />
-            </Suspense>
-            <OrbitControls enableDamping dampingFactor={0.1} />
-          </Canvas>
-        </div>
+        {hasOfflineFile(stlPath) ? (
+          <div className="h-full w-full rounded-base border-2 border-border bg-secondary-background overflow-hidden">
+            <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+              <ambientLight intensity={0.4} />
+              <directionalLight position={[5, 5, 5]} intensity={0.8} />
+              <directionalLight position={[-3, 2, -2]} intensity={0.3} />
+              <Environment preset="studio" />
+              <Suspense fallback={null}>
+                <StlModel url={stlUrl} />
+              </Suspense>
+              <OrbitControls enableDamping dampingFactor={0.1} />
+            </Canvas>
+          </div>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center rounded-base border-2 border-border bg-secondary-background">
+            <p className="text-sm text-foreground/40">STL not available</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

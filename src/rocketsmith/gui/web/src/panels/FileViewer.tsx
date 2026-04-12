@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fetchText } from "@/lib/server";
 import {
   Card,
   CardHeader,
@@ -19,9 +19,11 @@ export function FileViewer({ file }: FileViewerProps) {
     setContent(null);
     setError(false);
 
-    fetch(`${apiBase()}/api/files/${file}`)
-      .then((r) => (r.ok ? r.text() : Promise.reject()))
-      .then(setContent)
+    fetchText(file)
+      .then((text) => {
+        if (text !== null) setContent(text);
+        else setError(true);
+      })
       .catch(() => setError(true));
   }, [file]);
 

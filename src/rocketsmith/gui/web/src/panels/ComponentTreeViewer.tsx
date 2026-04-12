@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fetchJson, getOfflineFilesTree } from "@/lib/server";
 import { CircleDot, CirclePlus } from "lucide-react";
 import { RocketProfile } from "@/components/RocketProfile";
 import type { Stage, ComponentNode } from "@/components/RocketProfile";
@@ -114,8 +114,7 @@ export function ComponentTreeViewer() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${apiBase()}/api/files/component_tree.json`)
-      .then((r) => (r.ok ? r.json() : null))
+    fetchJson<ComponentTree>("component_tree.json")
       .then((data) => {
         setTree(data);
         setLoading(false);
@@ -125,16 +124,14 @@ export function ComponentTreeViewer() {
     // Fetch CG/CP from the first available flight JSON.
     (async () => {
       try {
-        const treeRes = await fetch(`${apiBase()}/api/files-tree`);
-        const fileTree = await treeRes.json();
+        const fileTree = (getOfflineFilesTree() as any[]) ?? [];
         const orDir = fileTree.find((n: any) => n.name === "openrocket");
         const flightsDir = orDir?.children?.find((n: any) => n.name === "flights");
         const flightFile = flightsDir?.children?.find((n: any) => n.name.endsWith(".json"));
         if (!flightFile) return;
 
-        const flightRes = await fetch(`${apiBase()}/api/files/${flightFile.path}`);
-        if (!flightRes.ok) return;
-        const flight = await flightRes.json();
+        const flight = await fetchJson<any>(flightFile.path);
+        if (!flight) return;
         if (!flight?.timeseries) return;
 
         const cg = flight.timeseries.TYPE_CG_LOCATION as number[];

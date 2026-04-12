@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { apiBase } from "@/lib/server";
-import type { WatchEvent } from "./useWatchSocket";
+import { useEffect, useState } from "react";
+import { getOfflineFilesTree } from "@/lib/server";
 
 export interface FileNode {
   name: string;
@@ -10,30 +9,16 @@ export interface FileNode {
 }
 
 /**
- * Fetches the project file tree from the server.
- * Re-fetches when file events arrive (debounced).
+ * Returns the project file tree from the offline data bundle.
+ * Re-reads when `treeVersion` bumps (server pushed a tree update over WS).
  */
-export function useFileTree(events: WatchEvent[]): FileNode[] {
+export function useFileTree(treeVersion: number): FileNode[] {
   const [tree, setTree] = useState<FileNode[]>([]);
 
-  const fetchTree = useCallback(() => {
-    fetch(`${apiBase()}/api/files-tree`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setTree)
-      .catch(() => {});
-  }, []);
-
-  // Fetch on mount.
   useEffect(() => {
-    fetchTree();
-  }, [fetchTree]);
-
-  // Re-fetch when events arrive (debounced to avoid spamming).
-  useEffect(() => {
-    if (events.length === 0) return;
-    const timer = setTimeout(fetchTree, 1000);
-    return () => clearTimeout(timer);
-  }, [events.length, fetchTree]);
+    const data = getOfflineFilesTree();
+    if (data) setTree(data as FileNode[]);
+  }, [treeVersion]);
 
   return tree;
 }

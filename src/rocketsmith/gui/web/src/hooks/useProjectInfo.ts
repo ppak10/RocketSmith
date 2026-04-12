@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { useState, useEffect } from "react";
+import { getOfflineProjectInfo } from "@/lib/server";
 
 interface ProjectInfo {
   /** Just the directory name, e.g. "v12" */
@@ -9,21 +9,22 @@ interface ProjectInfo {
 }
 
 /**
- * Fetches the project directory from the server.
- * Returns null in offline mode or if the fetch fails.
+ * Returns the project info from the offline data bundle.
  */
 export function useProjectInfo(): ProjectInfo | null {
   const [info, setInfo] = useState<ProjectInfo | null>(null);
 
   useEffect(() => {
-    fetch(`${apiBase()}/api/project-info`)
-      .then((r) => r.json())
-      .then((data: { project_dir: string }) => {
-        const parts = data.project_dir.split("/");
-        const name = parts[parts.length - 1] || data.project_dir;
-        setInfo({ name, path: data.project_dir });
-      })
-      .catch(() => {});
+    const offline = getOfflineProjectInfo();
+    if (offline) {
+      setInfo(offline);
+    } else {
+      // Fallback: infer from URL path.
+      const segments = window.location.pathname.split("/").filter(Boolean);
+      const dirName =
+        segments.length >= 2 ? segments[segments.length - 2] : "Project";
+      setInfo({ name: dirName, path: window.location.pathname });
+    }
   }, []);
 
   return info;

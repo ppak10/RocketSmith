@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fetchJson } from "@/lib/server";
 import {
   LineChart,
   Line,
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/chart";
 import { useFileTree } from "@/hooks/useFileTree";
 import type { FileNode } from "@/hooks/useFileTree";
-import type { WatchEvent } from "@/hooks/useWatchSocket";
+
 
 interface FlightData {
   flight_name: string;
@@ -60,7 +60,7 @@ const CHARTS = [
 ];
 
 interface FlightViewerProps {
-  events: WatchEvent[];
+  treeVersion: number;
 }
 
 /** Walk the file tree to find flight JSONs under openrocket/flights/ or openrocket/simulations/. */
@@ -87,8 +87,8 @@ function findFlightFiles(
   return paths.sort();
 }
 
-export function FlightViewer({ events }: FlightViewerProps) {
-  const fileTree = useFileTree(events);
+export function FlightViewer({ treeVersion }: FlightViewerProps) {
+  const fileTree = useFileTree(treeVersion);
   const [simulations, setSimulations] = useState<FlightData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSim, setActiveSim] = useState("");
@@ -105,12 +105,10 @@ export function FlightViewer({ events }: FlightViewerProps) {
 
     Promise.all(
       simFiles.map((path) =>
-        fetch(`${apiBase()}/api/files/${path}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
+        fetchJson<Record<string, unknown>>(path),
       ),
     ).then((results) => {
-      const valid = results.filter(Boolean).map(normalizeFlightData);
+      const valid = (results.filter(Boolean) as Record<string, unknown>[]).map(normalizeFlightData);
       setSimulations(valid);
       if (valid.length > 0) setActiveSim(valid[0].flight_name);
       setLoading(false);

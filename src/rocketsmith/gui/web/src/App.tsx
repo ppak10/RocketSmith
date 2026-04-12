@@ -10,7 +10,7 @@ import { ComponentTreeViewer } from "@/panels/ComponentTreeViewer";
 import { PartViewer } from "@/panels/PartViewer";
 
 export function App() {
-  const { events, connected, offline, navigation, clearNavigation } = useWatchSocket();
+  const { events, connected, offline, navigation, clearNavigation, treeVersion } = useWatchSocket();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -37,11 +37,12 @@ export function App() {
                 onToggleTheme={() => setDark((d) => !d)}
                 navigation={navigation}
                 clearNavigation={clearNavigation}
+                treeVersion={treeVersion}
               />
             }
           >
-            <Route index element={<ActiveView events={events} offline={offline} />} />
-            <Route path="flights" element={<FlightViewer events={events} />} />
+            <Route index element={<ActiveView events={events} offline={offline} treeVersion={treeVersion} />} />
+            <Route path="flights" element={<FlightViewer treeVersion={treeVersion} />} />
             <Route path="component-tree" element={<ComponentTreeViewer />} />
             <Route path="assembly" element={<AssemblyViewer />} />
             <Route path="parts/*" element={<PartViewerRoute />} />

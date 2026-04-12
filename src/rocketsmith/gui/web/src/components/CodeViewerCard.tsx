@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fetchText } from "@/lib/server";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface DiffLine {
@@ -57,8 +57,7 @@ export function CodeViewerCard({
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${apiBase()}/api/files/${file}`)
-      .then((r) => (r.ok ? r.text() : null))
+    fetchText(file)
       .then((text) => {
         setContent(text);
         setLoading(false);

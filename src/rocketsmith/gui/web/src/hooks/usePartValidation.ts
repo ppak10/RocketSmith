@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fetchJson } from "@/lib/server";
 
 export interface PartDeviation {
   partName: string;
@@ -50,9 +50,8 @@ export function usePartValidation() {
     (async () => {
       try {
         // Fetch component tree.
-        const treeRes = await fetch(`${apiBase()}/api/files/component_tree.json`);
-        if (!treeRes.ok) { setLoading(false); return; }
-        const tree: ComponentTreeData = await treeRes.json();
+        const tree = await fetchJson<ComponentTreeData>("component_tree.json");
+        if (!tree) { setLoading(false); return; }
 
         // Collect printed components with step paths.
         const printed: ComponentData[] = [];
@@ -69,9 +68,8 @@ export function usePartValidation() {
 
         for (const comp of printed) {
           const stem = comp.name.toLowerCase().replace(/\s+/g, "_");
-          const partRes = await fetch(`${apiBase()}/api/files/parts/${stem}.json`);
-          if (!partRes.ok) continue;
-          const part = await partRes.json();
+          const part = await fetchJson<Record<string, any>>(`parts/${stem}.json`);
+          if (!part) continue;
 
           if (!part.bounding_box) continue;
 

@@ -1,6 +1,6 @@
 import { Suspense, useMemo, useState } from "react";
 import { CanvasErrorBoundary } from "@/components/CanvasErrorBoundary";
-import { apiBase } from "@/lib/server";
+import { fileUrl, hasOfflineFile } from "@/lib/server";
 import { Canvas, useLoader } from "@react-three/fiber";
 import { TrackballControls, Environment, Center, Edges } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
@@ -85,8 +85,17 @@ interface Part3DViewerCardProps {
 }
 
 export function Part3DViewerCard({ partName }: Part3DViewerCardProps) {
-  const stlUrl = `${apiBase()}/api/files/stl/${partName}.stl`;
+  const stlPath = `stl/${partName}.stl`;
+  const stlUrl = fileUrl(stlPath);
   const [mode, setMode] = useState<DisplayMode>("shaded");
+
+  if (!hasOfflineFile(stlPath)) {
+    return (
+      <Card className="h-[500px] flex flex-col items-center justify-center">
+        <p className="text-sm text-foreground/40">STL not available</p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-[500px] flex flex-col py-0 gap-0 relative">

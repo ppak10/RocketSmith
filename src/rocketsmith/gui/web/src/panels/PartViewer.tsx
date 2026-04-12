@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fetchJson } from "@/lib/server";
 import {
   Card,
   CardHeader,
@@ -80,8 +80,7 @@ export function PartViewer({ file }: PartViewerProps) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${apiBase()}/api/files/${file}`)
-      .then((r) => (r.ok ? r.json() : null))
+    fetchJson<PartData>(file)
       .then((data) => {
         setPart(data);
         setLoading(false);

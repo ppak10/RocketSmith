@@ -116,6 +116,12 @@ def register_gui_server(app: FastMCP):
                 shutil.copy2(src_file, dst)
                 copied_files.append(src_file.name)
 
+        # Write offline data snapshots for file:// mode.
+        from rocketsmith.gui.server import write_files_tree_snapshot, write_offline_data
+
+        write_files_tree_snapshot(resolved)
+        write_offline_data(resolved)
+
         bind_host = host if host is not None else DEFAULT_HOST
         bind_port = port if port is not None else DEFAULT_PORT
 

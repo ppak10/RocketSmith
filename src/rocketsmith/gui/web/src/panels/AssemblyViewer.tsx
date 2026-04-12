@@ -1,5 +1,5 @@
 import { useEffect, useState, Suspense, useMemo } from "react";
-import { apiBase } from "@/lib/server";
+import { fileUrl, fetchJson, hasOfflineFile } from "@/lib/server";
 import { Canvas, useLoader } from "@react-three/fiber";
 import { TrackballControls, Environment, Center, Edges, GizmoHelper, GizmoViewport } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
@@ -92,9 +92,8 @@ export function AssemblyViewer() {
   // Load assembly.json.
   useEffect(() => {
     setLoading(true);
-    fetch(`${apiBase()}/api/files/assembly.json`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: AssemblyData | null) => {
+    fetchJson<AssemblyData>("assembly.json")
+      .then((data) => {
         setAssembly(data);
         setLoading(false);
       })
@@ -108,25 +107,16 @@ export function AssemblyViewer() {
     Promise.all(
       assembly.parts.map(async (ref) => {
         // Fetch part JSON.
-        let data: PartData | null = null;
-        try {
-          const r = await fetch(`${apiBase()}/api/files/${ref.part_file}`);
-          if (r.ok) data = await r.json();
-        } catch {}
+        const data = await fetchJson<PartData>(ref.part_file);
 
         // Derive STL URL from part data or part_file stem.
         const stem = ref.part_file.replace(/^parts\//, "").replace(/\.json$/, "");
         const stlPath = data?.stl_path
           ? data.stl_path
           : `stl/${stem}.stl`;
-        const stlUrl = `${apiBase()}/api/files/${stlPath}`;
+        const stlUrl = fileUrl(stlPath);
 
-        // Probe if STL exists.
-        let stlAvailable = false;
-        try {
-          const r = await fetch(stlUrl, { method: "HEAD" });
-          stlAvailable = r.ok;
-        } catch {}
+        const stlAvailable = hasOfflineFile(stlPath);
 
         return {
           ref,

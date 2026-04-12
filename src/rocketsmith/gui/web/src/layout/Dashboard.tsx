@@ -10,7 +10,8 @@ import {
   Network,
 } from "lucide-react";
 import type { WatchEvent, NavigateCommand } from "../hooks/useWatchSocket";
-import { apiBase } from "@/lib/server";
+import { fetchJson } from "@/lib/server";
+
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -37,6 +38,7 @@ interface DashboardProps {
   onToggleTheme: () => void;
   navigation: NavigateCommand | null;
   clearNavigation: () => void;
+  treeVersion: number;
 }
 
 const NAV_ITEMS = [
@@ -90,11 +92,12 @@ export function Dashboard({
   onToggleTheme,
   navigation,
   clearNavigation,
+  treeVersion,
 }: DashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const project = useProjectInfo();
-  const fileTree = useFileTree(events);
+  const fileTree = useFileTree(treeVersion);
 
   // Find part JSON files under parts/ and fetch display names.
   const partFileNodes = useMemo(() => {
@@ -110,11 +113,7 @@ export function Dashboard({
   useEffect(() => {
     if (partFileNodes.length === 0) return;
     Promise.all(
-      partFileNodes.map((pf) =>
-        fetch(`${apiBase()}/api/files/${pf.path}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
-      ),
+      partFileNodes.map((pf) => fetchJson<Record<string, any>>(pf.path)),
     ).then((results) => {
       const names: Record<string, string> = {};
       results.forEach((data, i) => {

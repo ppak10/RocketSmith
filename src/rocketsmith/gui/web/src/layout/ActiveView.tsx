@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useRef, useMemo, useState } from "react";
-import { apiBase } from "@/lib/server";
+import { fileUrl, fetchJson, fetchText, hasOfflineFile } from "@/lib/server";
 import {
   Box,
   LineChart,
@@ -31,6 +31,7 @@ import type { FileNode } from "@/hooks/useFileTree";
 interface ActiveViewProps {
   events: WatchEvent[];
   offline: boolean;
+  treeVersion: number;
 }
 
 const TYPE_META: Record<
@@ -181,7 +182,11 @@ function PartModel({ url }: { url: string }) {
 }
 
 function PartPreview3D({ stem }: { stem: string }) {
-  const meshUrl = `${apiBase()}/api/files/stl/${stem}.stl`;
+  const stlPath = `stl/${stem}.stl`;
+  if (!hasOfflineFile(stlPath)) {
+    return <PreviewPlaceholder text="STL not available" />;
+  }
+  const meshUrl = fileUrl(stlPath);
 
   return (
     <div className="h-64 w-full rounded-base border-2 border-border bg-secondary-background overflow-hidden">
@@ -285,11 +290,11 @@ function PreviewPlaceholder({ text }: { text?: string }) {
 }
 
 function ActivePreview({ event }: { event: WatchEvent }) {
-  const fileUrl = `${apiBase()}/api/files/${event.relative_path}`;
+  const eventFileUrl = fileUrl(event.relative_path);
   const name = getFilename(event.path);
 
   if (isImageFile(event.path)) {
-    return <ImagePreview fileUrl={fileUrl} name={name} />;
+    return <ImagePreview fileUrl={eventFileUrl} name={name} />;
   }
   if (event.content !== null) {
     return (
@@ -374,8 +379,8 @@ function findProgressFiles(tree: FileNode[]): string[] {
   return paths.sort();
 }
 
-function useProgressData(events: WatchEvent[]) {
-  const fileTree = useFileTree(events);
+function useProgressData(treeVersion: number) {
+  const fileTree = useFileTree(treeVersion);
   const [progress, setProgress] = useState<PartProgress[]>([]);
 
   const fetchProgress = useCallback(() => {
@@ -384,13 +389,9 @@ function useProgressData(events: WatchEvent[]) {
       setProgress([]);
       return;
     }
-    Promise.all(
-      files.map((p) =>
-        fetch(`${apiBase()}/api/files/${p}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
-      ),
-    ).then((results) => setProgress(results.filter(Boolean)));
+    Promise.all(files.map((p) => fetchJson<PartProgress>(p))).then((results) =>
+      setProgress(results.filter(Boolean) as PartProgress[]),
+    );
   }, [fileTree]);
 
   useEffect(() => {
@@ -545,15 +546,14 @@ function SessionLogCard({ logs }: { logs: LogEntry[] }) {
 
 // ── Main view ───────────────────────────────────────────────────────────────
 
-export function ActiveView({ events, offline }: ActiveViewProps) {
+export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
   const asciiFrame = useRotatingAscii();
-  const progressData = useProgressData(events);
+  const progressData = useProgressData(treeVersion);
 
   // Historical logs from file + live logs from events.
   const [historicalLogs, setHistoricalLogs] = useState<LogEntry[]>([]);
   useEffect(() => {
-    fetch(`${apiBase()}/api/files/logs/session.jsonl`)
-      .then((r) => (r.ok ? r.text() : ""))
+    fetchText("logs/session.jsonl")
       .then((text) => {
         if (!text) return;
         const entries = text
@@ -595,7 +595,8 @@ export function ActiveView({ events, offline }: ActiveViewProps) {
     };
   }, [events]);
 
-  if (offline || (events.length === 0 && sessionLogs.length === 0)) {
+  // Show waiting placeholder only when online with no activity yet.
+  if (!offline && events.length === 0 && sessionLogs.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="relative inline-flex items-center justify-center">
@@ -604,13 +605,9 @@ export function ActiveView({ events, offline }: ActiveViewProps) {
           </pre>
           <div className="absolute inset-0 flex items-start justify-center">
             <Alert className="w-auto">
-              <AlertTitle>
-                {offline ? "Offline mode" : "Waiting for activity..."}
-              </AlertTitle>
+              <AlertTitle>Waiting for activity...</AlertTitle>
               <AlertDescription>
-                {offline
-                  ? "Start the GUI server to enable live updates"
-                  : "The agent hasn't started yet"}
+                The agent hasn&apos;t started yet
               </AlertDescription>
             </Alert>
           </div>
@@ -630,6 +627,17 @@ export function ActiveView({ events, offline }: ActiveViewProps) {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      {/* Offline info banner (non-blocking) */}
+      {offline && (
+        <Alert className="w-full">
+          <AlertTitle>Offline mode</AlertTitle>
+          <AlertDescription>
+            Showing previously generated data. Start the GUI server for live
+            updates.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Active operation */}
       {latestIsPart && partGroups.length > 0 ? (
         <ActivePartCard group={partGroups[0]} />
@@ -694,10 +702,7 @@ function ComponentTreePreview() {
   const [treeData, setTreeData] = useState<any | null>(null);
 
   useEffect(() => {
-    fetch(`${apiBase()}/api/files/component_tree.json`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setTreeData(data))
-      .catch(() => {});
+    fetchJson("component_tree.json").then((data) => setTreeData(data));
   }, []);
 
   if (!treeData?.stages) return null;

@@ -14,7 +14,11 @@ function fileProtocolCompat() {
     transformIndexHtml(html: string) {
       return html
         .replace(/ type="module"/g, " defer")
-        .replace(/ crossorigin/g, "");
+        .replace(/ crossorigin/g, "")
+        .replace(
+          "<script defer",
+          '<script defer src="./offline-data.js"></script>\n    <script defer',
+        );
     },
   };
 }
