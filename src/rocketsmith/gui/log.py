@@ -1,6 +1,6 @@
 """File-based logging for the GUI session log.
 
-Appends JSONL entries to ``logs/session.jsonl`` inside the project
+Appends JSONL entries to ``gui/logs/session.jsonl`` inside the project
 directory.  The GUI watcher picks up changes and the frontend reads
 the file to display the log history.
 

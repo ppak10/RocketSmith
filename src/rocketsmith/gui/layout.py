@@ -6,23 +6,35 @@ an explicit ``out_path`` parameter.
 """
 
 OPENROCKET_DIR = "openrocket"
-TREE_FILE = "component_tree.json"
-ASSEMBLY_FILE = "assembly.json"
 
-# Top-level format directories.
-CADSMITH_DIR = "cadsmith"
-STEP_DIR = "step"
-STL_DIR = "stl"
-GCODE_DIR = "gcode"
+# GUI directory — holds the frontend bundle, data snapshot, and derived data.
+GUI_DIR = "gui"
+GUI_ASSETS_DIR = "gui/assets"
+TREE_FILE = "gui/component_tree.json"
+ASSEMBLY_FILE = "gui/assembly.json"
+GUI_PID_FILE = "gui/.gui.pid"
+GUI_MAIN_JS = "gui/main.js"
+GUI_DATA_JS = "gui/data.js"
 
 # Per-part JSON metadata directory.
-PARTS_DIR = "parts"
+PARTS_DIR = "gui/parts"
 
-# Preview format directories (top-level).
-PNG_DIR = "png"
-GIF_DIR = "gif"
-TXT_DIR = "txt"
-PROGRESS_DIR = "progress"
+# Preview format directories (under gui/assets/).
+PNG_DIR = "gui/assets/png"
+GIF_DIR = "gui/assets/gif"
+TXT_DIR = "gui/assets/txt"
+PROGRESS_DIR = "gui/progress"
 
 # Logs directory for agentic session logs.
-LOGS_DIR = "logs"
+LOGS_DIR = "gui/logs"
+
+# CAD directories — scripts, geometry, and meshes.
+CADSMITH_DIR = "cadsmith"
+CADSMITH_SOURCE_DIR = "cadsmith/source"
+STEP_DIR = "cadsmith/step"
+STL_DIR = "cadsmith/stl"
+
+# Slicer directories — configs and output.
+PRUSASLICER_DIR = "prusaslicer"
+PRUSASLICER_CONFIG_DIR = "prusaslicer/config"
+GCODE_DIR = "prusaslicer/gcode"

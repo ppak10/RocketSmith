@@ -188,7 +188,7 @@ class ComponentTree(BaseModel):
 
     Generated from an OpenRocket .ork file, annotated by the manufacturing
     agent, and consumed by the cadsmith agent to produce CAD.
-    Written to ``<project_root>/component_tree.json``.
+    Written to ``<project_root>/gui/component_tree.json``.
     """
 
     schema_version: int = 1

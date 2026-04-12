@@ -46,7 +46,9 @@ def register_manufacturing_annotate_tree(app: FastMCP):
         from rocketsmith.manufacturing.dfam import annotate_dfam
 
         project_dir = resolve_path(project_dir)
-        tree_path = project_dir / "component_tree.json"
+        from rocketsmith.gui.layout import TREE_FILE
+
+        tree_path = project_dir / TREE_FILE
 
         if not tree_path.exists():
             return tool_error(

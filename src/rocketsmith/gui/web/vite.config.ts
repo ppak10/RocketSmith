@@ -15,9 +15,10 @@ function fileProtocolCompat() {
       return html
         .replace(/ type="module"/g, " defer")
         .replace(/ crossorigin/g, "")
+        .replace('src="./main.js"', 'src="./gui/main.js"')
         .replace(
           "<script defer",
-          '<script defer src="./offline-data.js"></script>\n    <script defer',
+          '<script defer src="./gui/data.js"></script>\n    <script defer',
         );
     },
   };

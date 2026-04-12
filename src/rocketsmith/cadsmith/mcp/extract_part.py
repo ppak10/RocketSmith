@@ -39,7 +39,7 @@ def register_cadsmith_extract_part(app: FastMCP):
             display_name: Optional human-readable name for the part
                 (e.g. "Nose Cone"). Falls back to the filename stem.
             project_dir: Optional project directory. When provided, saves
-                the part JSON to <project_dir>/parts/<name>.json.
+                the part JSON to <project_dir>/gui/parts/<name>.json.
         """
         from rocketsmith.cadsmith.extract_part import extract_part
 
@@ -66,10 +66,12 @@ def register_cadsmith_extract_part(app: FastMCP):
                 display_name=display_name,
             )
 
-            # Write part JSON to parts/<name>.json if project_dir is given.
+            # Write part JSON to gui/parts/<name>.json if project_dir is given.
             if project_dir is not None:
+                from rocketsmith.gui.layout import PARTS_DIR
+
                 resolved_dir = resolve_path(project_dir)
-                parts_dir = resolved_dir / "parts"
+                parts_dir = resolved_dir / PARTS_DIR
                 parts_dir.mkdir(parents=True, exist_ok=True)
                 out_path = parts_dir / f"{file_path.stem}.json"
                 out_path.write_text(part.model_dump_json(indent=2), encoding="utf-8")

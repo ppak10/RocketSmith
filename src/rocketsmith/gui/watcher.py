@@ -8,6 +8,7 @@ from typing import Callable, Awaitable, Optional
 from rocketsmith.gui.layout import (
     OPENROCKET_DIR,
     CADSMITH_DIR,
+    CADSMITH_SOURCE_DIR,
     STEP_DIR,
     STL_DIR,
     GCODE_DIR,
@@ -19,22 +20,26 @@ from rocketsmith.gui.layout import (
     LOGS_DIR,
     TREE_FILE,
     ASSEMBLY_FILE,
+    PRUSASLICER_DIR,
 )
 
-# Map layout directory names to event types.
-_DIR_MAP: dict[str, str] = {
-    OPENROCKET_DIR: "openrocket",
-    CADSMITH_DIR: "cadsmith",
-    STEP_DIR: "step",
-    STL_DIR: "stl",
-    GCODE_DIR: "gcode",
-    PARTS_DIR: "parts",
-    PNG_DIR: "preview",
-    GIF_DIR: "preview",
-    TXT_DIR: "preview",
-    PROGRESS_DIR: "preview",
-    LOGS_DIR: "log",
-}
+# Map layout directory prefixes to event types.
+# Order matters — more specific prefixes must come first.
+_PREFIX_MAP: list[tuple[str, str]] = [
+    (CADSMITH_SOURCE_DIR, "cadsmith"),
+    (STEP_DIR, "step"),
+    (STL_DIR, "stl"),
+    (GCODE_DIR, "gcode"),
+    (PARTS_DIR, "parts"),
+    (PNG_DIR, "preview"),
+    (GIF_DIR, "preview"),
+    (TXT_DIR, "preview"),
+    (PROGRESS_DIR, "preview"),
+    (LOGS_DIR, "log"),
+    (OPENROCKET_DIR, "openrocket"),
+    (CADSMITH_DIR, "cadsmith"),
+    (PRUSASLICER_DIR, "prusaslicer"),
+]
 
 # Fallback: classify by extension when the file is not in a known directory.
 _EXT_MAP: dict[str, str] = {
@@ -72,23 +77,29 @@ POLL_INTERVAL_S = 1.0
 IGNORED_FILES: set[str] = {
     ".gui.pid",
     "settings.local.json",
+    "data.js",
+    "files-tree.json",
+    "index.html",
+    "main.js",
+    "session.jsonl",
 }
 
 
 def _classify(path: Path, root: Path) -> str:
     """Return the event type for a file based on its location or extension."""
-    if path.name == TREE_FILE and path.parent == root:
+    try:
+        rel = str(path.relative_to(root))
+    except ValueError:
+        return _EXT_MAP.get(path.suffix.lower(), "unknown")
+
+    if rel == TREE_FILE:
         return "manifest"
-    if path.name == ASSEMBLY_FILE and path.parent == root:
+    if rel == ASSEMBLY_FILE:
         return "assembly"
 
-    try:
-        rel = path.relative_to(root)
-        top_dir = rel.parts[0] if rel.parts else ""
-        if top_dir in _DIR_MAP:
-            return _DIR_MAP[top_dir]
-    except ValueError:
-        pass
+    for prefix, event_type in _PREFIX_MAP:
+        if rel.startswith(prefix + "/") or rel == prefix:
+            return event_type
 
     return _EXT_MAP.get(path.suffix.lower(), "unknown")
 

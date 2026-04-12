@@ -27,9 +27,9 @@ def register_prusaslicer_slice(app: FastMCP):
         Args:
             model_file_path: Path to the input model file (.stl, .step, .3mf, .obj).
             out_path: Path to save the .gcode output. When omitted and the model
-                      lives in the ``step/`` directory, gcode is written to the
-                      sibling ``gcode/`` directory. Otherwise defaults to the
-                      same directory as the model with a .gcode extension.
+                      lives in the ``cadsmith/step/`` directory, gcode is written
+                      to ``prusaslicer/gcode/``. Otherwise defaults to the same
+                      directory as the model with a .gcode extension.
             config_path: Optional path to a PrusaSlicer .ini config file to load.
             prusaslicer_path: Optional path to the PrusaSlicer executable.
             material: Filament material for weight calculation (pla, petg, abs).
@@ -52,11 +52,12 @@ def register_prusaslicer_slice(app: FastMCP):
 
         if out_path is not None:
             output_path = out_path
-        elif (
-            model_file_path.parent.name == "step"
-            and model_file_path.parent.parent.name == "parts"
-        ):
-            gcode_dir = model_file_path.parent.parent / "gcode"
+        elif model_file_path.parent.name == "step":
+            # step/ lives under cadsmith/; gcode/ lives under prusaslicer/
+            from rocketsmith.gui.layout import GCODE_DIR
+
+            project_root = model_file_path.parent.parent.parent
+            gcode_dir = project_root / GCODE_DIR
             gcode_dir.mkdir(parents=True, exist_ok=True)
             output_path = gcode_dir / (model_file_path.stem + ".gcode")
         else:

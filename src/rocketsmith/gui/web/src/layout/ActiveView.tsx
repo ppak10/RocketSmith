@@ -52,9 +52,9 @@ const TYPE_META: Record<
   unknown: { icon: Cog, label: "FILE", verb: "Processing" },
 };
 
-/** Top-level format directories we track for grouped badges. */
-const FORMAT_DIRS = new Set(["cadsmith", "step", "stl", "gcode"]);
-const PART_FORMATS = ["cadsmith", "step", "stl", "png", "gif"] as const;
+/** Format directory prefixes we track for grouped badges. */
+const FORMAT_DIRS = new Set(["cadsmith/source", "cadsmith/step", "cadsmith/stl", "prusaslicer/gcode"]);
+const PART_FORMATS = ["cadsmith/source", "cadsmith/step", "cadsmith/stl", "gui/assets/png", "gui/assets/gif"] as const;
 
 /** Text extensions for diff preview. */
 const TEXT_EXTENSIONS = new Set([
@@ -94,13 +94,14 @@ function timeAgo(timestamp: string): string {
 }
 
 /**
- * Check if an event is a part file (lives under a top-level format dir).
- * Returns the format directory name or null.
+ * Check if an event is a part file (lives under a known format dir).
+ * Returns the matching format directory prefix or null.
  */
 function getPartFormat(event: WatchEvent): string | null {
   const rel = event.relative_path;
-  const topDir = rel.split("/")[0];
-  if (FORMAT_DIRS.has(topDir)) return topDir;
+  for (const prefix of FORMAT_DIRS) {
+    if (rel.startsWith(prefix + "/")) return prefix;
+  }
   return null;
 }
 
@@ -314,7 +315,7 @@ function ActivePreview({ event }: { event: WatchEvent }) {
 // ── Active part card (grouped) ──────────────────────────────────────────────
 
 function ActivePartCard({ group }: { group: PartGroup }) {
-  const hasStl = group.formats.has("stl");
+  const hasStl = group.formats.has("cadsmith/stl");
 
   return (
     <Card className="border-main">

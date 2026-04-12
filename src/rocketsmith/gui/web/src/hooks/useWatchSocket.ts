@@ -19,7 +19,10 @@ export interface WatchEvent {
     | "report"
     | "manifest"
     | "image"
+    | "preview"
+    | "log"
     | "gcode"
+    | "prusaslicer"
     | "script"
     | "unknown";
   /** Absolute path to the changed file. */

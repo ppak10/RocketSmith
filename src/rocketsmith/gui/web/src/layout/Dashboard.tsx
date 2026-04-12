@@ -42,7 +42,7 @@ interface DashboardProps {
 }
 
 const NAV_ITEMS = [
-  { id: "/", title: "Live", icon: Activity, requiresFile: null },
+  { id: "/", title: "Agent Feed", icon: Activity, requiresFile: null },
   {
     id: "/component-tree",
     title: "Component Tree",
@@ -65,7 +65,7 @@ const NAV_ITEMS = [
 
 /** Map router paths to display titles. */
 const PATH_TITLES: Record<string, string> = {
-  "/": "Live",
+  "/": "Agent Feed",
   "/flights": "Flights",
   "/component-tree": "Component Tree",
   "/assembly": "Assembly",
@@ -101,7 +101,9 @@ export function Dashboard({
 
   // Find part JSON files under parts/ and fetch display names.
   const partFileNodes = useMemo(() => {
-    const partsNode = fileTree.find((n) => n.name === "parts" && n.type === "directory");
+    // parts/ is now at gui/parts/ — find the gui node first, then parts inside it.
+    const guiNode = fileTree.find((n) => n.name === "gui" && n.type === "directory");
+    const partsNode = guiNode?.children?.find((n: any) => n.name === "parts" && n.type === "directory");
     if (!partsNode?.children) return [];
     return partsNode.children
       .filter((n) => n.type === "file" && n.name.endsWith(".json"))
@@ -160,7 +162,7 @@ export function Dashboard({
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>
-              {project ? project.name : "Panels"}
+              {project.name}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>

@@ -54,7 +54,7 @@ class AssemblyPart(QuantityModel):
     """A part placed in the assembly — references a part JSON file."""
 
     part_file: str
-    """Relative path to the part JSON (e.g. "parts/nose_cone.json")."""
+    """Relative path to the part JSON (e.g. "gui/parts/nose_cone.json")."""
     position: UnitVector = Field(default_factory=UnitVector)
     rotation: UnitVector = Field(default_factory=lambda: UnitVector.deg())
     color: str = "#cccccc"

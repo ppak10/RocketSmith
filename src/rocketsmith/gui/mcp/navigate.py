@@ -24,11 +24,11 @@ def register_gui_navigate(app: FastMCP):
 
         Args:
             path: Route path to navigate to. Examples:
-                "/" — Live page
+                "/" — Agent Feed
                 "/flights" — Flight viewer
                 "/component-tree" — Component tree
                 "/assembly" — Assembly viewer
-                "/parts/nose_cone.json" — Part detail page
+                "/gui/parts/nose_cone.json" — Part detail page
         """
         import json
         import urllib.request

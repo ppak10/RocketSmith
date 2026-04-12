@@ -8,16 +8,19 @@ export interface FileNode {
   children?: FileNode[];
 }
 
+function readTree(): FileNode[] {
+  return (getOfflineFilesTree() as FileNode[]) ?? [];
+}
+
 /**
  * Returns the project file tree from the offline data bundle.
  * Re-reads when `treeVersion` bumps (server pushed a tree update over WS).
  */
 export function useFileTree(treeVersion: number): FileNode[] {
-  const [tree, setTree] = useState<FileNode[]>([]);
+  const [tree, setTree] = useState<FileNode[]>(readTree);
 
   useEffect(() => {
-    const data = getOfflineFilesTree();
-    if (data) setTree(data as FileNode[]);
+    setTree(readTree());
   }, [treeVersion]);
 
   return tree;

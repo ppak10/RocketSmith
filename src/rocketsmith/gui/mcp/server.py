@@ -4,7 +4,7 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 24880
 DEV_PORT = 5173
 WS_PORT = 24881
-PID_FILENAME = ".gui.pid"
+PID_FILENAME = "gui/.gui.pid"
 
 
 def register_gui_server(app: FastMCP):
@@ -100,7 +100,8 @@ def register_gui_server(app: FastMCP):
             return result
         resolved = result
 
-        # Copy built GUI files into the project root.
+        # Copy built GUI files into the project.
+        # index.html goes to the project root; main.js goes to gui/.
         gui_data_dir = Path(__file__).resolve().parent.parent.parent / "data" / "gui"
         if not gui_data_dir.is_dir():
             return tool_error(
@@ -109,10 +110,16 @@ def register_gui_server(app: FastMCP):
                 "GUI_NOT_BUILT",
             )
 
+        gui_dir = resolved / "gui"
+        gui_dir.mkdir(parents=True, exist_ok=True)
+
         copied_files = []
         for src_file in gui_data_dir.iterdir():
             if src_file.is_file():
-                dst = resolved / src_file.name
+                if src_file.name == "index.html":
+                    dst = resolved / src_file.name
+                else:
+                    dst = gui_dir / src_file.name
                 shutil.copy2(src_file, dst)
                 copied_files.append(src_file.name)
 
@@ -153,6 +160,7 @@ def register_gui_server(app: FastMCP):
 
         # Write PID file so the SessionEnd hook can clean up.
         pid_file = resolved / PID_FILENAME
+        pid_file.parent.mkdir(parents=True, exist_ok=True)
         pid_file.write_text(str(proc.pid))
 
         # Open index.html directly in the browser (file:// protocol).
@@ -244,6 +252,7 @@ def register_gui_server(app: FastMCP):
 
         # Write both PIDs so the SessionEnd hook can clean up.
         pid_file = resolved / PID_FILENAME
+        pid_file.parent.mkdir(parents=True, exist_ok=True)
         pid_file.write_text(f"{vite_proc.pid}\n{ws_proc.pid}")
 
         url = f"http://{bind_host}:{DEV_PORT}"

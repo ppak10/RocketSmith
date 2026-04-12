@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { getOfflineProjectInfo } from "@/lib/server";
 
 interface ProjectInfo {
@@ -8,24 +7,18 @@ interface ProjectInfo {
   path: string;
 }
 
+function readProjectInfo(): ProjectInfo {
+  const offline = getOfflineProjectInfo();
+  if (offline) return offline;
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  const dirName =
+    segments.length >= 2 ? segments[segments.length - 2] : "Project";
+  return { name: dirName, path: window.location.pathname };
+}
+
 /**
  * Returns the project info from the offline data bundle.
  */
-export function useProjectInfo(): ProjectInfo | null {
-  const [info, setInfo] = useState<ProjectInfo | null>(null);
-
-  useEffect(() => {
-    const offline = getOfflineProjectInfo();
-    if (offline) {
-      setInfo(offline);
-    } else {
-      // Fallback: infer from URL path.
-      const segments = window.location.pathname.split("/").filter(Boolean);
-      const dirName =
-        segments.length >= 2 ? segments[segments.length - 2] : "Project";
-      setInfo({ name: dirName, path: window.location.pathname });
-    }
-  }, []);
-
-  return info;
+export function useProjectInfo(): ProjectInfo {
+  return readProjectInfo();
 }

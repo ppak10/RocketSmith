@@ -64,7 +64,9 @@ def register_openrocket_generate_tree(app: FastMCP):
             )
 
             # Write component_tree.json
-            tree_path = project_dir / "component_tree.json"
+            from rocketsmith.gui.layout import TREE_FILE
+
+            tree_path = project_dir / TREE_FILE
             tree_path.parent.mkdir(parents=True, exist_ok=True)
             tree_path.write_text(tree.model_dump_json(indent=2), encoding="utf-8")
 

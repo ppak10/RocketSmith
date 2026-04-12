@@ -44,7 +44,9 @@ def register_cadsmith_assembly(app: FastMCP):
         from rocketsmith.manufacturing.models import ComponentTree, Fate, Component
 
         project_dir = resolve_path(project_dir)
-        assembly_path = project_dir / "assembly.json"
+        from rocketsmith.gui.layout import ASSEMBLY_FILE, TREE_FILE, PARTS_DIR
+
+        assembly_path = project_dir / ASSEMBLY_FILE
 
         if action == "read":
             if not assembly_path.exists():
@@ -67,7 +69,7 @@ def register_cadsmith_assembly(app: FastMCP):
 
         # ── action == "generate" ────────────────────────────────────────
 
-        tree_path = project_dir / "component_tree.json"
+        tree_path = project_dir / TREE_FILE
         if not tree_path.exists():
             return tool_error(
                 f"component_tree.json not found at {tree_path}. "
@@ -122,7 +124,7 @@ def register_cadsmith_assembly(app: FastMCP):
         assembly_parts: list[AssemblyPart] = []
         cursor_z = 0.0
         first_nose_seen = False
-        parts_dir = project_dir / "parts"
+        parts_dir = project_dir / PARTS_DIR
         parts_dir.mkdir(parents=True, exist_ok=True)
 
         color_palette = [
@@ -144,7 +146,7 @@ def register_cadsmith_assembly(app: FastMCP):
 
             # Convert component name to snake_case stem.
             stem = comp.name.lower().replace(" ", "_")
-            part_file = f"parts/{stem}.json"
+            part_file = f"{PARTS_DIR}/{stem}.json"
 
             # Extract geometry and write part JSON.
             part_height = 0.0
@@ -217,7 +219,7 @@ def register_cadsmith_assembly(app: FastMCP):
             if comp in all_skipped and not (reason and "non-structural" in reason):
                 continue
             stem = comp.name.lower().replace(" ", "_")
-            part_file = f"parts/{stem}.json"
+            part_file = f"{PARTS_DIR}/{stem}.json"
             assembly_parts.append(AssemblyPart(part_file=part_file))
 
         assembly = Assembly(

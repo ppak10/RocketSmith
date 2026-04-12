@@ -8,6 +8,7 @@ from pathlib import Path
 from aiohttp import web
 
 from rocketsmith.gui.watcher import watch
+from rocketsmith.gui.layout import GUI_DIR, GUI_DATA_JS
 
 logger = logging.getLogger(__name__)
 
@@ -18,19 +19,12 @@ _DIST_DIR = Path(__file__).resolve().parent.parent / "data" / "gui"
 _VISIBLE_DIRS = {
     "openrocket",
     "cadsmith",
-    "step",
-    "stl",
-    "gcode",
-    "parts",
-    "png",
-    "gif",
-    "txt",
-    "progress",
-    "logs",
+    "gui",
+    "prusaslicer",
 }
-_VISIBLE_ROOT_FILES = {"assembly.json", "component_tree.json"}
+_VISIBLE_ROOT_FILES: set[str] = set()
 
-FILES_TREE_FILE = "files-tree.json"
+FILES_TREE_FILE = "gui/files-tree.json"
 
 
 def _build_tree(root: Path, rel_prefix: str = "") -> list[dict]:
@@ -74,6 +68,7 @@ def write_files_tree_snapshot(project_dir: Path) -> None:
     """Write a files-tree.json snapshot for offline GUI use."""
     tree = _build_tree(project_dir)
     out = project_dir / FILES_TREE_FILE
+    out.parent.mkdir(parents=True, exist_ok=True)
     try:
         out.write_text(json.dumps(tree))
     except OSError:
@@ -169,7 +164,7 @@ def _collect_offline_files(project_dir: Path, tree: list[dict]) -> dict:
 
 
 def write_offline_data(project_dir: Path) -> None:
-    """Write offline-data.js containing all JSON/text data for file:// use.
+    """Write data.js containing all JSON/text data for file:// use.
 
     This file is loaded via a <script> tag (which works over file://,
     unlike fetch) and populates window.__OFFLINE_DATA__.
@@ -188,7 +183,8 @@ def write_offline_data(project_dir: Path) -> None:
         + json.dumps(payload, separators=(",", ":"))
         + ";\n"
     )
-    out = project_dir / "offline-data.js"
+    out = project_dir / GUI_DATA_JS
+    out.parent.mkdir(parents=True, exist_ok=True)
     try:
         out.write_text(js)
     except OSError:
@@ -370,7 +366,7 @@ async def _start_watcher(app: web.Application) -> None:
         # Auto-log watcher events to session.jsonl (skip logs/ to avoid loops).
         rel = event.get("relative_path", "")
         etype = event.get("type", "")
-        if rel and not rel.startswith("logs/"):
+        if rel and not rel.startswith("gui/logs/"):
             from rocketsmith.gui.log import gui_log
 
             filename = rel.split("/")[-1] if "/" in rel else rel
