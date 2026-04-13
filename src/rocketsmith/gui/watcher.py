@@ -76,6 +76,7 @@ POLL_INTERVAL_S = 1.0
 # Files to exclude from watch events.
 IGNORED_FILES: set[str] = {
     ".gui.pid",
+    ".gui-dev.pid",
     "settings.local.json",
     "data.js",
     "files-tree.json",
@@ -116,6 +117,45 @@ def _read_text_safe(path: Path) -> Optional[str]:
         return path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
+
+
+def build_snapshot_events(root: Path) -> list[dict]:
+    """Build synthetic WatchEvents for all existing files in *root*.
+
+    Used to replay the current project state to newly connected WebSocket
+    clients so they don't start with an empty feed.
+    """
+    from datetime import datetime, timezone
+
+    events: list[dict] = []
+    for path, mtime in _scan(root).items():
+        if path.name in IGNORED_FILES:
+            continue
+        event_type = _classify(path, root)
+        if event_type == "unknown":
+            continue
+        ts = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        try:
+            rel = str(path.relative_to(root))
+        except ValueError:
+            continue
+
+        content = _read_text_safe(path) if _is_text_file(path) else None
+
+        events.append(
+            {
+                "type": event_type,
+                "path": str(path),
+                "relative_path": rel,
+                "timestamp": ts,
+                "content": content,
+                "previous_content": None,
+            }
+        )
+
+    # Sort by mtime so cards appear in chronological order.
+    events.sort(key=lambda e: e["timestamp"])
+    return events
 
 
 def _scan(root: Path) -> dict[Path, float]:

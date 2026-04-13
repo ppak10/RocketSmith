@@ -48,11 +48,11 @@ export default defineConfig({
   server: {
     proxy: {
       "/ws": {
-        target: "ws://127.0.0.1:24881",
+        target: `ws://127.0.0.1:${process.env.VITE_WS_PORT ?? "24881"}`,
         ws: true,
       },
       "/api": {
-        target: "http://127.0.0.1:24881",
+        target: `http://127.0.0.1:${process.env.VITE_WS_PORT ?? "24881"}`,
       },
     },
   },

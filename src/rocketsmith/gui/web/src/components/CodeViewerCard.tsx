@@ -36,7 +36,7 @@ function computeDiff(oldText: string | null, newText: string): DiffLine[] {
 }
 
 interface CodeViewerCardProps {
-  /** Relative path to a file (e.g. "cadsmith/nose_cone.py"). */
+  /** Relative path to a file (e.g. "cadsmith/source/nose_cone.py"). */
   file: string;
   /** Optional title override. Defaults to the filename. */
   title?: string;
@@ -44,6 +44,8 @@ interface CodeViewerCardProps {
   hideTitle?: boolean;
   /** Optional previous content for diff highlighting. */
   previousContent?: string | null;
+  /** CSS class for the card. */
+  className?: string;
 }
 
 export function CodeViewerCard({
@@ -51,6 +53,7 @@ export function CodeViewerCard({
   title,
   hideTitle = false,
   previousContent = null,
+  className,
 }: CodeViewerCardProps) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +101,7 @@ export function CodeViewerCard({
   const showDiff = previousContent !== null;
 
   return (
-    <Card className="py-0 gap-0 h-[500px] flex flex-col">
+    <Card className={className ?? "py-0 gap-0 h-[500px] flex flex-col"}>
       {!hideTitle && (
         <CardHeader className="py-3 shrink-0">
           <CardTitle className="text-xs">{displayTitle}</CardTitle>

@@ -6,6 +6,7 @@ an explicit ``out_path`` parameter.
 """
 
 OPENROCKET_DIR = "openrocket"
+FLIGHTS_DIR = "openrocket/flights"
 
 # GUI directory — holds the frontend bundle, data snapshot, and derived data.
 GUI_DIR = "gui"

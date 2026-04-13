@@ -7,7 +7,7 @@ from pathlib import Path
 
 from aiohttp import web
 
-from rocketsmith.gui.watcher import watch
+from rocketsmith.gui.watcher import watch, build_snapshot_events
 from rocketsmith.gui.layout import GUI_DIR, GUI_DATA_JS
 
 logger = logging.getLogger(__name__)
@@ -299,6 +299,18 @@ async def _navigate_handler(request: web.Request) -> web.Response:
 async def _ws_handler(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
     await ws.prepare(request)
+
+    # Replay current project state so the client doesn't start empty.
+    project_dir: Path = request.app["project_dir"]
+    try:
+        snapshot = build_snapshot_events(project_dir)
+        for event in snapshot:
+            await ws.send_str(json.dumps(event))
+        # Also send the current file tree.
+        tree = _build_tree(project_dir)
+        await ws.send_str(json.dumps({"type": "files-tree", "tree": tree}))
+    except Exception:
+        pass  # Best-effort — don't fail the connection.
 
     request.app["ws_clients"].add(ws)
     try:

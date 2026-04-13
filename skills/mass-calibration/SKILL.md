@@ -23,7 +23,7 @@ Mass calibration closes the loop: slice each printed part, read the filament wei
 ## Preconditions
 
 1. The design has already passed an initial stability check in the 1.0–1.5 cal range with default masses. If not, run `rocketsmith:stability-analysis` first — calibrating on an already-unstable design obscures the root cause.
-2. `<project_dir>/component_tree.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
+2. `<project_dir>/gui/component_tree.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
 3. Each printed part listed in the manifest has a sliced `.gcode` file with a `filament_used_g` reading. If any part is missing, slice it first.
 
 ## Steps
@@ -31,7 +31,7 @@ Mass calibration closes the loop: slice each printed part, read the filament wei
 ### 1. Load the Component Tree
 
 ```
-manifest = read_json("<project_dir>/component_tree.json")
+manifest = read_json("<project_dir>/gui/component_tree.json")
 ```
 
 The two sections you care about are:
@@ -126,7 +126,7 @@ After all mass overrides are applied and the flight is verified stable, regenera
 openrocket_generate_tree(rocket_file_path=<path>, project_dir=<project_dir>)
 ```
 
-This updates `component_tree.json` with the new `override_mass` values from the `.ork` file, keeping the component tree in sync with the flight-verified design. The GUI's component tree page and rocket profile will then show the correct calibrated masses.
+This updates `gui/component_tree.json` with the new `override_mass` values from the `.ork` file, keeping the component tree in sync with the flight-verified design. The GUI's component tree page and rocket profile will then show the correct calibrated masses.
 
 ### 7. Confirm and Record
 

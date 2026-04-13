@@ -8,8 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Part3DViewerCard } from "@/components/PartPreviewCard";
-import { CodeViewerCard } from "@/components/CodeViewerCard";
+import { PartCard } from "@/components/PartCard";
 import { usePartValidation } from "@/hooks/usePartValidation";
 
 type Qty = [number, string];
@@ -137,11 +136,8 @@ export function PartViewer({ file }: PartViewerProps) {
         {part.cost != null && <Stat label="Cost" value={`$${part.cost.toFixed(2)}`} />}
       </div>
 
-      {/* 3D viewer + code side by side on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <CodeViewerCard file={`cadsmith/${part.name}.py`} hideTitle />
-        <Part3DViewerCard partName={part.name} />
-      </div>
+      {/* Tabbed part viewer — Model / Source */}
+      <PartCard partName={part.name} />
 
     </div>
   );

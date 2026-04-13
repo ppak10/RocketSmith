@@ -29,22 +29,22 @@ If every part's `modifications` list is empty (which is the default for a freshl
 
 ## Inputs
 
-- `<project_root>/component_tree.json` — the `parts[].modifications` lists are the authoritative spec
-- `<project_root>/step/<name>.step` — base STEPs from Pass 1
+- `<project_root>/gui/component_tree.json` — the `parts[].modifications` lists are the authoritative spec
+- `<project_root>/cadsmith/step/<name>.step` — base STEPs from Pass 1
 
 ## Output
 
-- `<project_root>/cadsmith/<name>_modified.py` — one modification script per part with non-empty modifications (kept separate from the Pass 1 script for auditability)
-- `<project_root>/step/<name>.step` — **overwritten** with the modified version
-- `<project_root>/step/full_assembly.step` — regenerated if any constituent part was modified
-- `<project_root>/png/<name>.png` — re-rendered after modification
+- `<project_root>/cadsmith/source/<name>_modified.py` — one modification script per part with non-empty modifications (kept separate from the Pass 1 script for auditability)
+- `<project_root>/cadsmith/step/<name>.step` — **overwritten** with the modified version
+- `<project_root>/cadsmith/step/full_assembly.step` — regenerated if any constituent part was modified
+- `<project_root>/gui/assets/png/<name>.png` — re-rendered after modification
 
 ## Steps
 
 ### 1. Load the Manifest
 
 ```
-manifest = read_json("<project_root>/component_tree.json")
+manifest = read_json("<project_root>/gui/component_tree.json")
 ```
 
 ### 2. Identify Parts Needing Modification

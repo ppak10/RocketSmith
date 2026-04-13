@@ -53,8 +53,8 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
   - **Use this as the primary execution path — never call `python`, `uv run`, or `conda run` directly.** They will fail or hit the wrong interpreter.
 - `cadsmith_generate_preview` — Generate preview assets for a STEP file (`step_file_path`, `project_dir`, `outputs`)
   - `outputs=["thumbnail", "gif", "ascii"]` (default: all three). Generates PNG thumbnails, rotating GIFs, and ASCII animations.
-  - Outputs written to `png/`, `gif/`, `txt/` under the project directory.
-  - Progress tracked per-part in `progress/<part_name>.json` for the GUI.
+  - Outputs written to `gui/assets/png/`, `gui/assets/gif/`, `gui/assets/txt/` under the project directory.
+  - Progress tracked per-part in `gui/progress/<part_name>.json` for the GUI.
 - `cadsmith_extract_part` — Extract volume, bounding box, and centre of mass from a STEP file (`step_file_path`)
   - Use to verify dimensions numerically after visual inspection
 - `openrocket_generate_tree` — Convert an `.ork` design into mm-scaled CAD parameters (`rocket_file_path`)
@@ -76,12 +76,12 @@ These skills are loaded into your session at startup via `GEMINI.md`. They conta
 ```
 1. Verify dependencies (rocketsmith_setup if status uncertain)
 2. Determine project_dir from the orchestrator's mandatory Bash("pwd") step
-3. Check for <project_dir>/component_tree.json
+3. Check for <project_dir>/gui/component_tree.json
      - exists and annotated? load it, proceed to step 4
      - missing or unannotated? ask the orchestrator to invoke the
        manufacturing agent first, then proceed to step 4
 4. Follow rocketsmith:generate-structures (Pass 1):
-     a. Create <project_dir>/cadsmith, <project_dir>/step, <project_dir>/stl, <project_dir>/gcode, <project_dir>/parts, <project_dir>/png, <project_dir>/progress
+     a. Create <project_dir>/cadsmith/source, <project_dir>/cadsmith/step, <project_dir>/cadsmith/stl, <project_dir>/prusaslicer/gcode, <project_dir>/gui/parts, <project_dir>/gui/assets/png, <project_dir>/gui/progress
      b. For each part in manifest["parts"], build base geometry from features only
         [interactive] Pause for user feedback after every part render
         [zero-shot]   Verify autonomously; pause only on errors or ambiguous geometry
@@ -100,8 +100,8 @@ These skills are loaded into your session at startup via `GEMINI.md`. They conta
         [zero-shot]   Verify autonomously
    If every part's modifications list is empty, skip Pass 2 entirely.
 7. Report to the orchestrator:
-     - Path to component_tree.json
-     - List of STEP file paths in <project_dir>/step/
+     - Path to gui/component_tree.json
+     - List of STEP file paths in <project_dir>/cadsmith/step/
      - Any parts that required retries or user-requested changes
      - Total parts generated vs manifest count (should match exactly)
      - Viewer PID (so downstream agents know it's running)
@@ -126,9 +126,9 @@ When CAD generation is complete, return a structured summary:
 ```
 CAD generation complete:
   project_dir: <absolute path>
-  manifest: <project_dir>/component_tree.json
+  manifest: <project_dir>/gui/component_tree.json
   parts generated: <N> of <M> (from manifest)
-  output directory: <project_dir>/step/
+  output directory: <project_dir>/cadsmith/step/
 
   Parts:
     - nose_cone.step       (<volume_cm3> cm³, bbox <LxWxH mm>)

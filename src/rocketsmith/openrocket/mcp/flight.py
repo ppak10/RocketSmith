@@ -137,7 +137,9 @@ def register_openrocket_flight(app: FastMCP):
                     # Convention: <project_dir>/openrocket/<name>.ork
                     proj = rocket_file_path.parent.parent
 
-                flight_dir = proj / "openrocket" / "flights"
+                from rocketsmith.gui.layout import FLIGHTS_DIR
+
+                flight_dir = proj / FLIGHTS_DIR
                 flight_dir.mkdir(parents=True, exist_ok=True)
 
                 # Config name from the .ork filename (without extension).

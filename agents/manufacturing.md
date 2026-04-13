@@ -141,7 +141,7 @@ When annotation is complete, return:
 ```
 Manufacturing annotation complete:
   project_dir: <absolute path>
-  component_tree: <project_dir>/component_tree.json
+  component_tree: <project_dir>/gui/component_tree.json
   manufacturing_method: additive
   printed parts: <N>
   fused components: <N>

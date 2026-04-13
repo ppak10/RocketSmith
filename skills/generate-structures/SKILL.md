@@ -21,27 +21,27 @@ This skill is **rocketry-agnostic** — it knows about build123d and parts and a
 
 ## When to Use
 
-- `component_tree.json` exists at `<project_root>/component_tree.json` and needs Pass 1 geometry
+- `component_tree.json` exists at `<project_root>/gui/component_tree.json` and needs Pass 1 geometry
 - A base STEP file is missing or out of sync with its feature block
 - The user asks to regenerate structural geometry
 
 ## Inputs
 
-`<project_root>/component_tree.json` — the authoritative parts list. Specifically the `parts[].features` block for each part. Do not read the `modifications` block — that's `modify-structures`' job.
+`<project_root>/gui/component_tree.json` — the authoritative parts list. Specifically the `parts[].features` block for each part. Do not read the `modifications` block — that's `modify-structures`' job.
 
 ## Output
 
-- `<project_root>/cadsmith/<name>.py` — one parametric script per part (base geometry only)
-- `<project_root>/step/<name>.step` — the STEP file exported by each script
-- `<project_root>/step/full_assembly.step` — composed from all individual parts if `manifest["assemblies"]` is non-empty
-- `<project_root>/png/<name>.png` — 3-panel render of each part for visual verification
+- `<project_root>/cadsmith/source/<name>.py` — one parametric script per part (base geometry only)
+- `<project_root>/cadsmith/step/<name>.step` — the STEP file exported by each script
+- `<project_root>/cadsmith/step/full_assembly.step` — composed from all individual parts if `manifest["assemblies"]` is non-empty
+- `<project_root>/gui/assets/png/<name>.png` — 3-panel render of each part for visual verification
 
 ## Steps
 
 ### 1. Load the Manifest
 
 ```
-manifest = read_json("<project_root>/component_tree.json")
+manifest = read_json("<project_root>/gui/component_tree.json")
 ```
 
 Verify it has `schema_version`, `parts`, `directories`, and `assemblies`. If anything is missing, stop and ask the `design-for-additive-manufacturing` skill to regenerate the manifest — do not fill in missing fields.

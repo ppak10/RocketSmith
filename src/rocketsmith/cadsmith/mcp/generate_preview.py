@@ -125,7 +125,7 @@ def register_cadsmith_generate_preview(app: FastMCP):
 
         output = {
             "results": results,
-            "previews_dir": str(previews_dir),
+            "project_dir": str(project_dir),
             "step_file_path": str(step_file_path),
         }
         if warnings:

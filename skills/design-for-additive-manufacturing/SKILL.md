@@ -28,7 +28,7 @@ The physical parts list — what actually gets produced and assembled — is a f
 
 ## Output
 
-A single JSON file written to `<project_dir>/component_tree.json` by the **`manufacturing_annotate_tree` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `cadsmith` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
+A single JSON file written to `<project_dir>/gui/component_tree.json` by the **`manufacturing_annotate_tree` MCP tool**. The schema is enforced by Pydantic models at tool-call time, so malformed manifests are rejected before they reach disk. This file is the authoritative handoff to `generate-structures` and `cadsmith` — they consume it and produce STEP files from it. The mass-calibration skill also reads it to map `filament_used_g` back to OR components via `component_to_part_map`.
 
 ## Steps
 
@@ -70,7 +70,7 @@ The tool:
 1. Calls `openrocket_generate_tree` internally to get the mm-scaled component tree
 2. Walks the tree, applies the DFAM fusion rules (defaults + any overrides you passed), and builds the part list
 3. Validates the result against the `ComponentTree` Pydantic schema
-4. Writes `<project_root>/component_tree.json`
+4. Writes `<project_root>/gui/component_tree.json`
 5. Returns the manifest dict
 
 **Do not use the `Write` tool to hand-craft the manifest.** The Python implementation is the source of truth for the fusion rules; hand-writing is both slower (more context tokens) and error-prone (schema drift, typos, missing fields). The `manufacturing_annotate_tree` tool is the only way to produce a manifest.
@@ -226,17 +226,17 @@ Feature block:
   "generated_at": "<ISO 8601 timestamp>",
 
   "directories": {
-    "scripts": "cadsmith",
-    "step": "step",
-    "gcode": "gcode"
+    "scripts": "cadsmith/source",
+    "step": "cadsmith/step",
+    "gcode": "prusaslicer/gcode"
   },
 
   "parts": [
     {
       "name": "<snake_case part name>",
-      "script_path": "cadsmith/<name>.py",
-      "step_path": "step/<name>.step",
-      "gcode_path": "gcode/<name>.gcode",
+      "script_path": "cadsmith/source/<name>.py",
+      "step_path": "cadsmith/step/<name>.step",
+      "gcode_path": "prusaslicer/gcode/<name>.gcode",
       "derived_from": ["<OR component identifier>", "..."],
       "fate": "print",
       "features": {
@@ -263,7 +263,7 @@ Feature block:
   "assemblies": [
     {
       "name": "<assembly name>",
-      "step_path": "step/<assembly name>.step",
+      "step_path": "cadsmith/step/<assembly name>.step",
       "parts_fore_to_aft": ["<part name>", "..."]
     }
   ],
@@ -299,7 +299,7 @@ openrocket_generate_tree → {components, derived, handoff_notes}
                       ↓
                  this skill applies policy + fusion rules
                       ↓
-              component_tree.json at project root
+              gui/component_tree.json
                       ↓
           generate-structures skill → cadsmith scripts → STEP files
                       ↓

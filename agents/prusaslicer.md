@@ -14,7 +14,7 @@ description: >
   <example>
   Context: User wants to slice all rocket parts in one go.
   user: 'Slice all the parts'
-  assistant: 'I'll use the prusaslicer agent to slice each STEP file in the step/ directory and write gcode to gcode/.'
+  assistant: 'I'll use the prusaslicer agent to slice each STEP file in the cadsmith/step/ directory and write gcode to prusaslicer/gcode/.'
   <commentary>Batch slicing requires calling prusaslicer_slice once per part file.</commentary>
   </example>
   <example>
@@ -73,7 +73,7 @@ Manage local `.ini` config files stored under `prusaslicer/configs/{type}/{name}
 - `settings`: key-value dict of PrusaSlicer settings (required for `create` and `set`)
   - `set` merges keys into an existing config — only provided keys are changed, others are preserved
   - `create` fails if the config already exists
-- `prusaslicer_config_path`: override the default `prusaslicer/configs/` root (optional)
+- `prusaslicer_config_path`: override the default `prusaslicer/config/` root (optional)
 
 ### `prusaslicer_slice`
 Slice a 3D model file and return print metadata (time, filament usage, layer count).
@@ -112,7 +112,7 @@ Check or install dependencies.
 ### Slicing
 ```
 1. rocketsmith_setup(action="check")        → verify PrusaSlicer is installed (if uncertain)
-2. read_json("<project_root>/component_tree.json")
+2. read_json("<project_root>/gui/component_tree.json")
                                              → load the component tree — it owns
                                                the authoritative step_path and
                                                gcode_path for every printable part
@@ -132,7 +132,7 @@ Check or install dependencies.
 7. Report gcode paths, print metadata, AND the calibration mapping
 ```
 
-**Critical: always pass `out_path` explicitly to `prusaslicer_slice`.** The default behavior is to write the gcode next to the STEP file (i.e. into `step/`), which is wrong — gcode belongs in `gcode/`. The manifest's `gcode_path` field tells you exactly where each file should go. Use it verbatim.
+**Critical: always pass `out_path` explicitly to `prusaslicer_slice`.** The default behavior is to write the gcode next to the STEP file (i.e. into `cadsmith/step/`), which is wrong — gcode belongs in `prusaslicer/gcode/`. The manifest's `gcode_path` field tells you exactly where each file should go. Use it verbatim.
 
 ## Calibration Handoff
 
