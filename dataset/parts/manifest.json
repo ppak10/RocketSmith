@@ -1,0 +1,2007 @@
+[
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M2x4.step",
+    "name": "Socket Head Cap Screw M2x4",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M2-0.4",
+    "length_mm": 4,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M2 socket head cap screw, 4mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M2x6.step",
+    "name": "Socket Head Cap Screw M2x6",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M2-0.4",
+    "length_mm": 6,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M2 socket head cap screw, 6mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M2x8.step",
+    "name": "Socket Head Cap Screw M2x8",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M2-0.4",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M2 socket head cap screw, 8mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M3x6.step",
+    "name": "Socket Head Cap Screw M3x6",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M3-0.5",
+    "length_mm": 6,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 socket head cap screw, 6mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M3x8.step",
+    "name": "Socket Head Cap Screw M3x8",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M3-0.5",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 socket head cap screw, 8mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M3x10.step",
+    "name": "Socket Head Cap Screw M3x10",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M3-0.5",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 socket head cap screw, 10mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M3x12.step",
+    "name": "Socket Head Cap Screw M3x12",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M3-0.5",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 socket head cap screw, 12mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M3x16.step",
+    "name": "Socket Head Cap Screw M3x16",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M3-0.5",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 socket head cap screw, 16mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M4x8.step",
+    "name": "Socket Head Cap Screw M4x8",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M4-0.7",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 socket head cap screw, 8mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M4x10.step",
+    "name": "Socket Head Cap Screw M4x10",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M4-0.7",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 socket head cap screw, 10mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M4x12.step",
+    "name": "Socket Head Cap Screw M4x12",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M4-0.7",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 socket head cap screw, 12mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M4x16.step",
+    "name": "Socket Head Cap Screw M4x16",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M4-0.7",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 socket head cap screw, 16mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M4x20.step",
+    "name": "Socket Head Cap Screw M4x20",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M4-0.7",
+    "length_mm": 20,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 socket head cap screw, 20mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M5x10.step",
+    "name": "Socket Head Cap Screw M5x10",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M5-0.8",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 socket head cap screw, 10mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M5x12.step",
+    "name": "Socket Head Cap Screw M5x12",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M5-0.8",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 socket head cap screw, 12mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M5x16.step",
+    "name": "Socket Head Cap Screw M5x16",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M5-0.8",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 socket head cap screw, 16mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M5x20.step",
+    "name": "Socket Head Cap Screw M5x20",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M5-0.8",
+    "length_mm": 20,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 socket head cap screw, 20mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M6x12.step",
+    "name": "Socket Head Cap Screw M6x12",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M6-1",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 socket head cap screw, 12mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M6x16.step",
+    "name": "Socket Head Cap Screw M6x16",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M6-1",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 socket head cap screw, 16mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M6x20.step",
+    "name": "Socket Head Cap Screw M6x20",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M6-1",
+    "length_mm": 20,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 socket head cap screw, 20mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/socket_head_cap_screw/M6x25.step",
+    "name": "Socket Head Cap Screw M6x25",
+    "category": "fastener",
+    "subcategory": "socket_head_cap_screw",
+    "standard": "ISO 4762",
+    "thread": "M6-1",
+    "length_mm": 25,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 socket head cap screw, 25mm length. Used for structural assembly, fin attachments, avionics bay covers, motor retainer screws. High strength, low profile hex socket drive.",
+    "use_cases": [
+      "fin_attachment",
+      "avionics_bay",
+      "motor_retainer",
+      "coupler"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M3x6.step",
+    "name": "Button Head Screw M3x6",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M3-0.5",
+    "length_mm": 6,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 button head screw, 6mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M3x8.step",
+    "name": "Button Head Screw M3x8",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M3-0.5",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 button head screw, 8mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M3x10.step",
+    "name": "Button Head Screw M3x10",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M3-0.5",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 button head screw, 10mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M3x12.step",
+    "name": "Button Head Screw M3x12",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M3-0.5",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 button head screw, 12mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M4x8.step",
+    "name": "Button Head Screw M4x8",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M4-0.7",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 button head screw, 8mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M4x10.step",
+    "name": "Button Head Screw M4x10",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M4-0.7",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 button head screw, 10mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M4x12.step",
+    "name": "Button Head Screw M4x12",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M4-0.7",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 button head screw, 12mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M4x16.step",
+    "name": "Button Head Screw M4x16",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M4-0.7",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 button head screw, 16mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M5x10.step",
+    "name": "Button Head Screw M5x10",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M5-0.8",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 button head screw, 10mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M5x12.step",
+    "name": "Button Head Screw M5x12",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M5-0.8",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 button head screw, 12mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M5x16.step",
+    "name": "Button Head Screw M5x16",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M5-0.8",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 button head screw, 16mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M5x20.step",
+    "name": "Button Head Screw M5x20",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M5-0.8",
+    "length_mm": 20,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 button head screw, 20mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M6x12.step",
+    "name": "Button Head Screw M6x12",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M6-1",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 button head screw, 12mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M6x16.step",
+    "name": "Button Head Screw M6x16",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M6-1",
+    "length_mm": 16,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 button head screw, 16mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/button_head_screw/M6x20.step",
+    "name": "Button Head Screw M6x20",
+    "category": "fastener",
+    "subcategory": "button_head_screw",
+    "standard": "ISO 7380-1",
+    "thread": "M6-1",
+    "length_mm": 20,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 button head screw, 20mm length. Very low profile dome head. Used for access panels, payload bay covers, camera mounts. Less snag risk than SHCS.",
+    "use_cases": [
+      "access_panel",
+      "payload_bay",
+      "camera_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M2x4.step",
+    "name": "Pan Head Screw M2x4",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M2-0.4",
+    "length_mm": 4,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M2 pan head screw, 4mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M2x6.step",
+    "name": "Pan Head Screw M2x6",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M2-0.4",
+    "length_mm": 6,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M2 pan head screw, 6mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M2x8.step",
+    "name": "Pan Head Screw M2x8",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M2-0.4",
+    "length_mm": 8,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M2 pan head screw, 8mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M3x6.step",
+    "name": "Pan Head Screw M3x6",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M3-0.5",
+    "length_mm": 6,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M3 pan head screw, 6mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M3x8.step",
+    "name": "Pan Head Screw M3x8",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M3-0.5",
+    "length_mm": 8,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M3 pan head screw, 8mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M3x10.step",
+    "name": "Pan Head Screw M3x10",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M3-0.5",
+    "length_mm": 10,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M3 pan head screw, 10mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M3x12.step",
+    "name": "Pan Head Screw M3x12",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M3-0.5",
+    "length_mm": 12,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M3 pan head screw, 12mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M4x8.step",
+    "name": "Pan Head Screw M4x8",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M4-0.7",
+    "length_mm": 8,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M4 pan head screw, 8mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M4x10.step",
+    "name": "Pan Head Screw M4x10",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M4-0.7",
+    "length_mm": 10,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M4 pan head screw, 10mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M4x12.step",
+    "name": "Pan Head Screw M4x12",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M4-0.7",
+    "length_mm": 12,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M4 pan head screw, 12mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M4x16.step",
+    "name": "Pan Head Screw M4x16",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M4-0.7",
+    "length_mm": 16,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M4 pan head screw, 16mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M5x10.step",
+    "name": "Pan Head Screw M5x10",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M5-0.8",
+    "length_mm": 10,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M5 pan head screw, 10mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M5x12.step",
+    "name": "Pan Head Screw M5x12",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M5-0.8",
+    "length_mm": 12,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M5 pan head screw, 12mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M5x16.step",
+    "name": "Pan Head Screw M5x16",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M5-0.8",
+    "length_mm": 16,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M5 pan head screw, 16mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M6x12.step",
+    "name": "Pan Head Screw M6x12",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M6-1",
+    "length_mm": 12,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M6 pan head screw, 12mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M6x16.step",
+    "name": "Pan Head Screw M6x16",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M6-1",
+    "length_mm": 16,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M6 pan head screw, 16mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/pan_head_screw/M6x20.step",
+    "name": "Pan Head Screw M6x20",
+    "category": "fastener",
+    "subcategory": "pan_head_screw",
+    "standard": "ISO 1580",
+    "thread": "M6-1",
+    "length_mm": 20,
+    "drive": "phillips_or_slotted",
+    "material": "steel",
+    "description": "M6 pan head screw, 20mm length. Wide bearing surface. Used for electronics mounting, sled attachment, switch mounts.",
+    "use_cases": [
+      "electronics_mount",
+      "avionics_sled",
+      "switch_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M2x4.step",
+    "name": "Countersunk Screw M2x4",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M2-0.4",
+    "length_mm": 4,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M2 countersunk flat head screw, 4mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M2x6.step",
+    "name": "Countersunk Screw M2x6",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M2-0.4",
+    "length_mm": 6,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M2 countersunk flat head screw, 6mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M2x8.step",
+    "name": "Countersunk Screw M2x8",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M2-0.4",
+    "length_mm": 8,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M2 countersunk flat head screw, 8mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M3x6.step",
+    "name": "Countersunk Screw M3x6",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M3-0.5",
+    "length_mm": 6,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M3 countersunk flat head screw, 6mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M3x8.step",
+    "name": "Countersunk Screw M3x8",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M3-0.5",
+    "length_mm": 8,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M3 countersunk flat head screw, 8mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M3x10.step",
+    "name": "Countersunk Screw M3x10",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M3-0.5",
+    "length_mm": 10,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M3 countersunk flat head screw, 10mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M3x12.step",
+    "name": "Countersunk Screw M3x12",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M3-0.5",
+    "length_mm": 12,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M3 countersunk flat head screw, 12mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M4x8.step",
+    "name": "Countersunk Screw M4x8",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M4-0.7",
+    "length_mm": 8,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M4 countersunk flat head screw, 8mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M4x10.step",
+    "name": "Countersunk Screw M4x10",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M4-0.7",
+    "length_mm": 10,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M4 countersunk flat head screw, 10mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M4x12.step",
+    "name": "Countersunk Screw M4x12",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M4-0.7",
+    "length_mm": 12,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M4 countersunk flat head screw, 12mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M4x16.step",
+    "name": "Countersunk Screw M4x16",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M4-0.7",
+    "length_mm": 16,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M4 countersunk flat head screw, 16mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M5x10.step",
+    "name": "Countersunk Screw M5x10",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M5-0.8",
+    "length_mm": 10,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M5 countersunk flat head screw, 10mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M5x12.step",
+    "name": "Countersunk Screw M5x12",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M5-0.8",
+    "length_mm": 12,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M5 countersunk flat head screw, 12mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M5x16.step",
+    "name": "Countersunk Screw M5x16",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M5-0.8",
+    "length_mm": 16,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M5 countersunk flat head screw, 16mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M6x12.step",
+    "name": "Countersunk Screw M6x12",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M6-1",
+    "length_mm": 12,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M6 countersunk flat head screw, 12mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M6x16.step",
+    "name": "Countersunk Screw M6x16",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M6-1",
+    "length_mm": 16,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M6 countersunk flat head screw, 16mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/countersunk_screw/M6x20.step",
+    "name": "Countersunk Screw M6x20",
+    "category": "fastener",
+    "subcategory": "countersunk_screw",
+    "standard": "ISO 7046",
+    "thread": "M6-1",
+    "length_mm": 20,
+    "drive": "phillips",
+    "material": "steel",
+    "description": "M6 countersunk flat head screw, 20mm length. Sits flush with surface. Used for fin attachment tabs, shear pin plates, rail guide mounting. 90-degree countersink.",
+    "use_cases": [
+      "fin_tab",
+      "shear_pin_plate",
+      "rail_guide",
+      "flush_mount"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M3x4.step",
+    "name": "Set Screw M3x4",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M3-0.5",
+    "length_mm": 4,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 cup-point set screw, 4mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M3x6.step",
+    "name": "Set Screw M3x6",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M3-0.5",
+    "length_mm": 6,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 cup-point set screw, 6mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M3x8.step",
+    "name": "Set Screw M3x8",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M3-0.5",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M3 cup-point set screw, 8mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M4x6.step",
+    "name": "Set Screw M4x6",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M4-0.7",
+    "length_mm": 6,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 cup-point set screw, 6mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M4x8.step",
+    "name": "Set Screw M4x8",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M4-0.7",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 cup-point set screw, 8mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M4x10.step",
+    "name": "Set Screw M4x10",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M4-0.7",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M4 cup-point set screw, 10mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M5x6.step",
+    "name": "Set Screw M5x6",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M5-0.8",
+    "length_mm": 6,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 cup-point set screw, 6mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M5x8.step",
+    "name": "Set Screw M5x8",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M5-0.8",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 cup-point set screw, 8mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M5x10.step",
+    "name": "Set Screw M5x10",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M5-0.8",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M5 cup-point set screw, 10mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M6x8.step",
+    "name": "Set Screw M6x8",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M6-1",
+    "length_mm": 8,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 cup-point set screw, 8mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M6x10.step",
+    "name": "Set Screw M6x10",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M6-1",
+    "length_mm": 10,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 cup-point set screw, 10mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/set_screw/M6x12.step",
+    "name": "Set Screw M6x12",
+    "category": "fastener",
+    "subcategory": "set_screw",
+    "standard": "ISO 4026",
+    "thread": "M6-1",
+    "length_mm": 12,
+    "drive": "hex_socket",
+    "material": "steel",
+    "description": "M6 cup-point set screw, 12mm length. Headless. Used as motor retainer locking screw, rail button retention, shaft/collar locking.",
+    "use_cases": [
+      "motor_retainer",
+      "rail_button",
+      "shaft_lock"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/hex_nut/M2.step",
+    "name": "Hex Nut M2",
+    "category": "fastener",
+    "subcategory": "hex_nut",
+    "standard": "ISO 4032",
+    "thread": "M2-0.4",
+    "material": "steel",
+    "description": "M2 standard hex nut. Used to lock bolts, secure eyebolts, attach standoffs.",
+    "use_cases": [
+      "general_fastening",
+      "eyebolt_lock",
+      "standoff"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/hex_nut/M3.step",
+    "name": "Hex Nut M3",
+    "category": "fastener",
+    "subcategory": "hex_nut",
+    "standard": "ISO 4032",
+    "thread": "M3-0.5",
+    "material": "steel",
+    "description": "M3 standard hex nut. Used to lock bolts, secure eyebolts, attach standoffs.",
+    "use_cases": [
+      "general_fastening",
+      "eyebolt_lock",
+      "standoff"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/hex_nut/M4.step",
+    "name": "Hex Nut M4",
+    "category": "fastener",
+    "subcategory": "hex_nut",
+    "standard": "ISO 4032",
+    "thread": "M4-0.7",
+    "material": "steel",
+    "description": "M4 standard hex nut. Used to lock bolts, secure eyebolts, attach standoffs.",
+    "use_cases": [
+      "general_fastening",
+      "eyebolt_lock",
+      "standoff"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/hex_nut/M5.step",
+    "name": "Hex Nut M5",
+    "category": "fastener",
+    "subcategory": "hex_nut",
+    "standard": "ISO 4032",
+    "thread": "M5-0.8",
+    "material": "steel",
+    "description": "M5 standard hex nut. Used to lock bolts, secure eyebolts, attach standoffs.",
+    "use_cases": [
+      "general_fastening",
+      "eyebolt_lock",
+      "standoff"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/hex_nut/M6.step",
+    "name": "Hex Nut M6",
+    "category": "fastener",
+    "subcategory": "hex_nut",
+    "standard": "ISO 4032",
+    "thread": "M6-1",
+    "material": "steel",
+    "description": "M6 standard hex nut. Used to lock bolts, secure eyebolts, attach standoffs.",
+    "use_cases": [
+      "general_fastening",
+      "eyebolt_lock",
+      "standoff"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M2x3.step",
+    "name": "Heat Set Insert M2x3",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M2-0.4",
+    "length_mm": 3,
+    "material": "brass",
+    "description": "M2 brass heat set insert, 3mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M2x4.step",
+    "name": "Heat Set Insert M2x4",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M2-0.4",
+    "length_mm": 4,
+    "material": "brass",
+    "description": "M2 brass heat set insert, 4mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M2x6.step",
+    "name": "Heat Set Insert M2x6",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M2-0.4",
+    "length_mm": 6,
+    "material": "brass",
+    "description": "M2 brass heat set insert, 6mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M3x6.step",
+    "name": "Heat Set Insert M3x6",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M3-0.5",
+    "length_mm": 6,
+    "material": "brass",
+    "description": "M3 brass heat set insert, 6mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M3x8.step",
+    "name": "Heat Set Insert M3x8",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M3-0.5",
+    "length_mm": 8,
+    "material": "brass",
+    "description": "M3 brass heat set insert, 8mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M3x10.step",
+    "name": "Heat Set Insert M3x10",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M3-0.5",
+    "length_mm": 10,
+    "material": "brass",
+    "description": "M3 brass heat set insert, 10mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M4x6.step",
+    "name": "Heat Set Insert M4x6",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M4-0.7",
+    "length_mm": 6,
+    "material": "brass",
+    "description": "M4 brass heat set insert, 6mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M4x8.step",
+    "name": "Heat Set Insert M4x8",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M4-0.7",
+    "length_mm": 8,
+    "material": "brass",
+    "description": "M4 brass heat set insert, 8mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M4x10.step",
+    "name": "Heat Set Insert M4x10",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M4-0.7",
+    "length_mm": 10,
+    "material": "brass",
+    "description": "M4 brass heat set insert, 10mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M5x6.step",
+    "name": "Heat Set Insert M5x6",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M5-0.8",
+    "length_mm": 6,
+    "material": "brass",
+    "description": "M5 brass heat set insert, 6mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M5x8.step",
+    "name": "Heat Set Insert M5x8",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M5-0.8",
+    "length_mm": 8,
+    "material": "brass",
+    "description": "M5 brass heat set insert, 8mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M5x10.step",
+    "name": "Heat Set Insert M5x10",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M5-0.8",
+    "length_mm": 10,
+    "material": "brass",
+    "description": "M5 brass heat set insert, 10mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M6x10.step",
+    "name": "Heat Set Insert M6x10",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M6-1",
+    "length_mm": 10,
+    "material": "brass",
+    "description": "M6 brass heat set insert, 10mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/heat_set_insert/M6x12.step",
+    "name": "Heat Set Insert M6x12",
+    "category": "fastener",
+    "subcategory": "heat_set_insert",
+    "standard": "Hilitchi",
+    "thread": "M6-1",
+    "length_mm": 12,
+    "material": "brass",
+    "description": "M6 brass heat set insert, 12mm length. Press into 3D printed or composite parts with soldering iron. Used for avionics bay walls, nosecone shoulder, fin root tabs, any printed structural connection requiring metal threads.",
+    "use_cases": [
+      "avionics_bay",
+      "nosecone_shoulder",
+      "fin_root",
+      "3d_printed_structure",
+      "composite_panel"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/plain_washer/M3.step",
+    "name": "Plain Washer M3",
+    "category": "fastener",
+    "subcategory": "plain_washer",
+    "standard": "ISO 7093",
+    "thread": "M3",
+    "material": "steel",
+    "description": "M3 large plain washer. Distributes load under bolt head or nut. Used under eyebolts, rail button bases, structural joints.",
+    "use_cases": [
+      "eyebolt",
+      "rail_button",
+      "structural_joint"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/plain_washer/M4.step",
+    "name": "Plain Washer M4",
+    "category": "fastener",
+    "subcategory": "plain_washer",
+    "standard": "ISO 7093",
+    "thread": "M4",
+    "material": "steel",
+    "description": "M4 large plain washer. Distributes load under bolt head or nut. Used under eyebolts, rail button bases, structural joints.",
+    "use_cases": [
+      "eyebolt",
+      "rail_button",
+      "structural_joint"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/plain_washer/M5.step",
+    "name": "Plain Washer M5",
+    "category": "fastener",
+    "subcategory": "plain_washer",
+    "standard": "ISO 7093",
+    "thread": "M5",
+    "material": "steel",
+    "description": "M5 large plain washer. Distributes load under bolt head or nut. Used under eyebolts, rail button bases, structural joints.",
+    "use_cases": [
+      "eyebolt",
+      "rail_button",
+      "structural_joint"
+    ]
+  },
+  {
+    "path": "dataset/parts/fasteners/plain_washer/M6.step",
+    "name": "Plain Washer M6",
+    "category": "fastener",
+    "subcategory": "plain_washer",
+    "standard": "ISO 7093",
+    "thread": "M6",
+    "material": "steel",
+    "description": "M6 large plain washer. Distributes load under bolt head or nut. Used under eyebolts, rail button bases, structural joints.",
+    "use_cases": [
+      "eyebolt",
+      "rail_button",
+      "structural_joint"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/eyebolt/M6.step",
+    "name": "Eyebolt M6 DIN 580",
+    "category": "recovery",
+    "subcategory": "eyebolt",
+    "standard": "DIN 580",
+    "thread": "M6",
+    "eye_inner_dia_mm": 20,
+    "shank_length_mm": 16,
+    "collar_dia_mm": 20,
+    "material": "steel",
+    "description": "M6 lifting eye bolt per DIN 580. Screws into bulkhead T-nut or threaded insert. Primary recovery attachment point for shock cord. Eye inner diameter 20mm, accepts quick link up to 14mm wire.",
+    "use_cases": [
+      "shock_cord_anchor",
+      "recovery_attachment",
+      "bulkhead_mount",
+      "lifting_point"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/eyebolt/M8.step",
+    "name": "Eyebolt M8 DIN 580",
+    "category": "recovery",
+    "subcategory": "eyebolt",
+    "standard": "DIN 580",
+    "thread": "M8",
+    "eye_inner_dia_mm": 25,
+    "shank_length_mm": 20,
+    "collar_dia_mm": 25,
+    "material": "steel",
+    "description": "M8 lifting eye bolt per DIN 580. Screws into bulkhead T-nut or threaded insert. Primary recovery attachment point for shock cord. Eye inner diameter 25mm, accepts quick link up to 17mm wire.",
+    "use_cases": [
+      "shock_cord_anchor",
+      "recovery_attachment",
+      "bulkhead_mount",
+      "lifting_point"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/eyebolt/M10.step",
+    "name": "Eyebolt M10 DIN 580",
+    "category": "recovery",
+    "subcategory": "eyebolt",
+    "standard": "DIN 580",
+    "thread": "M10",
+    "eye_inner_dia_mm": 30,
+    "shank_length_mm": 25,
+    "collar_dia_mm": 30,
+    "material": "steel",
+    "description": "M10 lifting eye bolt per DIN 580. Screws into bulkhead T-nut or threaded insert. Primary recovery attachment point for shock cord. Eye inner diameter 30mm, accepts quick link up to 21mm wire.",
+    "use_cases": [
+      "shock_cord_anchor",
+      "recovery_attachment",
+      "bulkhead_mount",
+      "lifting_point"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/eyebolt/M12.step",
+    "name": "Eyebolt M12 DIN 580",
+    "category": "recovery",
+    "subcategory": "eyebolt",
+    "standard": "DIN 580",
+    "thread": "M12",
+    "eye_inner_dia_mm": 36,
+    "shank_length_mm": 30,
+    "collar_dia_mm": 36,
+    "material": "steel",
+    "description": "M12 lifting eye bolt per DIN 580. Screws into bulkhead T-nut or threaded insert. Primary recovery attachment point for shock cord. Eye inner diameter 36mm, accepts quick link up to 25mm wire.",
+    "use_cases": [
+      "shock_cord_anchor",
+      "recovery_attachment",
+      "bulkhead_mount",
+      "lifting_point"
+    ]
+  },
+  {
+    "path": "dataset/parts/launch/rail_button_1010.step",
+    "name": "Rail Button 1010",
+    "category": "launch",
+    "subcategory": "rail_button",
+    "rail_size": "1010",
+    "slot_width_mm": 9.0,
+    "slot_height_mm": 6.25,
+    "base_diameter_mm": 15.0,
+    "screw_clearance_mm": 4.2,
+    "material": "delrin",
+    "description": "Standard rail button for 1010 8020 aluminum extrusion launch rail. Button width 9.0mm fits 1010 T-slot. Mounted to rocket body tube with single screw through center. Guides rocket along launch rail, releases cleanly at lift-off.",
+    "use_cases": [
+      "launch_rail_guide",
+      "launch_lug_replacement"
+    ]
+  },
+  {
+    "path": "dataset/parts/launch/rail_button_1515.step",
+    "name": "Rail Button 1515",
+    "category": "launch",
+    "subcategory": "rail_button",
+    "rail_size": "1515",
+    "slot_width_mm": 12.0,
+    "slot_height_mm": 9.0,
+    "base_diameter_mm": 20.0,
+    "screw_clearance_mm": 5.2,
+    "material": "delrin",
+    "description": "Standard rail button for 1515 8020 aluminum extrusion launch rail. Button width 12.0mm fits 1515 T-slot. Mounted to rocket body tube with single screw through center. Guides rocket along launch rail, releases cleanly at lift-off.",
+    "use_cases": [
+      "launch_rail_guide",
+      "launch_lug_replacement"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/quick_link/3mm.step",
+    "name": "Quick Link 3mm",
+    "category": "recovery",
+    "subcategory": "quick_link",
+    "wire_dia_mm": 3,
+    "inner_width_mm": 11,
+    "inner_length_mm": 25,
+    "working_load_limit_kg": 400,
+    "material": "stainless_steel",
+    "description": "3mm wire oval quick link (screw-gate). Connects shock cord to eyebolt, parachute bridle to harness, or swivel to recovery hardware. Working load limit ~400kg. Inner opening 11x25mm.",
+    "use_cases": [
+      "shock_cord_to_eyebolt",
+      "parachute_bridle",
+      "recovery_harness",
+      "swivel_connection"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/quick_link/4mm.step",
+    "name": "Quick Link 4mm",
+    "category": "recovery",
+    "subcategory": "quick_link",
+    "wire_dia_mm": 4,
+    "inner_width_mm": 13,
+    "inner_length_mm": 30,
+    "working_load_limit_kg": 800,
+    "material": "stainless_steel",
+    "description": "4mm wire oval quick link (screw-gate). Connects shock cord to eyebolt, parachute bridle to harness, or swivel to recovery hardware. Working load limit ~800kg. Inner opening 13x30mm.",
+    "use_cases": [
+      "shock_cord_to_eyebolt",
+      "parachute_bridle",
+      "recovery_harness",
+      "swivel_connection"
+    ]
+  },
+  {
+    "path": "dataset/parts/recovery/quick_link/6mm.step",
+    "name": "Quick Link 6mm",
+    "category": "recovery",
+    "subcategory": "quick_link",
+    "wire_dia_mm": 6,
+    "inner_width_mm": 18,
+    "inner_length_mm": 42,
+    "working_load_limit_kg": 1600,
+    "material": "stainless_steel",
+    "description": "6mm wire oval quick link (screw-gate). Connects shock cord to eyebolt, parachute bridle to harness, or swivel to recovery hardware. Working load limit ~1600kg. Inner opening 18x42mm.",
+    "use_cases": [
+      "shock_cord_to_eyebolt",
+      "parachute_bridle",
+      "recovery_harness",
+      "swivel_connection"
+    ]
+  },
+  {
+    "path": "dataset/parts/camera/gopro_mount.step",
+    "name": "GoPro Step Mount",
+    "category": "camera",
+    "subcategory": "gopro_mount",
+    "standard": "GoPro finger mount",
+    "prong_count": 3,
+    "prong_thickness_mm": 3.0,
+    "gap_mm": 3.1,
+    "pivot_hole_dia_mm": 5.0,
+    "base_footprint_mm": [
+      26.0,
+      20.0
+    ],
+    "mount_screw": "M3",
+    "description": "3-prong GoPro-compatible finger mount for rocket camera bay. Standard GoPro pivoting finger mount geometry. Accepts GoPro Hero/Session cameras and compatible action cameras. Base mounts to payload bay step adapter with 4x M3 screws. Pivot hole accepts M5 thumb screw.",
+    "use_cases": [
+      "camera_bay",
+      "nose_cone_camera",
+      "payload_section"
+    ]
+  }
+]

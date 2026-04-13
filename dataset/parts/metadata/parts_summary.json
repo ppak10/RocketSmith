@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-04-13T04:39:01Z",
+  "total_parts": 115,
+  "parts_ok": 115,
+  "parts_failed": 0,
+  "by_category": {
+    "fastener": 105,
+    "recovery": 7,
+    "launch": 2,
+    "camera": 1
+  },
+  "by_subcategory": {
+    "socket_head_cap_screw": 21,
+    "button_head_screw": 15,
+    "pan_head_screw": 17,
+    "countersunk_screw": 17,
+    "set_screw": 12,
+    "hex_nut": 5,
+    "heat_set_insert": 14,
+    "plain_washer": 4,
+    "eyebolt": 4,
+    "rail_button": 2,
+    "quick_link": 3,
+    "gopro_mount": 1
+  },
+  "by_generator": {
+    "bd_warehouse==0.2.0": 105,
+    "build123d==0.10.0": 10
+  },
+  "by_standard": {
+    "ISO 4762": 21,
+    "ISO 7380-1": 15,
+    "ISO 1580": 17,
+    "ISO 7046": 17,
+    "ISO 4026": 12,
+    "ISO 4032": 5,
+    "Hilitchi": 14,
+    "ISO 7093": 4,
+    "DIN 580": 4,
+    "custom": 5,
+    "GoPro finger mount": 1
+  },
+  "total_bytes": 21384688
+}
