@@ -89,15 +89,31 @@ export function AssemblyViewer() {
   const { deviations } = usePartValidation();
   const [clipPosition, setClipPosition] = useState(100);
 
-  // Load assembly.json.
+  // Load assembly.json — retry briefly if not yet in the offline bundle
+  // (WebSocket snapshot may not have arrived when the component mounts).
   useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
+    async function tryLoad() {
+      while (!cancelled && attempts < 10) {
+        const data = await fetchJson<AssemblyData>("gui/assembly.json");
+        if (data) {
+          if (!cancelled) {
+            setAssembly(data);
+            setLoading(false);
+          }
+          return;
+        }
+        attempts++;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!cancelled) setLoading(false);
+    }
+
     setLoading(true);
-    fetchJson<AssemblyData>("assembly.json")
-      .then((data) => {
-        setAssembly(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    tryLoad();
+    return () => { cancelled = true; };
   }, []);
 
   // Resolve part refs → fetch each part JSON + probe STL.
@@ -110,10 +126,10 @@ export function AssemblyViewer() {
         const data = await fetchJson<PartData>(ref.part_file);
 
         // Derive STL URL from part data or part_file stem.
-        const stem = ref.part_file.replace(/^parts\//, "").replace(/\.json$/, "");
+        const stem = ref.part_file.replace(/^gui\/parts\//, "").replace(/\.json$/, "");
         const stlPath = data?.stl_path
           ? data.stl_path
-          : `stl/${stem}.stl`;
+          : `gui/assets/stl/${stem}.stl`;
         const stlUrl = fileUrl(stlPath);
 
         const stlAvailable = hasOfflineFile(stlPath);
@@ -276,7 +292,7 @@ export function AssemblyViewer() {
             {resolved.map((rp) => {
               const hasStl = !!rp.stlUrl;
               const isVisible = visible[rp.ref.part_file] ?? true;
-              const label = rp.data?.display_name ?? rp.data?.name ?? rp.ref.part_file.replace(/^parts\//, "").replace(/\.json$/, "");
+              const label = rp.data?.display_name ?? rp.data?.name ?? rp.ref.part_file.replace(/^gui\/parts\//, "").replace(/\.json$/, "");
               return (
                 <li key={rp.ref.part_file} className="flex items-center gap-2 text-sm">
                   <button

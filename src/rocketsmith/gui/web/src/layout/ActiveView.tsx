@@ -12,7 +12,7 @@ import {
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
 import { DraggableCard } from "@/components/DraggableCard";
 import { SessionLogCard, eventsToLogs } from "@/components/SessionLogCard";
-import { ProgressCard, useProgressData } from "@/components/ProgressCard";
+import { useProgressData } from "@/components/ProgressCard";
 import { ComponentTreeCard } from "@/components/ComponentTreeCard";
 import type { LogEntry } from "@/components/SessionLogCard";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -439,6 +439,15 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
     }
   }
 
+  // Build a per-part progress lookup.
+  const progressByPart = useMemo(() => {
+    const map = new Map<string, Record<string, { status: string; path: string | null }>>();
+    for (const p of progressData) {
+      map.set(p.part_name, p.outputs);
+    }
+    return map;
+  }, [progressData]);
+
   for (const group of partGroups) {
     const hasStl = group.formats.has("gui/assets/stl");
     const srcEvent = sourceEvents.get(group.stem);
@@ -450,6 +459,7 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
         showModeToggle={false}
         defaultTab={hasStl ? "model" : "source"}
         previousSourceContent={srcEvent?.previous_content ?? null}
+        progress={progressByPart.get(group.stem) ?? null}
         className="h-full"
       />
     );
@@ -457,10 +467,6 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
 
   if (renderableNonPart) {
     visibleCards["assembly"] = <ComponentTreeCard className="h-full" />;
-  }
-
-  if (progressData.length > 0) {
-    visibleCards["build-progress"] = <ProgressCard parts={progressData} />;
   }
 
   if (sessionLogs.length > 0) {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { fetchText } from "@/lib/server";
+import { fetchText, fetchTextFromApi } from "@/lib/server";
+
+const MAX_DISPLAY_LINES = 2000;
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface DiffLine {
@@ -58,10 +60,24 @@ export function CodeViewerCard({
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [truncated, setTruncated] = useState(false);
+
   useEffect(() => {
     setLoading(true);
+    setTruncated(false);
     fetchText(file)
-      .then((text) => {
+      .then(async (text) => {
+        // If not in offline bundle, try the API (for large files like gcode).
+        if (text === null) {
+          text = await fetchTextFromApi(file);
+        }
+        if (text !== null) {
+          const lines = text.split("\n");
+          if (lines.length > MAX_DISPLAY_LINES) {
+            text = lines.slice(0, MAX_DISPLAY_LINES).join("\n");
+            setTruncated(true);
+          }
+        }
         setContent(text);
         setLoading(false);
       })
@@ -73,11 +89,13 @@ export function CodeViewerCard({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-xs">{displayTitle}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex h-32 items-center justify-center">
+      <Card className={className}>
+        {!hideTitle && (
+          <CardHeader className="py-3 shrink-0">
+            <CardTitle className="text-xs">{displayTitle}</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className="flex flex-1 items-center justify-center">
           <p className="text-sm text-foreground/40">Loading...</p>
         </CardContent>
       </Card>
@@ -86,11 +104,13 @@ export function CodeViewerCard({
 
   if (content === null) {
     return (
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-xs">{displayTitle}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex h-32 items-center justify-center">
+      <Card className={className}>
+        {!hideTitle && (
+          <CardHeader className="py-3 shrink-0">
+            <CardTitle className="text-xs">{displayTitle}</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className="flex flex-1 items-center justify-center">
           <p className="text-sm text-foreground/40">File not found</p>
         </CardContent>
       </Card>
@@ -107,8 +127,8 @@ export function CodeViewerCard({
           <CardTitle className="text-xs">{displayTitle}</CardTitle>
         </CardHeader>
       )}
-      <CardContent className="p-0 flex-1 min-h-0">
-        <div className="h-full overflow-auto rounded-b-base bg-secondary-background px-3 py-2">
+      <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto bg-secondary-background px-3 py-2">
           <pre className="text-xs leading-relaxed min-w-full w-max">
             {lines.map((line, i) => (
               <div
@@ -138,6 +158,11 @@ export function CodeViewerCard({
             ))}
           </pre>
         </div>
+        {truncated && (
+          <div className="shrink-0 bg-secondary-background border-t border-border/20 px-3 py-1.5 text-xs text-foreground/40 text-center">
+            Showing first {MAX_DISPLAY_LINES.toLocaleString()} lines — file truncated
+          </div>
+        )}
       </CardContent>
     </Card>
   );
