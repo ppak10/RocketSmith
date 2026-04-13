@@ -1,30 +1,31 @@
 import typer
 
+from pathlib import Path
 from rich import print as rprint
-from rich.tree import Tree
 from rich.console import Console
 from typing_extensions import Annotated
 
 from rocketsmith.openrocket.utils import get_openrocket_path
-from wa.cli.options import WorkspaceOption
-from wa.cli.utils import get_workspace
 
 
 def register_openrocket_inspect(app: typer.Typer):
     @app.command(name="inspect")
     def openrocket_inspect(
-        ork_filename: Annotated[
-            str,
-            typer.Argument(help="Filename of the .ork file in the workspace openrocket/ folder."),
+        rocket_file_path: Annotated[
+            Path,
+            typer.Argument(help="Path to the .ork or .rkt design file."),
         ],
-        workspace_option: WorkspaceOption = None,
         openrocket_path: Annotated[
             str | None,
-            typer.Option("--openrocket-path", help="Path to OpenRocket JAR or its parent directory."),
+            typer.Option(
+                "--openrocket-path",
+                help="Path to OpenRocket JAR or its parent directory.",
+            ),
         ] = None,
     ) -> None:
-        """Display the full component tree of an .ork file."""
-        from rocketsmith.openrocket.components import inspect_ork
+        """Read and display the component tree, CG, and CP from an .ork or .rkt file."""
+        from rocketsmith.openrocket.components import inspect_rocket_file
+        from rocketsmith.openrocket.ascii import render_rocket_ascii
 
         try:
             jar = get_openrocket_path(openrocket_path)
@@ -32,40 +33,39 @@ def register_openrocket_inspect(app: typer.Typer):
             rprint(f"⚠️  [yellow]{e}[/yellow]")
             raise typer.Exit(1)
 
-        workspace = get_workspace(workspace_option)
-        ork_path = workspace.path / "openrocket" / ork_filename
-
-        if not ork_path.exists():
-            rprint(f"⚠️  [yellow].ork file not found: {ork_path}[/yellow]")
+        if not rocket_file_path.exists():
+            rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
         try:
-            components = inspect_ork(ork_path, jar)
+            raw = inspect_rocket_file(rocket_file_path, jar)
+
+            # Print the ASCII profile
+            ascii_art = render_rocket_ascii(
+                raw["components"],
+                cg_x=raw.get("cg_x"),
+                cp_x=raw.get("cp_x"),
+                max_diameter=raw.get("max_diameter_m"),
+            )
+            rprint(ascii_art)
+
+            # Print the component tree
+            rprint("\n[bold]Component Tree:[/bold]")
+            for comp in raw["components"]:
+                indent = "  " * comp.get("depth", 0)
+                rprint(f"{indent}• [cyan]{comp['type']}[/cyan]: {comp['name']}")
+
+            # Print summary info
+            rprint(f"\n[bold cyan]Rocket:[/bold cyan] {rocket_file_path.name}")
+            if "stability_cal" in raw and raw["stability_cal"] is not None:
+                rprint(f"[bold]Stability:[/bold] {raw['stability_cal']:.2f} cal")
+            if "cg_x" in raw and raw["cg_x"] is not None:
+                rprint(f"[bold]CG:[/bold] {raw['cg_x']*1000:.1f} mm from tip")
+            if "cp_x" in raw and raw["cp_x"] is not None:
+                rprint(f"[bold]CP:[/bold] {raw['cp_x']*1000:.1f} mm from tip")
+
         except Exception as e:
-            rprint(f"⚠️  [yellow]Failed to inspect .ork: {e}[/yellow]")
+            rprint(f"⚠️  [yellow]Failed to inspect design: {e}[/yellow]")
             raise typer.Exit(1)
-
-        # Build a Rich tree from the flat depth-annotated list
-        root_label = f"[bold]{ork_filename}[/bold]"
-        rich_tree = Tree(root_label)
-        stack = [(rich_tree, -1)]  # (node, depth)
-
-        for entry in components:
-            depth = entry["depth"]
-            type_name = entry["type"]
-            name = entry["name"]
-
-            # Format property summary
-            props = {k: v for k, v in entry.items() if k not in ("depth", "type", "name")}
-            prop_str = "  ".join(f"[dim]{k}=[/dim][cyan]{v}[/cyan]" for k, v in props.items())
-            label = f"[bold cyan]{type_name}[/bold cyan] [white]{name}[/white]  {prop_str}"
-
-            while len(stack) > 1 and stack[-1][1] >= depth:
-                stack.pop()
-
-            node = stack[-1][0].add(label)
-            stack.append((node, depth))
-
-        Console().print(rich_tree)
 
     return openrocket_inspect

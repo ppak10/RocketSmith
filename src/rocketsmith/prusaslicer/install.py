@@ -2,11 +2,20 @@ import json
 import shutil
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
 
 from pathlib import Path
 from rich import print as rprint
-from rich.progress import Progress, SpinnerColumn, DownloadColumn, TransferSpeedColumn, BarColumn, TextColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    DownloadColumn,
+    TransferSpeedColumn,
+    BarColumn,
+    TextColumn,
+)
 
 from rocketsmith.prusaslicer.utils import get_prusaslicer_path
 
@@ -70,7 +79,8 @@ def _get_latest_appimage_url() -> tuple[str, str]:
     for release in releases:
         asset = next(
             (
-                a for a in release["assets"]
+                a
+                for a in release["assets"]
                 if a["name"].endswith(".AppImage")
                 and "linux" in a["name"].lower()
                 and "x64" in a["name"].lower()
@@ -81,27 +91,71 @@ def _get_latest_appimage_url() -> tuple[str, str]:
         if asset:
             return asset["name"], asset["browser_download_url"]
 
-    raise RuntimeError("No Linux x64 AppImage found in the last 30 PrusaSlicer releases.")
+    raise RuntimeError(
+        "No Linux x64 AppImage found in the last 30 PrusaSlicer releases."
+    )
 
 
-def _download_file(url: str, dest: Path) -> None:
-    """Download a file from url to dest with a progress bar."""
+def _download_file(url: str, dest: Path, max_retries: int = 3) -> None:
+    """Download a file from url to dest with a progress bar and retries."""
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        DownloadColumn(),
-        TransferSpeedColumn(),
-    ) as progress:
-        task = progress.add_task(f"Downloading [cyan]{dest.name}[/cyan]...", total=None)
+    headers = {"User-Agent": "rocketsmith"}
+    last_error = None
 
-        def _reporthook(block_count, block_size, total_size):
-            if total_size > 0:
-                progress.update(task, total=total_size, completed=block_count * block_size)
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as response:
+                total_size = int(response.getheader("Content-Length", 0))
 
-        urllib.request.urlretrieve(url, dest, reporthook=_reporthook)
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    DownloadColumn(),
+                    TransferSpeedColumn(),
+                ) as progress:
+                    task = progress.add_task(
+                        f"Downloading [cyan]{dest.name}[/cyan]...", total=total_size
+                    )
+
+                    with open(dest, "wb") as f:
+                        downloaded = 0
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            progress.update(task, completed=downloaded)
+                return  # Success!
+
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+            last_error = e
+            # Retry on transient errors (502 Bad Gateway, 503 Service Unavailable, 504 Gateway Timeout)
+            is_transient = isinstance(e, urllib.error.HTTPError) and e.code in (
+                502,
+                503,
+                504,
+            )
+            is_network = isinstance(e, (urllib.error.URLError, TimeoutError))
+
+            if (is_transient or is_network) and attempt < max_retries - 1:
+                wait_time = 2**attempt
+                rprint(
+                    f"⚠️  [yellow]Download failed ({e}). Retrying in {wait_time}s...[/yellow]"
+                )
+                time.sleep(wait_time)
+                continue
+
+            # If we get here, it's either not a transient error or we've exhausted retries
+            break
+
+    if last_error:
+        raise RuntimeError(
+            f"Failed to download {url} after {max_retries} attempts: {last_error}"
+        )
 
 
 def _install_appimage() -> None:
@@ -126,8 +180,11 @@ def _install_windows() -> None:
     rprint("[blue]Installing PrusaSlicer via winget...[/blue]")
     subprocess.run(
         [
-            "winget", "install",
-            "--exact", "--id", "Prusa3D.PrusaSlicer",
+            "winget",
+            "install",
+            "--exact",
+            "--id",
+            "Prusa3D.PrusaSlicer",
             "--accept-source-agreements",
             "--accept-package-agreements",
         ],

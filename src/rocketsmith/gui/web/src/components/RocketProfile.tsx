@@ -1,0 +1,258 @@
+import { useMemo } from "react";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+type Qty = [number, string];
+
+export interface ComponentNode {
+  type: string;
+  name: string;
+  category: string;
+  dimensions: Record<string, unknown>;
+  mass: Qty | null;
+  override_mass: Qty | null;
+  override_mass_enabled: boolean;
+  material: string | null;
+  human_notes: string | null;
+  agent: {
+    fate: string;
+    fused_into: string | null;
+    reason: string | null;
+    dfam_shoulder_length_mm?: number | null;
+    dfam_shoulder_od_mm?: number | null;
+    dfam_hollow?: boolean;
+    dfam_wall_mm?: number | null;
+  } | null;
+  cost: number | null;
+  step_path: string | null;
+  children: ComponentNode[];
+}
+
+export interface Stage {
+  name: string;
+  components: ComponentNode[];
+  cg?: Qty | null;
+  cp?: Qty | null;
+  stability_cal?: number | null;
+  max_diameter?: Qty | null;
+}
+
+// ── Shape building ─────────────────────────────────────────────────────────
+
+interface Shape {
+  type: string;
+  name: string;
+  x: number;
+  length: number;
+  radius: number;
+  innerRadius?: number;
+  tipRadius?: number;
+  finSpan?: number;
+  finSweep?: number;
+  finTipChord?: number;
+  finCount?: number;
+  color: string;
+}
+
+const SHAPE_COLORS: Record<string, string> = {
+  NoseCone: "#8ecae6",
+  BodyTube: "#a8dadc",
+  InnerTube: "#457b9d",
+  TrapezoidFinSet: "#e76f51",
+  EllipticalFinSet: "#e76f51",
+  FreeformFinSet: "#e76f51",
+  TubeCoupler: "#2a9d8f",
+  Parachute: "#ffb703",
+  ShockCord: "#ffb703",
+};
+
+function dimVal(dims: Record<string, unknown>, key: string): number {
+  const v = dims[key];
+  if (Array.isArray(v)) return v[0] as number;
+  if (typeof v === "number") return v;
+  return 0;
+}
+
+function buildShapes(stages: Stage[]): Shape[] {
+  const shapes: Shape[] = [];
+  let cursor = 0;
+
+  function walkComponents(components: ComponentNode[], parentX: number, parentLength: number, parentRadius: number) {
+    for (const comp of components) {
+      const dims = comp.dimensions as Record<string, unknown>;
+
+      if (comp.type === "NoseCone") {
+        const length = dimVal(dims, "length");
+        const radius = dimVal(dims, "base_od") / 2;
+        shapes.push({ type: "NoseCone", name: comp.name, x: cursor, length, radius, tipRadius: 0, color: SHAPE_COLORS.NoseCone });
+        cursor += length;
+        walkComponents(comp.children, cursor - length, length, radius);
+      } else if (comp.type === "BodyTube") {
+        const length = dimVal(dims, "length");
+        const radius = dimVal(dims, "od") / 2;
+        shapes.push({ type: "BodyTube", name: comp.name, x: cursor, length, radius, innerRadius: dimVal(dims, "id") / 2, color: SHAPE_COLORS.BodyTube });
+        const tubeX = cursor;
+        cursor += length;
+        walkComponents(comp.children, tubeX, length, radius);
+      } else if (comp.type === "TubeCoupler") {
+        const length = dimVal(dims, "length");
+        const radius = dimVal(dims, "od") / 2;
+        shapes.push({ type: "TubeCoupler", name: comp.name, x: cursor, length, radius, color: SHAPE_COLORS.TubeCoupler });
+      } else if (comp.type === "InnerTube") {
+        const length = dimVal(dims, "length");
+        const radius = dimVal(dims, "od") / 2;
+        const x = parentX + parentLength - length;
+        shapes.push({ type: "InnerTube", name: comp.name, x, length, radius, innerRadius: dimVal(dims, "id") / 2, color: SHAPE_COLORS.InnerTube });
+      } else if (comp.type.includes("FinSet")) {
+        const rootChord = dimVal(dims, "root_chord");
+        const span = dimVal(dims, "span");
+        const sweep = dimVal(dims, "sweep");
+        const tipChord = dimVal(dims, "tip_chord");
+        const count = dimVal(dims, "count") || 3;
+        const x = parentX + parentLength - rootChord;
+        shapes.push({ type: comp.type, name: comp.name, x, length: rootChord, radius: parentRadius, finSpan: span, finSweep: sweep, finTipChord: tipChord, finCount: count, color: SHAPE_COLORS.TrapezoidFinSet });
+      }
+    }
+  }
+
+  for (const stage of stages) {
+    walkComponents(stage.components, 0, 0, 0);
+  }
+  return shapes;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+interface RocketProfileProps {
+  stages: Stage[];
+  cgMm?: number | null;
+  cpMm?: number | null;
+}
+
+export function RocketProfile({ stages, cgMm = null, cpMm = null }: RocketProfileProps) {
+  const shapes = useMemo(() => buildShapes(stages), [stages]);
+
+  if (shapes.length === 0) return null;
+
+  const totalLength = Math.max(...shapes.map((s) => s.x + s.length));
+  const maxRadius = Math.max(...shapes.map((s) => s.radius + (s.finSpan ?? 0)));
+
+  const padding = 10;
+  const svgWidth = 800;
+  const scale = (svgWidth - padding * 2) / totalLength;
+  const svgHeight = maxRadius * 2 * scale + padding * 2 + 50;
+  const centerY = padding + maxRadius * scale;
+
+  return (
+    <svg
+      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+      className="w-full"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {/* Center line */}
+      <line
+        x1={padding}
+        y1={centerY}
+        x2={padding + totalLength * scale}
+        y2={centerY}
+        stroke="var(--border)"
+        strokeWidth={0.5}
+        strokeDasharray="4 2"
+      />
+
+      {shapes.map((shape, i) => {
+        const sx = padding + shape.x * scale;
+        const sl = shape.length * scale;
+        const sr = shape.radius * scale;
+
+        if (shape.type === "NoseCone") {
+          const tipX = sx;
+          const baseX = sx + sl;
+          const upper = `M ${tipX} ${centerY} Q ${tipX + sl * 0.3} ${centerY - sr} ${baseX} ${centerY - sr}`;
+          return (
+            <g key={i}>
+              <path
+                d={`${upper} L ${baseX} ${centerY + sr} Q ${tipX + sl * 0.3} ${centerY + sr} ${tipX} ${centerY} Z`}
+                fill={shape.color}
+                stroke="var(--border)"
+                strokeWidth={1.5}
+              />
+            </g>
+          );
+        }
+
+        if (shape.type === "BodyTube" || shape.type === "TubeCoupler") {
+          return (
+            <g key={i}>
+              <rect x={sx} y={centerY - sr} width={sl} height={sr * 2} fill={shape.color} stroke="var(--border)" strokeWidth={1.5} />
+            </g>
+          );
+        }
+
+        if (shape.type === "InnerTube") {
+          return (
+            <g key={i}>
+              <rect x={sx} y={centerY - sr} width={sl} height={sr * 2} fill={shape.color} fillOpacity={0.5} stroke="var(--border)" strokeWidth={1} strokeDasharray="3 2" />
+            </g>
+          );
+        }
+
+        if (shape.type.includes("FinSet") && shape.finSpan) {
+          const finSpanPx = shape.finSpan * scale;
+          const sweepPx = (shape.finSweep ?? 0) * scale;
+          const tipChordPx = (shape.finTipChord ?? 0) * scale;
+          const ux1 = sx;
+          const uy1 = centerY - sr;
+          const ly1 = centerY + sr;
+          return (
+            <g key={i}>
+              <path d={`M ${ux1} ${uy1} L ${ux1 + sweepPx} ${uy1 - finSpanPx} L ${ux1 + sweepPx + tipChordPx} ${uy1 - finSpanPx} L ${ux1 + sl} ${uy1} Z`} fill={shape.color} stroke="var(--border)" strokeWidth={1.5} />
+              <path d={`M ${ux1} ${ly1} L ${ux1 + sweepPx} ${ly1 + finSpanPx} L ${ux1 + sweepPx + tipChordPx} ${ly1 + finSpanPx} L ${ux1 + sl} ${ly1} Z`} fill={shape.color} stroke="var(--border)" strokeWidth={1.5} />
+            </g>
+          );
+        }
+
+        return null;
+      })}
+
+      {/* CG marker */}
+      {cgMm != null && (
+        <g transform={`translate(${padding + cgMm * scale}, ${centerY})`}>
+          <circle r={6} fill="none" stroke="#3b82f6" strokeWidth={1.5} />
+          <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="#3b82f6" strokeWidth={1.5} />
+          <line x1={0} y1={-3.5} x2={0} y2={3.5} stroke="#3b82f6" strokeWidth={1.5} />
+        </g>
+      )}
+
+      {/* CP marker */}
+      {cpMm != null && (
+        <g transform={`translate(${padding + cpMm * scale}, ${centerY})`}>
+          <circle r={6} fill="none" stroke="#ef4444" strokeWidth={1.5} />
+          <circle r={2} fill="#ef4444" />
+        </g>
+      )}
+
+      {/* Dimension line */}
+      <g>
+        <line
+          x1={padding} y1={svgHeight - 8}
+          x2={padding + totalLength * scale} y2={svgHeight - 8}
+          stroke="var(--foreground)" strokeWidth={0.75}
+          markerStart="url(#arrowL)" markerEnd="url(#arrowR)"
+        />
+        <text x={padding + (totalLength * scale) / 2} y={svgHeight - 12} textAnchor="middle" fontSize={9} fill="var(--foreground)" opacity={0.5}>
+          {totalLength.toFixed(0)} mm
+        </text>
+      </g>
+
+      <defs>
+        <marker id="arrowL" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+          <path d="M 6 0 L 0 3 L 6 6" fill="none" stroke="var(--foreground)" strokeWidth="0.75" />
+        </marker>
+        <marker id="arrowR" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto">
+          <path d="M 0 0 L 6 3 L 0 6" fill="none" stroke="var(--foreground)" strokeWidth="0.75" />
+        </marker>
+      </defs>
+    </svg>
+  );
+}

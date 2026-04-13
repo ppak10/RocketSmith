@@ -1,0 +1,44 @@
+name: claude-plugin
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install project dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install rocketsmith package locally
+        run: uv pip install -e .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Verify Installation
+        env:
+          ANTHROPIC_API_KEY: "sk-ant-00000000000000000000"
+        run: |
+          # Verify Claude Code is available
+          claude --version
+          
+          # Test plugin detection and components
+          # We use --plugin-dir . to point to the local repository
+          claude --plugin-dir . plugin list | grep "rocketsmith"
+          claude --plugin-dir . agents | grep "rocketsmith"
+          # Claude doesn't have a standalone 'skills list' command in CLI, 
+          # but verifying agents and plugins covers the core installation.

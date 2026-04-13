@@ -19,6 +19,7 @@ def mcp_app():
 @pytest.fixture
 def tmp_ork(tmp_path, openrocket_jar):
     from rocketsmith.openrocket.components import new_ork
+
     path = tmp_path / "test.ork"
     new_ork("Test Rocket", path, openrocket_jar)
     return path
@@ -41,9 +42,12 @@ async def test_create_missing_component_type_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
+    p = tmp_path / "test.ork"
+    p.touch()
+
     result = await tool.fn(
         action="create",
-        ork_path=tmp_path / "test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_type intentionally omitted
     )
@@ -57,9 +61,12 @@ async def test_read_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
+    p = tmp_path / "test.ork"
+    p.touch()
+
     result = await tool.fn(
         action="read",
-        ork_path=tmp_path / "test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_name intentionally omitted
     )
@@ -73,9 +80,12 @@ async def test_update_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
+    p = tmp_path / "test.ork"
+    p.touch()
+
     result = await tool.fn(
         action="update",
-        ork_path=tmp_path / "test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_name intentionally omitted
     )
@@ -89,9 +99,12 @@ async def test_delete_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
+    p = tmp_path / "test.ork"
+    p.touch()
+
     result = await tool.fn(
         action="delete",
-        ork_path=tmp_path / "test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         # component_name intentionally omitted
     )
@@ -105,9 +118,12 @@ async def test_create_unknown_type_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
+    p = tmp_path / "test.ork"
+    p.touch()
+
     result = await tool.fn(
         action="create",
-        ork_path=tmp_path / "test.ork",
+        rocket_file_path=p,
         openrocket_path=tmp_path / "fake.jar",
         component_type="laser-cannon",
     )
@@ -126,7 +142,7 @@ async def test_create_nose_cone(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="TestNose",
@@ -149,7 +165,7 @@ async def test_create_body_tube(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="body-tube",
         name="MainTube",
@@ -170,7 +186,7 @@ async def test_read_component(mcp_app, tmp_ork, openrocket_jar):
     # Create first
     await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="ReadMe",
@@ -179,7 +195,7 @@ async def test_read_component(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="read",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="ReadMe",
     )
@@ -191,13 +207,15 @@ async def test_read_component(mcp_app, tmp_ork, openrocket_jar):
 
 
 @pytest.mark.anyio
-async def test_read_nonexistent_component_returns_error(mcp_app, tmp_ork, openrocket_jar):
+async def test_read_nonexistent_component_returns_error(
+    mcp_app, tmp_ork, openrocket_jar
+):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
     result = await tool.fn(
         action="read",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="NoSuchComponent",
     )
@@ -213,7 +231,7 @@ async def test_update_component(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="UpdateMe",
@@ -222,7 +240,7 @@ async def test_update_component(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="update",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="UpdateMe",
         length=0.45,
@@ -239,7 +257,7 @@ async def test_update_preserves_other_properties(mcp_app, tmp_ork, openrocket_ja
 
     await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="Preserve",
@@ -249,7 +267,7 @@ async def test_update_preserves_other_properties(mcp_app, tmp_ork, openrocket_ja
 
     result = await tool.fn(
         action="update",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="Preserve",
         length=0.35,
@@ -266,7 +284,7 @@ async def test_delete_component(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="DeleteMe",
@@ -274,7 +292,7 @@ async def test_delete_component(mcp_app, tmp_ork, openrocket_jar):
 
     result = await tool.fn(
         action="delete",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="DeleteMe",
     )
@@ -293,7 +311,7 @@ async def test_delete_persists(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="nose-cone",
         name="Gone",
@@ -301,12 +319,13 @@ async def test_delete_persists(mcp_app, tmp_ork, openrocket_jar):
 
     await tool.fn(
         action="delete",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_name="Gone",
     )
 
-    names = [c["name"] for c in inspect_ork(tmp_ork, openrocket_jar)]
+    result = inspect_ork(tmp_ork, openrocket_jar)
+    names = [c["name"] for c in result["components"]]
     assert "Gone" not in names
 
 
@@ -317,7 +336,7 @@ async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_
 
     await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="body-tube",
         name="Tube",
@@ -327,7 +346,7 @@ async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_
 
     result = await tool.fn(
         action="create",
-        ork_path=tmp_ork,
+        rocket_file_path=tmp_ork,
         openrocket_path=openrocket_jar,
         component_type="fin-set",
         parent="Tube",
@@ -340,3 +359,168 @@ async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_
     assert result.success is True
     assert result.data["type"] == "TrapezoidFinSet"
     assert result.data["fin_count"] == 3
+
+
+# ── Mass override ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_mass_override_set_and_enabled(mcp_app, tmp_ork, openrocket_jar):
+    """Setting override_mass_kg alone should implicitly enable the flag."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Upper",
+        length=0.4,
+        diameter=0.064,
+    )
+
+    result = await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+        override_mass_kg=0.125,
+    )
+    assert result.success is True
+    assert result.data["override_mass_enabled"] is True
+    assert abs(result.data["override_mass_kg"] - 0.125) < 1e-6
+
+
+@pytest.mark.anyio
+async def test_mass_override_persists_across_reload(mcp_app, tmp_ork, openrocket_jar):
+    """Override value and flag should survive a save + reload cycle."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Upper",
+        length=0.4,
+        diameter=0.064,
+    )
+    await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+        override_mass_kg=0.250,
+    )
+
+    # Read in a fresh load
+    result = await tool.fn(
+        action="read",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+    )
+    assert result.success is True
+    assert result.data["override_mass_enabled"] is True
+    assert abs(result.data["override_mass_kg"] - 0.250) < 1e-6
+
+
+@pytest.mark.anyio
+async def test_mass_override_affects_flight(mcp_app, tmp_ork, openrocket_jar):
+    """A heavy mass override should reduce flight apogee."""
+    from rocketsmith.openrocket.simulation import (
+        create_simulation,
+        run_simulation,
+    )
+    from orhelper import FlightDataType
+
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="nose-cone",
+        diameter=0.064,
+        length=0.12,
+        shape="ogive",
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Body",
+        diameter=0.064,
+        length=0.4,
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="inner-tube",
+        diameter=0.029,
+        length=0.1,
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="fin-set",
+        count=3,
+        root_chord=0.08,
+        tip_chord=0.04,
+        span=0.06,
+    )
+
+    create_simulation(tmp_ork, openrocket_jar, "D12", sim_name="s")
+    base = run_simulation(tmp_ork, openrocket_jar)[0]
+    base_alt = float(base.timeseries.get(FlightDataType.TYPE_ALTITUDE).max())
+
+    # Slam the body tube with a 500 g override — flight should be much shorter
+    await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Body",
+        override_mass_kg=0.500,
+    )
+
+    heavy = run_simulation(tmp_ork, openrocket_jar)[0]
+    heavy_alt = float(heavy.timeseries.get(FlightDataType.TYPE_ALTITUDE).max())
+
+    assert heavy_alt < base_alt * 0.5, (
+        f"Mass override did not affect flight: baseline {base_alt:.1f} m "
+        f"vs overridden {heavy_alt:.1f} m"
+    )
+
+
+@pytest.mark.anyio
+async def test_mass_override_toggle_off(mcp_app, tmp_ork, openrocket_jar):
+    """override_mass_enabled=False should disable the override flag."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="Upper",
+        length=0.4,
+        diameter=0.064,
+        override_mass_kg=0.300,
+    )
+
+    result = await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Upper",
+        override_mass_enabled=False,
+    )
+    assert result.success is True
+    assert result.data["override_mass_enabled"] is False

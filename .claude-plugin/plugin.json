@@ -1,12 +1,28 @@
 {
   "name": "rocketsmith",
-  "description": "OpenRocket and PrusaSlicer tools for rocket design in Claude Code",
-  "version": "0.0.5",
+  "description": "Use agents to design and build high powered rockets",
+  "version": "0.0.13",
   "author": {
     "name": "Peter Pak, Jesse Barkley, Rumi Loghmani"
   },
   "homepage": "https://github.com/ppak10/RocketSmith",
   "repository": "https://github.com/ppak10/RocketSmith",
   "license": "MIT",
-  "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"]
+  "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
+  "mcpServers": {
+    "rocketsmith": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "run",
+        "-m",
+        "rocketsmith.mcp"
+      ],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/src",
+        "ROCKETSMITH_PROJECT_DIR": "$CLAUDE_PROJECT_DIR"
+      }
+    }
+  }
 }

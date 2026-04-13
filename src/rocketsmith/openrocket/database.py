@@ -65,6 +65,7 @@ def list_motors(
     impulse_class: str | None = None,
     diameter_mm: float | None = None,
     motor_type: str | None = None,
+    name: str | None = None,
 ) -> list[dict]:
     """
     List available motors from the OpenRocket database.
@@ -75,6 +76,7 @@ def list_motors(
         impulse_class: Filter by impulse class letter (e.g. 'D', 'F', 'H').
         diameter_mm: Filter by motor diameter in mm (tolerance ±0.5 mm).
         motor_type: Filter by type substring: 'single-use', 'reloadable', 'hybrid'.
+        name: Filter by motor common name or designation substring (case-insensitive).
     """
     import jpype
     from rocketsmith.openrocket.components import _or_context
@@ -88,24 +90,35 @@ def list_motors(
             ms = motor_sets.get(i)
 
             mfr = str(ms.getManufacturer())
-            name = str(ms.getCommonName())
+            common_name = str(ms.getCommonName())
+            designation = str(ms.getDesignation())
             mtype = str(ms.getType())
             dia_mm = round(float(ms.getDiameter()) * 1000, 1)
 
             if manufacturer and manufacturer.lower() not in mfr.lower():
                 continue
-            if impulse_class and not name.upper().startswith(impulse_class.upper()):
+            if impulse_class and not common_name.upper().startswith(
+                impulse_class.upper()
+            ):
                 continue
             if diameter_mm is not None and abs(dia_mm - diameter_mm) > 0.5:
                 continue
-            if motor_type and motor_type.lower().replace("-", "") not in mtype.lower().replace("-", ""):
+            if motor_type and motor_type.lower().replace(
+                "-", ""
+            ) not in mtype.lower().replace("-", ""):
                 continue
+            if name:
+                needle = name.lower().replace("-", "").replace(" ", "")
+                haystack_name = common_name.lower().replace("-", "").replace(" ", "")
+                haystack_desig = designation.lower().replace("-", "").replace(" ", "")
+                if needle not in haystack_name and needle not in haystack_desig:
+                    continue
 
             m0 = ms.getMotors().get(0)
             entry = {
                 "manufacturer": mfr,
-                "designation": str(ms.getDesignation()),
-                "common_name": name,
+                "designation": designation,
+                "common_name": common_name,
                 "type": mtype,
                 "diameter_mm": dia_mm,
                 "length_mm": round(float(ms.getLength()) * 1000, 1),
@@ -160,12 +173,14 @@ def list_presets(
             mfr = str(p.getManufacturer())
             if manufacturer and manufacturer.lower() not in mfr.lower():
                 continue
-            results.append({
-                "manufacturer": mfr,
-                "part_no": str(p.getPartNo()),
-                "type": preset_type,
-                **_extract_preset_props(p, CP),
-            })
+            results.append(
+                {
+                    "manufacturer": mfr,
+                    "part_no": str(p.getPartNo()),
+                    "type": preset_type,
+                    **_extract_preset_props(p, CP),
+                }
+            )
 
         return results
 

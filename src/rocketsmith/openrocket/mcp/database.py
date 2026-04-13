@@ -26,6 +26,7 @@ def register_openrocket_database(app: FastMCP):
         impulse_class: str | None = None,
         diameter_mm: float | None = None,
         motor_type: str | None = None,
+        name: str | None = None,
         preset_type: str | None = None,
         material_type: str | None = None,
         limit: int | None = 50,
@@ -46,6 +47,8 @@ def register_openrocket_database(app: FastMCP):
             impulse_class: Filter motors by impulse class letter, e.g. 'D', 'F', 'H'.
             diameter_mm: Filter motors by diameter in mm, e.g. 18, 24, 29, 38, 54.
             motor_type: Filter motors by type: 'single-use', 'reloadable', 'hybrid'.
+            name: Filter motors by common name or designation substring (case-insensitive,
+                  e.g. 'H100' matches 'H100W-DMS', 'H100T', etc.).
             preset_type: Required for 'presets'. One of: body-tube, nose-cone, transition,
                          tube-coupler, bulk-head, centering-ring, engine-block, launch-lug,
                          rail-button, streamer, parachute.
@@ -53,7 +56,11 @@ def register_openrocket_database(app: FastMCP):
             limit: Maximum number of results to return. Defaults to 50. Pass None for all results.
             openrocket_path: Optional path to the OpenRocket JAR file.
         """
-        from rocketsmith.openrocket.database import list_motors, list_presets, list_materials
+        from rocketsmith.openrocket.database import (
+            list_motors,
+            list_presets,
+            list_materials,
+        )
         from rocketsmith.openrocket.utils import get_openrocket_path
 
         def _apply_limit(items: list) -> list:
@@ -70,6 +77,7 @@ def register_openrocket_database(app: FastMCP):
                     impulse_class=impulse_class,
                     diameter_mm=diameter_mm,
                     motor_type=motor_type,
+                    name=name,
                 )
                 return tool_success(_apply_limit(results))
 
@@ -79,7 +87,9 @@ def register_openrocket_database(app: FastMCP):
                         "'preset_type' is required for action 'presets'.",
                         "MISSING_ARGUMENT",
                     )
-                results = list_presets(openrocket_path, preset_type, manufacturer=manufacturer)
+                results = list_presets(
+                    openrocket_path, preset_type, manufacturer=manufacturer
+                )
                 return tool_success(_apply_limit(results))
 
             elif action == "materials":

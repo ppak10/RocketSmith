@@ -1,0 +1,63 @@
+name: gemini-extension
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install project dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install rocketsmith package locally
+        run: uv pip install -e .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Gemini CLI
+        run: |
+          npm install -g @google/gemini-cli
+          gemini --version
+
+      - name: Initialize Gemini Config
+        run: |
+          # Create config directory and extensions sub-directory
+          mkdir -p "$HOME/.gemini/extensions"
+          # Do not manually create projects.json to avoid schema mismatches; 
+          # let the CLI initialize it on first run.
+          chmod -R 700 "$HOME/.gemini"
+
+      - name: Install Extension
+        env:
+          GEMINI_API_KEY: "dummy-key-for-init"
+          DEBUG: "gemini:*"
+        run: |
+          gemini extensions install . --consent
+
+      - name: Verify Installation
+        env:
+          DEBUG: "gemini:*"
+        run: |
+          echo "=== Extensions List ==="
+          gemini extensions list
+          gemini extensions list | grep "rocketsmith"
+
+          echo "=== Skills List ==="
+          gemini skills list
+          gemini skills list | grep "rocketsmith"
+
+          echo "=== Agents List ==="
+          # Check if gemini agents list works
+          gemini agents list 2>/dev/null | grep "rocketsmith" || echo "rocketsmith not found in agents list (or command not available)"

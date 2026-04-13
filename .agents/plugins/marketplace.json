@@ -1,0 +1,20 @@
+{
+  "name": "rocketsmith-local",
+  "interface": {
+    "displayName": "RocketSmith (Local)"
+  },
+  "plugins": [
+    {
+      "name": "rocketsmith",
+      "source": {
+        "source": "local",
+        "path": "./plugins/rocketsmith"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -6,12 +6,12 @@ def register_openrocket_component(app: FastMCP):
     from typing import Literal, Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
-        title="OpenRocket Component",
+        title="OpenRocket or RockSim Component",
         description=(
-            "Create, read, update, or delete a component in an OpenRocket .ork file. "
+            "Create, read, update, or delete a component in an OpenRocket .ork or RockSim .rkt file. "
             "Use 'action' to specify the operation. "
             "Valid component types for create: nose-cone, body-tube, inner-tube, transition, fin-set, parachute, mass. "
             "inner-tube serves two purposes: motor mount (set motor_mount=true, sized to motor diameter) "
@@ -22,7 +22,7 @@ def register_openrocket_component(app: FastMCP):
     )
     async def openrocket_component(
         action: Literal["create", "read", "update", "delete"],
-        ork_path: Path,
+        rocket_file_path: Path,
         component_name: str | None = None,
         component_type: str | None = None,
         parent: str | None = None,
@@ -44,12 +44,16 @@ def register_openrocket_component(app: FastMCP):
         sweep: float | None = None,
         cd: float | None = None,
         mass: float | None = None,
+        motor_mount: bool | None = None,
         axial_offset_m: float | None = None,
         axial_offset_method: str | None = None,
+        override_mass_kg: float | None = None,
+        override_mass_enabled: bool | None = None,
         openrocket_path: Path | None = None,
+        project_dir: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
-        Perform a CRUD operation on a single rocket component.
+        Perform a CRUD operation on a single rocket component in an .ork or .rkt file.
 
         Actions:
             create: Add a new component. Requires 'component_type'. Use 'parent' to
@@ -92,9 +96,32 @@ def register_openrocket_component(app: FastMCP):
             should protrude half its length past the aft end of its parent, use
             axial_offset_method="bottom" and axial_offset_m=+(coupler_length / 2).
 
+            Coupler sign gotcha: when ``axial_offset_method="bottom"``,
+            ``axial_offset_m`` must be **positive** to push the coupler past
+            the parent's aft end. A negative value will pull it back inside
+            the parent and produce an invalid geometry that may still save
+            without error.
+
+        Mass overrides (create and update):
+            override_mass_kg: Pin this component's mass to a measured value
+                in **kilograms** (NOT grams — divide filament_used_g by 1000
+                when feeding in a prusaslicer_slice result). Setting this
+                implicitly enables the override unless
+                override_mass_enabled=False is also passed.
+            override_mass_enabled: Toggle the override flag. When
+                override_mass_kg is set, this defaults to True.
+
+            Persistence gotcha: OpenRocket only serializes the
+            ``<overridemass>`` tag when the override is enabled. Disabling
+            with override_mass_enabled=False and saving will drop the stored
+            value on the next reload. To keep a calibration around while
+            comparing a baseline vs. overridden simulation, either leave the
+            override enabled and re-enable it each run, or track the
+            measured weight outside the .ork file.
+
         Args:
             action: One of 'create', 'read', 'update', 'delete'.
-            ork_path: Path to the OpenRocket .ork design file.
+            rocket_file_path: Path to the .ork or .rkt design file.
             component_name: Name of the component to read/update/delete.
             component_type: Type of component to create (e.g. 'nose-cone').
             parent: Named parent component for create (optional).
@@ -104,6 +131,9 @@ def register_openrocket_component(app: FastMCP):
             material_name: Material to apply by name (create/update).
             material_type: Restrict material search to 'bulk', 'surface', or 'line'.
             openrocket_path: Optional path to the OpenRocket JAR file.
+            project_dir: Optional project directory. When provided,
+                component_tree.json is automatically regenerated after
+                create, update, or delete operations.
         """
         from rocketsmith.openrocket.components import (
             create_component,
@@ -112,6 +142,30 @@ def register_openrocket_component(app: FastMCP):
             delete_component,
         )
         from rocketsmith.openrocket.utils import get_openrocket_path
+
+        def _regen_tree() -> None:
+            """Regenerate component_tree.json if project_dir is set."""
+            if project_dir is None:
+                return
+            try:
+                from rocketsmith.openrocket.generate_tree import generate_tree
+
+                resolved_project = resolve_path(project_dir)
+                generate_tree(
+                    rocket_file_path=rocket_file_path,
+                    project_dir=resolved_project,
+                    jar_path=openrocket_path,
+                )
+            except Exception:
+                pass  # Best-effort — don't fail the component op
+
+        rocket_file_path = resolve_path(rocket_file_path)
+        if not rocket_file_path.exists():
+            return tool_error(
+                f"Design file not found: {rocket_file_path}",
+                "FILE_NOT_FOUND",
+                file_path=str(rocket_file_path),
+            )
 
         try:
             if openrocket_path is None:
@@ -134,8 +188,11 @@ def register_openrocket_component(app: FastMCP):
                     sweep=sweep,
                     cd=cd,
                     mass=mass,
+                    motor_mount=motor_mount,
                     axial_offset_m=axial_offset_m,
                     axial_offset_method=axial_offset_method,
+                    override_mass_kg=override_mass_kg,
+                    override_mass_enabled=override_mass_enabled,
                 ).items()
                 if v is not None
             }
@@ -147,7 +204,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = create_component(
-                    ork_path=ork_path,
+                    path=rocket_file_path,
                     component_type=component_type,
                     jar_path=openrocket_path,
                     parent_name=parent,
@@ -157,6 +214,7 @@ def register_openrocket_component(app: FastMCP):
                     material_type=material_type,
                     **props,
                 )
+                _regen_tree()
                 return tool_success(result)
 
             elif action == "read":
@@ -166,7 +224,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = read_component(
-                    ork_path=ork_path,
+                    path=rocket_file_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
                 )
@@ -179,7 +237,7 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 result = update_component(
-                    ork_path=ork_path,
+                    path=rocket_file_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
                     preset_part_no=preset_part_no,
@@ -188,6 +246,7 @@ def register_openrocket_component(app: FastMCP):
                     material_type=material_type,
                     **props,
                 )
+                _regen_tree()
                 return tool_success(result)
 
             elif action == "delete":
@@ -197,17 +256,18 @@ def register_openrocket_component(app: FastMCP):
                         "MISSING_ARGUMENT",
                     )
                 deleted_name = delete_component(
-                    ork_path=ork_path,
+                    path=rocket_file_path,
                     component_name=component_name,
                     jar_path=openrocket_path,
                 )
+                _regen_tree()
                 return tool_success({"deleted": deleted_name})
 
         except FileNotFoundError as e:
             return tool_error(
                 str(e),
                 "FILE_NOT_FOUND",
-                ork_path=str(ork_path),
+                file_path=str(rocket_file_path),
                 exception_type=type(e).__name__,
             )
 
@@ -222,7 +282,7 @@ def register_openrocket_component(app: FastMCP):
             return tool_error(
                 f"Failed to {action} component",
                 "COMPONENT_FAILED",
-                ork_path=str(ork_path),
+                file_path=str(rocket_file_path),
                 action=action,
                 exception_type=type(e).__name__,
                 exception_message=str(e),

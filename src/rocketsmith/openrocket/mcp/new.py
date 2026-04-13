@@ -6,7 +6,13 @@ def register_openrocket_new(app: FastMCP):
     from typing import Union
 
     from rocketsmith.mcp.types import ToolSuccess, ToolError
-    from rocketsmith.mcp.utils import tool_success, tool_error
+    from rocketsmith.mcp.utils import (
+        get_project_dir,
+        resolve_path,
+        tool_success,
+        tool_error,
+    )
+    from rocketsmith.gui.layout import OPENROCKET_DIR
 
     @app.tool(
         title="New OpenRocket File",
@@ -15,27 +21,55 @@ def register_openrocket_new(app: FastMCP):
     )
     async def openrocket_new(
         name: str,
-        output_path: Path,
+        out_path: Path | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Create a new OpenRocket design file with an empty rocket and one stage.
 
         Args:
-            name: Display name for the rocket (stored inside the .ork file).
-            output_path: Where to write the new .ork file.
+            name: Display name for the rocket (stored inside the .ork file). This
+                  is the name OpenRocket shows in its UI — it is not a filename.
+                  If it happens to end in ``.ork``, the suffix is stripped before
+                  being used as the default filename (to avoid ``foo.ork.ork``).
+            out_path: **Absolute** path where the .ork file should be saved.
+                      If omitted, defaults to
+                      ``<project_dir>/openrocket/{name}.ork``.
+                      The ``.ork`` extension is normalised automatically
+                      (``foo`` → ``foo.ork``, ``foo.ork.ork`` → ``foo.ork``).
             openrocket_path: Optional path to the OpenRocket JAR file. If not
                              provided, the installed JAR is located automatically.
         """
         from rocketsmith.openrocket.components import new_ork
         from rocketsmith.openrocket.utils import get_openrocket_path
 
+        # Strip ``.ork`` from the display name if the caller accidentally
+        # passed a filename. The display name is stored inside the .ork file
+        # as the rocket's label — it should not contain an extension.
+        display_name = name[:-4] if name.endswith(".ork") else name
+
+        if out_path is None:
+            out_path = get_project_dir() / OPENROCKET_DIR / f"{display_name}.ork"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        out_path = resolve_path(out_path)
+
+        # Normalise the ``.ork`` suffix: strip any number of trailing ``.ork``
+        # components and append exactly one. Handles ``foo`` → ``foo.ork``,
+        # ``foo.ork`` → ``foo.ork``, and ``foo.ork.ork`` → ``foo.ork``.
+        path_str = str(out_path)
+        while path_str.endswith(".ork"):
+            path_str = path_str[:-4]
+        out_path = Path(path_str + ".ork")
+
         try:
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
 
-            result_path = new_ork(name=name, output_path=output_path, jar_path=openrocket_path)
-            return tool_success({"path": str(result_path), "name": name})
+            result_path = new_ork(
+                name=display_name, output_path=out_path, jar_path=openrocket_path
+            )
+            return tool_success({"path": str(result_path), "name": display_name})
 
         except FileNotFoundError as e:
             return tool_error(
@@ -48,7 +82,6 @@ def register_openrocket_new(app: FastMCP):
             return tool_error(
                 "Failed to create OpenRocket file",
                 "CREATE_FAILED",
-                output_path=str(output_path),
                 exception_type=type(e).__name__,
                 exception_message=str(e),
             )

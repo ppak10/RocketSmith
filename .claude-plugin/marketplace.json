@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "rocketsmith",
+  "description": "Use agents to design and build high powered rockets",
+  "owner": {
+    "name": "Peter Pak, Jesse Barkley, Rumi Loghmani",
+    "email": "ppak10@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "rocketsmith",
+      "description": "Use agents to design and build high powered rockets",
+      "version": "0.0.13",
+      "author": {
+        "name": "Peter Pak, Jesse Barkley, Rumi Loghmani"
+      },
+      "category": "development",
+      "keywords": ["rocketry", "openrocket", "prusaslicer", "simulation", "mcp"],
+      "homepage": "https://github.com/ppak10/RocketSmith",
+      "source": {
+        "source": "github",
+        "repo": "ppak10/RocketSmith"
+      }
+    }
+  ]
+}
