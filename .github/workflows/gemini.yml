@@ -29,6 +29,9 @@ jobs:
       - name: Install Gemini CLI
         run: npm install -g @google/gemini-cli
 
+      - name: Initialize Gemini Config
+        run: mkdir -p ~/.gemini
+
       - name: Install Extension
         run: gemini extensions install . --consent
 

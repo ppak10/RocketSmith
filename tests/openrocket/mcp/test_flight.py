@@ -84,6 +84,7 @@ async def test_motor_not_found_returns_error(mcp_app, tmp_path):
         "INVALID_ARGUMENT",
         "FILE_NOT_FOUND",
         "SIMULATION_FAILED",
+        "FLIGHT_FAILED",
     )
 
 
