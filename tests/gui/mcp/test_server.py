@@ -4,6 +4,7 @@ import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -83,10 +84,21 @@ async def test_start_path_is_file(tool, tmp_path):
 async def test_start_launches_server(tool, tmp_path, monkeypatch):
     opened = []
     monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url))
-    # Mock GUI build directory exists
     monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.is_dir",
-        lambda p: True if "data/gui" in str(p) else os.path.isdir(str(p)),
+        "rocketsmith.gui.mcp.server._is_port_in_use",
+        lambda port, host="127.0.0.1": False,
+    )
+    gui_build_dir = tmp_path / "src" / "rocketsmith" / "data" / "gui"
+    gui_build_dir.mkdir(parents=True)
+    (gui_build_dir / "index.html").write_text("<html></html>")
+    (gui_build_dir / "main.js").write_text("console.log('ok')")
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.resolve",
+        lambda p: (
+            tmp_path / "src" / "rocketsmith" / "gui" / "mcp" / "server.py"
+            if str(p).endswith("server.py")
+            else Path(p).absolute()
+        ),
     )
     # Mock file operations
     monkeypatch.setattr("shutil.copy2", lambda src, dst: None)
@@ -122,10 +134,17 @@ async def test_start_uses_default_port(tool, tmp_path, monkeypatch):
         "rocketsmith.gui.mcp.server._is_port_in_use",
         lambda port, host="127.0.0.1": False,
     )
-    # Mock GUI build directory exists
+    gui_build_dir = tmp_path / "src" / "rocketsmith" / "data" / "gui"
+    gui_build_dir.mkdir(parents=True)
+    (gui_build_dir / "index.html").write_text("<html></html>")
+    (gui_build_dir / "main.js").write_text("console.log('ok')")
     monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.is_dir",
-        lambda p: True if "data/gui" in str(p) else os.path.isdir(str(p)),
+        "rocketsmith.gui.mcp.server.Path.resolve",
+        lambda p: (
+            tmp_path / "src" / "rocketsmith" / "gui" / "mcp" / "server.py"
+            if str(p).endswith("server.py")
+            else Path(p).absolute()
+        ),
     )
     # Mock file operations
     monkeypatch.setattr("shutil.copy2", lambda src, dst: None)
