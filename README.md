@@ -1,7 +1,6 @@
 [![pytest](https://github.com/ppak10/RocketSmith/actions/workflows/pytest.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/pytest.yml)
-[![macos](https://github.com/ppak10/RocketSmith/actions/workflows/macos.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/macos.yml)
-[![ubuntu](https://github.com/ppak10/RocketSmith/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/ubuntu.yml)
-[![windows](https://github.com/ppak10/RocketSmith/actions/workflows/windows.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/windows.yml)
+[![claude](https://github.com/ppak10/RocketSmith/actions/workflows/claude.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/claude.yml)
+[![gemini](https://github.com/ppak10/RocketSmith/actions/workflows/gemini.yml/badge.svg)](https://github.com/ppak10/RocketSmith/actions/workflows/gemini.yml)
 [![codecov](https://codecov.io/github/ppak10/RocketSmith/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/github/ppak10/RocketSmith)
 
 # <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.iconify.design/lucide/rocket.svg?color=white&width=32&height=32"><img src="https://api.iconify.design/lucide/rocket.svg?color=black&width=32&height=32" width="32" height="32" /></picture> RocketSmith
@@ -33,16 +32,6 @@ Register the RocketSmith marketplace and install the plugin:
 
 This installs the full plugin — MCP server, orchestrator agent, domain subagents (`openrocket`, `manufacturing`, `cadsmith`, `prusaslicer`), action skills, and session hooks. Update with `/plugin update rocketsmith`.
 
-#### Local development
-
-To test from a local clone, start Claude Code with `--plugin-dir` pointing at the repo:
-
-```bash
-claude --plugin-dir .
-```
-
-Use `/reload-plugins` to pick up changes without restarting.
-
 ### CLI / API
 
 ```bash
@@ -71,7 +60,29 @@ Full documentation lives in the [wiki](https://github.com/ppak10/RocketSmith/wik
 - [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) — plugin/extension setup and dependency troubleshooting
 - [Hooks](https://github.com/ppak10/RocketSmith/wiki/Hooks) — session-start dependency checks and other hooks
 
-## Building the GUI
+## Development
+
+### Local Installation
+
+To test changes from a local clone, you can install the extension or plugin directly from the source directory.
+
+#### Gemini CLI
+
+```bash
+gemini extensions install .
+```
+
+#### Claude Code
+
+To run Claude Code with the local plugin active:
+
+```bash
+claude --plugin-dir .
+```
+
+Use `/reload-plugins` within a session to pick up changes without restarting.
+
+### Building the GUI
 
 The GUI frontend (React/TypeScript) must be compiled before changes are reflected in production mode. The built files live in `src/rocketsmith/data/gui/` and are committed to the repo so users don't need to build them.
 

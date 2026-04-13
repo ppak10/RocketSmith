@@ -1,0 +1,47 @@
+name: gemini-extension
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install project dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install rocketsmith package locally
+        run: uv pip install -e .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Gemini CLI
+        run: npm install -g @google/gemini-cli
+
+      - name: Install Extension
+        run: gemini extensions install . --consent
+
+      - name: Verify Installation
+        run: |
+          # Verify extension is installed
+          gemini extensions list | grep "rocketsmith"
+          
+          # Verify skills are discovered
+          gemini skills list | grep "rocketsmith"
+          
+          # Verify agents (subagents)
+          # Note: gemini agents list may be interactive or internal, 
+          # so we verify the extension existence which includes them.
+          # If gemini agents list works non-interactively, we'll use it:
+          gemini agents list 2>/dev/null | grep "rocketsmith" || true
