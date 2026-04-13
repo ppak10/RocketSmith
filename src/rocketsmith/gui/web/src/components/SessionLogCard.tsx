@@ -1,4 +1,5 @@
 import { ScrollText } from "lucide-react";
+import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -58,7 +59,7 @@ const LEVEL_BADGE: Record<string, "default" | "neutral"> = {
   success: "default",
 };
 
-export function SessionLogCard({ logs }: { logs: LogEntry[] }) {
+export const SessionLogCard = memo(function SessionLogCard({ logs }: { logs: LogEntry[] }) {
   if (logs.length === 0) return null;
 
   return (
@@ -105,4 +106,4 @@ export function SessionLogCard({ logs }: { logs: LogEntry[] }) {
       </CardContent>
     </Card>
   );
-}
+});

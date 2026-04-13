@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Network, CircleDot, CirclePlus } from "lucide-react";
 import { fetchJson, getOfflineFilesTree } from "@/lib/server";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +109,7 @@ interface ComponentTreeCardProps {
   className?: string;
 }
 
-export function ComponentTreeCard({ className }: ComponentTreeCardProps) {
+export const ComponentTreeCard = memo(function ComponentTreeCard({ className }: ComponentTreeCardProps) {
   const [tree, setTree] = useState<ComponentTree | null>(null);
   const [cgMm, setCgMm] = useState<number | null>(null);
   const [cpMm, setCpMm] = useState<number | null>(null);
@@ -295,4 +295,4 @@ export function ComponentTreeCard({ className }: ComponentTreeCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical } from "lucide-react";
 import { useCardResize } from "@/hooks/useCardResize";
 
 interface DraggableCardProps {
@@ -68,9 +67,6 @@ export function DraggableCard({
   const activeRowSpan = isResizing ? previewRowSpan : rowSpan;
 
   const style: React.CSSProperties = {
-    ...(transform && !isResizing
-      ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
-      : {}),
     ...(col
       ? { gridColumn: `${col} / span ${activeColSpan}` }
       : { gridColumn: `span ${activeColSpan}` }),
@@ -82,27 +78,26 @@ export function DraggableCard({
   return (
     <div
       ref={setNodeRef}
+      data-card-id={id}
       style={style}
-      className={`relative rounded-base ${active ? "ring-2 ring-orange-500" : ""} ${isDragging ? "z-50 opacity-50" : ""} ${isResizing ? "z-40" : ""}`}
+      className={`relative cursor-grab rounded-base active:cursor-grabbing ${active ? "[&>*[data-slot=card]]:border-orange-500" : ""} ${isDragging ? "z-50 opacity-60 ring-2 ring-main" : ""} ${isResizing ? "z-40" : ""}`}
+      {...attributes}
+      {...listeners}
     >
-      {/* Drag handle — top right */}
-      <button
-        type="button"
-        className="absolute right-2 top-2 z-10 cursor-grab rounded-base border-2 border-border bg-main p-1 text-main-foreground opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing [div:hover>&]:opacity-70"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
-
-      {/* Resize handle — bottom right */}
+      {/* Resize handle — right edge (horizontal) */}
       <div
-        className="absolute bottom-1 right-1 z-10 cursor-nwse-resize opacity-0 transition-opacity [div:hover>&]:opacity-70 hover:opacity-100"
+        className="absolute top-0 right-0 z-10 h-full w-2 cursor-ew-resize opacity-0 transition-opacity [div:hover>&]:opacity-30 hover:opacity-60"
         {...resizeHandleProps}
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" className="text-foreground/40">
-          <path d="M11 1L1 11M11 5L5 11M11 9L9 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <div className="absolute right-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-foreground/40" />
+      </div>
+
+      {/* Resize handle — bottom edge (vertical) */}
+      <div
+        className="absolute bottom-0 left-0 z-10 h-2 w-full cursor-ns-resize opacity-0 transition-opacity [div:hover>&]:opacity-30 hover:opacity-60"
+        {...resizeHandleProps}
+      >
+        <div className="absolute bottom-0 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-foreground/40" />
       </div>
 
       {children}

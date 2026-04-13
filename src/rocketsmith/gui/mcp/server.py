@@ -58,17 +58,27 @@ def _cleanup_pid_file(pid_file: Path) -> None:
 
 
 def _kill_pid(pid: int) -> bool:
-    """Kill a process group (PID == PGID), falling back to individual kill."""
+    """Kill a process group (PID == PGID), falling back to individual kill.
+
+    Safety: never kills our own process group.
+    """
+    # Guard: don't kill our own process group.
+    if pid == os.getpid() or pid == os.getpgrp():
+        return False
     try:
         os.killpg(pid, signal.SIGTERM)
         return True
     except ProcessLookupError:
-        try:
-            os.kill(pid, signal.SIGTERM)
-            return True
-        except ProcessLookupError:
-            return False
-    except PermissionError:
+        pass
+    except (PermissionError, OSError):
+        pass
+    # Fallback: kill the individual process.
+    try:
+        os.kill(pid, signal.SIGTERM)
+        return True
+    except ProcessLookupError:
+        return False
+    except (PermissionError, OSError):
         return False
 
 

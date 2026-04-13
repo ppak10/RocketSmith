@@ -66,7 +66,7 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 
 These skills are loaded into your session at startup via `GEMINI.md`. They contain the detailed procedures; treat them as authoritative and follow them step-by-step.
 
-- **`rocketsmith:generate-structures`** — Pass 1 of the CAD pipeline. Reads `component_tree.json`, produces base STEP files for every printable part from their `features` blocks, and composes `full_assembly.step`. Rocketry-agnostic — knows about build123d base-geometry patterns (tubes, revolves, polar arrays, fused extrusions) but not about nose cones or fins.
+- **`rocketsmith:generate-structures`** — Pass 1 of the CAD pipeline. Reads `component_tree.json`, produces base STEP files for every printable part from their `features` blocks, then generates `gui/assembly.json` for the 3D viewer. Rocketry-agnostic — knows about build123d base-geometry patterns (tubes, revolves, polar arrays, fused extrusions) but not about nose cones or fins.
 - **`rocketsmith:modify-structures`** — Pass 2 of the CAD pipeline. Reads each part's `modifications` list, imports the corresponding base STEP, applies detail features (radial holes, through-holes, pockets, mounts), and overwrites the STEP in place. Only runs if at least one part has non-empty modifications. Skip entirely when the default retention (`"none"`) produces no modifications.
 
 **Note:** The `design-for-additive-manufacturing` skill and manufacturing method decisions belong to the **manufacturing agent**, not cadsmith. Cadsmith expects an already-annotated `component_tree.json` — if one doesn't exist, ask the orchestrator to invoke the manufacturing agent first.
@@ -81,21 +81,21 @@ These skills are loaded into your session at startup via `GEMINI.md`. They conta
      - missing or unannotated? ask the orchestrator to invoke the
        manufacturing agent first, then proceed to step 4
 4. Follow rocketsmith:generate-structures (Pass 1):
-     a. Create <project_dir>/cadsmith/source, <project_dir>/cadsmith/step, <project_dir>/cadsmith/stl, <project_dir>/prusaslicer/gcode, <project_dir>/gui/parts, <project_dir>/gui/assets/png, <project_dir>/gui/progress
+     a. Create <project_dir>/cadsmith/source, <project_dir>/cadsmith/step, <project_dir>/prusaslicer/gcode, <project_dir>/gui/parts, <project_dir>/gui/assets/stl, <project_dir>/gui/assets/png, <project_dir>/gui/progress
      b. For each part in manifest["parts"], build base geometry from features only
         [interactive] Pause for user feedback after every part render
         [zero-shot]   Verify autonomously; pause only on errors or ambiguous geometry
         Both modes: complex features (fillets, revolves, arrays, fuses) trigger
         render + verification — interactive asks the user, zero-shot self-checks
-     c. Generate full_assembly.step from manifest["assemblies"]
-     d. [interactive] Always pause for user feedback on the assembly render
+     c. Generate assembly layout via cadsmith_assembly(action="generate")
+     d. [interactive] Always pause for user feedback on the assembly viewer
         [zero-shot]   Verify autonomously, pause only if something looks wrong
 6. If any part has non-empty modifications, follow rocketsmith:modify-structures (Pass 2):
      a. Import the base STEP, apply each modification, overwrite in place
      b. Re-render each modified part
      c. [interactive] Pause for user feedback after each modified part
         [zero-shot]   Verify autonomously, pause only on errors
-     d. Regenerate and re-render the assembly
+     d. Regenerate assembly layout via cadsmith_assembly(action="generate")
         [interactive] Pause for user feedback
         [zero-shot]   Verify autonomously
    If every part's modifications list is empty, skip Pass 2 entirely.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/server";
 import { Hammer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +57,7 @@ export function useProgressData(treeVersion: number) {
   return progress;
 }
 
-export function ProgressCard({ parts }: { parts: PartProgress[] }) {
+export const ProgressCard = memo(function ProgressCard({ parts }: { parts: PartProgress[] }) {
   if (parts.length === 0) return null;
 
   return (
@@ -98,4 +98,4 @@ export function ProgressCard({ parts }: { parts: PartProgress[] }) {
       </CardContent>
     </Card>
   );
-}
+});

@@ -13,11 +13,12 @@ def register_cadsmith_run_script(app: FastMCP):
         title="Run build123d Script",
         description=(
             "Execute a build123d Python script in an isolated uv environment. "
-            "Before execution, validates that the script calls both export_step "
-            "and export_stl and only imports from the allowed set "
+            "Before execution, validates that the script calls export_step "
+            "and only imports from the allowed set "
             "(build123d, pathlib, math, typing). "
-            "After execution, verifies that non-empty .step and .stl files "
-            "were written to the output directory."
+            "After execution, verifies that non-empty .step files "
+            "were written to the output directory. "
+            "STL files are generated separately by cadsmith_generate_preview."
         ),
         structured_output=True,
     )
@@ -96,25 +97,16 @@ def register_cadsmith_run_script(app: FastMCP):
 
         # ── Post-run validation ────────────────────────────────────────
         step_files = [str(p) for p in out_dir.glob("*.step") if p.stat().st_size > 0]
-        stl_files = [str(p) for p in out_dir.glob("*.stl") if p.stat().st_size > 0]
 
-        post_errors: list[str] = []
         if not step_files:
-            post_errors.append(
-                "No non-empty .step files found in output directory after execution."
-            )
-        if not stl_files:
-            post_errors.append(
-                "No non-empty .stl files found in output directory after execution."
-            )
-
-        if post_errors:
             return tool_error(
                 "Script ran but did not produce expected output files",
                 "OUTPUT_MISSING",
                 script_path=str(script_path),
                 out_dir=str(out_dir),
-                output_errors=post_errors,
+                output_errors=[
+                    "No non-empty .step files found in output directory after execution."
+                ],
                 stdout=result.stdout,
                 stderr=result.stderr,
             )
@@ -122,7 +114,6 @@ def register_cadsmith_run_script(app: FastMCP):
         return tool_success(
             {
                 "step_files": step_files,
-                "stl_files": stl_files,
                 "out_dir": str(out_dir),
                 "stdout": result.stdout,
                 "stderr": result.stderr,

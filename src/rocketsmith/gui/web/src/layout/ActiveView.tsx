@@ -4,6 +4,7 @@ import { fetchText } from "@/lib/server";
 import {
   DndContext,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
   useDroppable,
@@ -20,6 +21,7 @@ import { getCardDef, GRID_COL_MIN, GRID_ROW_H, GRID_GAP } from "./cardRegistry";
 import { PartCard } from "@/components/PartCard";
 import type { WatchEvent } from "@/hooks/useWatchSocket";
 import { useRotatingAscii } from "@/hooks/useRotatingAscii";
+import { LayoutGrid, Focus } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface ActiveViewProps {
@@ -29,7 +31,7 @@ interface ActiveViewProps {
 }
 
 /** Format directory prefixes we track for grouped badges. */
-const FORMAT_DIRS = new Set(["cadsmith/source", "cadsmith/step", "cadsmith/stl", "prusaslicer/gcode"]);
+const FORMAT_DIRS = new Set(["cadsmith/source", "cadsmith/step", "gui/assets/stl", "prusaslicer/gcode"]);
 
 function getStem(path: string): string {
   const name = path.split("/").pop() ?? path;
@@ -88,20 +90,30 @@ function groupPartEvents(events: WatchEvent[]): PartGroup[] {
   );
 }
 
-// ── Grid with background lines ──────────────────────────────────────────────
+// ── Grid ────────────────────────────────────────────────────────────────────
+
+const CELL_W = GRID_COL_MIN + GRID_GAP;
+const CELL_H = GRID_ROW_H + GRID_GAP;
+const MIN_DISPLAY = 4;  // Minimum background cells to show.
+const MIN_PACK = 2;     // Minimum columns for auto-placement packing.
 
 /** A single droppable grid cell. Highlight state controlled by parent. */
 function DroppableCell({
   id,
+  col,
+  row,
   highlighted = false,
 }: {
   id: string;
+  col: number;
+  row: number;
   highlighted?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
+      style={{ gridColumn: col, gridRow: row }}
       className={`rounded-base border border-dashed transition-colors ${
         isOver || highlighted
           ? "border-main/60 bg-main/5"
@@ -111,21 +123,6 @@ function DroppableCell({
   );
 }
 
-/** Clamp a stored layout to fit within the current grid dimensions. */
-function reflowLayout(
-  layout: CardLayout,
-  def: ReturnType<typeof getCardDef>,
-  cols: number,
-): CardLayout {
-  let { col, row, colSpan, rowSpan } = layout;
-  // Clamp span to available columns.
-  if (colSpan > cols) colSpan = cols;
-  // Clamp position so card fits.
-  if (col + colSpan - 1 > cols) col = Math.max(1, cols - colSpan + 1);
-  if (row < 1) row = 1;
-  return { col, row, colSpan, rowSpan };
-}
-
 function AgentFeedGrid({
   cardIds,
   visibleCards,
@@ -133,7 +130,9 @@ function AgentFeedGrid({
   sensors,
   onDragEnd,
   onResizeEnd,
+  onPersistLayouts,
   activeCardId,
+  autoFocus,
 }: {
   cardIds: string[];
   visibleCards: Record<string, ReactNode>;
@@ -141,82 +140,145 @@ function AgentFeedGrid({
   sensors: ReturnType<typeof useSensors>;
   onDragEnd: (event: DragEndEvent) => void;
   onResizeEnd: (cardId: string, colSpan: number, rowSpan: number) => void;
+  onPersistLayouts: (layouts: Record<string, CardLayout>) => void;
   activeCardId: string | null;
+  autoFocus: boolean;
 }) {
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [cols, setCols] = useState(3);
-  const [rows, setRows] = useState(4);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll the active card into view when it changes (if auto-focus is on).
+  useEffect(() => {
+    if (!autoFocus || !activeCardId || !containerRef.current) return;
+    const el = containerRef.current.querySelector(`[data-card-id="${activeCardId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    }
+  }, [autoFocus, activeCardId]);
+
+  // Viewport cell count — only used for auto-placement bounds and background cells.
+  const [viewCols, setViewCols] = useState(() =>
+    Math.max(MIN_PACK, Math.floor(window.innerWidth / CELL_W)),
+  );
+  const [viewRows, setViewRows] = useState(() =>
+    Math.max(MIN_PACK, Math.floor(window.innerHeight / CELL_H)),
+  );
 
   useEffect(() => {
-    const el = gridRef.current;
+    const el = containerRef.current;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
       const h = entry.contentRect.height;
-      const c = Math.max(1, Math.floor((w + GRID_GAP) / (GRID_COL_MIN + GRID_GAP)));
-      const r = Math.max(1, Math.ceil((h + GRID_GAP) / (GRID_ROW_H + GRID_GAP)));
-      setCols(c);
-      setRows(r);
+      setViewCols(Math.max(MIN_PACK, Math.floor(w / CELL_W)));
+      setViewRows(Math.max(MIN_PACK, Math.floor(h / CELL_H)));
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Compute reflowed layouts (render-only, not persisted).
-  const reflowed = useMemo(() => {
+  // Auto-assign positions for cards without stored layouts.
+  // Uses a simple occupied-cell grid to find the first open slot.
+  const effectiveLayouts = useMemo(() => {
     const result: Record<string, CardLayout> = {};
+    const occupied = new Set<string>();
+
+    // Mark cells occupied by cards that already have positions.
     for (const id of cardIds) {
-      const stored = layouts[id];
-      const def = getCardDef(id);
-      if (stored) {
-        result[id] = reflowLayout(stored, def, cols);
+      const layout = layouts[id];
+      if (!layout?.col || !layout?.row) continue;
+      result[id] = layout;
+      const cs = layout.colSpan ?? getCardDef(id)?.colSpan ?? 1;
+      const rs = layout.rowSpan ?? getCardDef(id)?.rowSpan ?? 1;
+      for (let dc = 0; dc < cs; dc++) {
+        for (let dr = 0; dr < rs; dr++) {
+          occupied.add(`${layout.col + dc},${layout.row + dr}`);
+        }
       }
     }
-    return result;
-  }, [cardIds, layouts, cols]);
 
-  // Enough rows to fill viewport or fit all placed cards.
-  let maxRow = rows;
+    // Place unpositioned cards in the first available slot.
+    for (const id of cardIds) {
+      if (result[id]) continue;
+      const def = getCardDef(id);
+      const cs = def?.colSpan ?? 1;
+      const rs = def?.rowSpan ?? 1;
+
+      let placed = false;
+      for (let r = 1; !placed; r++) {
+        for (let c = 1; c + cs - 1 <= viewCols; c++) {
+          // Check if the card fits here without overlapping.
+          let fits = true;
+          for (let dc = 0; dc < cs && fits; dc++) {
+            for (let dr = 0; dr < rs && fits; dr++) {
+              if (occupied.has(`${c + dc},${r + dr}`)) fits = false;
+            }
+          }
+          if (fits) {
+            result[id] = { col: c, row: r, colSpan: cs, rowSpan: rs };
+            for (let dc = 0; dc < cs; dc++) {
+              for (let dr = 0; dr < rs; dr++) {
+                occupied.add(`${c + dc},${r + dr}`);
+              }
+            }
+            placed = true;
+          }
+        }
+      }
+    }
+
+    // Persist any newly auto-placed cards so they become fixed.
+    const newPlacements: Record<string, CardLayout> = {};
+    for (const id of cardIds) {
+      if (!layouts[id]?.col && result[id]) {
+        newPlacements[id] = result[id];
+      }
+    }
+    if (Object.keys(newPlacements).length > 0) {
+      // Schedule the persist outside the render cycle.
+      queueMicrotask(() => onPersistLayouts({ ...layouts, ...newPlacements }));
+    }
+
+    return result;
+  }, [cardIds, layouts, viewCols]);
+
+  // Compute grid dimensions: enough to fit all cards OR fill the viewport.
+  let contentCols = MIN_DISPLAY;
+  let contentRows = MIN_DISPLAY;
   for (const id of cardIds) {
-    const layout = reflowed[id];
-    const def = getCardDef(id);
-    const rSpan = layout?.rowSpan ?? def?.rowSpan ?? 1;
-    const r = layout?.row ?? 1;
-    maxRow = Math.max(maxRow, r + rSpan - 1);
+    const layout = effectiveLayouts[id];
+    if (!layout) continue;
+    contentCols = Math.max(contentCols, layout.col + layout.colSpan - 1);
+    contentRows = Math.max(contentRows, layout.row + layout.rowSpan - 1);
   }
-  const displayRows = maxRow;
+  const displayCols = Math.max(viewCols, contentCols + 1, MIN_DISPLAY);
+  const displayRows = Math.max(viewRows, contentRows + 1, MIN_DISPLAY);
 
   // Track active drag and hover for multi-cell highlighting.
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
   const [overCellId, setOverCellId] = useState<string | null>(null);
 
-  const activeDef = activeId ? getCardDef(activeId) : null;
-  const activeLayout = activeId ? reflowed[activeId] : null;
-  const activeCols = activeLayout?.colSpan ?? activeDef?.colSpan ?? 1;
-  const activeRows = activeLayout?.rowSpan ?? activeDef?.rowSpan ?? 1;
+  const dragDef = dragId ? getCardDef(dragId) : null;
+  const dragLayout = dragId ? effectiveLayouts[dragId] : null;
+  const dragCols = dragLayout?.colSpan ?? dragDef?.colSpan ?? 1;
+  const dragRows = dragLayout?.rowSpan ?? dragDef?.rowSpan ?? 1;
 
-  // Compute which cells should be highlighted based on hover + card span.
   const highlightedCells = useMemo(() => {
     const set = new Set<string>();
-    if (!overCellId || !activeId) return set;
+    if (!overCellId || !dragId) return set;
     const match = overCellId.match(/^cell-(\d+)-(\d+)$/);
     if (!match) return set;
     const hoverCol = parseInt(match[1], 10);
     const hoverRow = parseInt(match[2], 10);
-    for (let dc = 0; dc < activeCols; dc++) {
-      for (let dr = 0; dr < activeRows; dr++) {
-        const c = hoverCol + dc;
-        const r = hoverRow + dr;
-        if (c <= cols && r <= displayRows) {
-          set.add(`cell-${c}-${r}`);
-        }
+    for (let dc = 0; dc < dragCols; dc++) {
+      for (let dr = 0; dr < dragRows; dr++) {
+        set.add(`cell-${hoverCol + dc}-${hoverRow + dr}`);
       }
     }
     return set;
-  }, [overCellId, activeId, activeCols, activeRows, cols, displayRows]);
+  }, [overCellId, dragId, dragCols, dragRows]);
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string);
+    setDragId(event.active.id as string);
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -225,76 +287,73 @@ function AgentFeedGrid({
   }
 
   function handleDragEndInternal(event: DragEndEvent) {
-    setActiveId(null);
+    setDragId(null);
     setOverCellId(null);
     onDragEnd(event);
   }
 
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${displayCols}, ${GRID_COL_MIN}px)`,
+    gridAutoRows: `${GRID_ROW_H}px`,
+    gap: `${GRID_GAP}px`,
+  };
+
   return (
-    <div ref={gridRef} className="relative flex-1 overflow-hidden">
+    <div ref={containerRef} data-slot="agent-feed-grid" className="flex-1 overflow-auto">
       <DndContext
         sensors={sensors}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEndInternal}
       >
-        {/* Background droppable cells — always 1×1 */}
-        <div
-          className="absolute inset-0 grid"
-          style={{
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gridAutoRows: `${GRID_ROW_H}px`,
-            gap: `${GRID_GAP}px`,
-          }}
-        >
-          {Array.from({ length: cols * displayRows }).map((_, i) => {
-            const c = (i % cols) + 1;
-            const r = Math.floor(i / cols) + 1;
-            const cellId = `cell-${c}-${r}`;
-            return (
-              <DroppableCell
-                key={cellId}
-                id={cellId}
-                highlighted={highlightedCells.has(cellId)}
-              />
-            );
-          })}
-        </div>
+        <div className="relative min-h-full min-w-full" style={{ width: "max-content" }}>
+          {/* Background droppable cells */}
+          <div className="absolute inset-0 grid" style={gridStyle}>
+            {Array.from({ length: displayCols * displayRows }).map((_, i) => {
+              const c = (i % displayCols) + 1;
+              const r = Math.floor(i / displayCols) + 1;
+              const cellId = `cell-${c}-${r}`;
+              return (
+                <DroppableCell
+                  key={cellId}
+                  id={cellId}
+                  col={c}
+                  row={r}
+                  highlighted={highlightedCells.has(cellId)}
+                />
+              );
+            })}
+          </div>
 
-        {/* Cards grid — overlays the droppable cells */}
-        <div
-          className="relative grid h-full"
-          style={{
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gridAutoRows: `${GRID_ROW_H}px`,
-            gap: `${GRID_GAP}px`,
-          }}
-        >
-          {cardIds.map((id) => {
-            const def = getCardDef(id);
-            const layout = reflowed[id];
-            const cs = layout?.colSpan ?? def?.colSpan ?? 1;
-            const rs = layout?.rowSpan ?? def?.rowSpan ?? 1;
-            return (
-              <DraggableCard
-                key={id}
-                id={id}
-                colSpan={cs}
-                rowSpan={rs}
-                col={layout?.col}
-                row={layout?.row}
-                gridCols={cols}
-                minColSpan={def?.minColSpan ?? 1}
-                maxColSpan={def?.maxColSpan ?? 2}
-                minRowSpan={def?.minRowSpan ?? 1}
-                maxRowSpan={def?.maxRowSpan ?? 3}
-                onResizeEnd={(newCs, newRs) => onResizeEnd(id, newCs, newRs)}
-                active={id === activeCardId}
-              >
-                {visibleCards[id]}
-              </DraggableCard>
-            );
-          })}
+          {/* Cards layer — overlays droppable cells */}
+          <div className="relative grid" style={gridStyle}>
+            {cardIds.map((id) => {
+              const def = getCardDef(id);
+              const layout = effectiveLayouts[id];
+              const cs = layout?.colSpan ?? def?.colSpan ?? 1;
+              const rs = layout?.rowSpan ?? def?.rowSpan ?? 1;
+              return (
+                <DraggableCard
+                  key={id}
+                  id={id}
+                  colSpan={cs}
+                  rowSpan={rs}
+                  col={layout?.col}
+                  row={layout?.row}
+                  gridCols={displayCols}
+                  minColSpan={def?.minColSpan ?? 1}
+                  maxColSpan={def?.maxColSpan ?? 2}
+                  minRowSpan={def?.minRowSpan ?? 1}
+                  maxRowSpan={def?.maxRowSpan ?? 3}
+                  onResizeEnd={(newCs, newRs) => onResizeEnd(id, newCs, newRs)}
+                  active={id === activeCardId}
+                >
+                  {visibleCards[id]}
+                </DraggableCard>
+              );
+            })}
+          </div>
         </div>
       </DndContext>
     </div>
@@ -336,6 +395,8 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
   const { agentFeedLayout, setAgentFeedLayout } = usePreferences();
 
   // Drag-and-drop setup.
+  const [autoFocus, setAutoFocus] = useState(true);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -379,7 +440,7 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
   }
 
   for (const group of partGroups) {
-    const hasStl = group.formats.has("cadsmith/stl");
+    const hasStl = group.formats.has("gui/assets/stl");
     const srcEvent = sourceEvents.get(group.stem);
     visibleCards[`part-${group.stem}`] = (
       <PartCard
@@ -442,17 +503,27 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over) return;
-    const overId = over.id as string;
-    const match = overId.match(/^cell-(\d+)-(\d+)$/);
-    if (!match) return;
-    const col = parseInt(match[1], 10);
-    const row = parseInt(match[2], 10);
+    const { active, over, delta } = event;
     const cardId = active.id as string;
-    // Preserve existing span values when moving.
     const existing = agentFeedLayout[cardId];
     const def = getCardDef(cardId);
+
+    let col: number;
+    let row: number;
+
+    // Try to use the droppable cell the pointer is over.
+    const match = (over?.id as string)?.match(/^cell-(\d+)-(\d+)$/);
+    if (match) {
+      col = parseInt(match[1], 10);
+      row = parseInt(match[2], 10);
+    } else {
+      // Fallback: compute target from drag delta + original position.
+      const origCol = existing?.col ?? 1;
+      const origRow = existing?.row ?? 1;
+      col = Math.max(1, origCol + Math.round(delta.x / CELL_W));
+      row = Math.max(1, origRow + Math.round(delta.y / CELL_H));
+    }
+
     setAgentFeedLayout({
       ...agentFeedLayout,
       [cardId]: {
@@ -497,8 +568,34 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
         sensors={sensors}
         onDragEnd={handleDragEnd}
         onResizeEnd={handleResizeEnd}
+        onPersistLayouts={setAgentFeedLayout}
         activeCardId={activeCardId}
+        autoFocus={autoFocus}
       />
+
+      {/* Bottom-right floating controls */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAutoFocus((v) => !v)}
+          className={`cursor-pointer select-none flex items-center gap-2 rounded-base border-2 border-border px-3 py-2 text-xs font-heading shadow-shadow transition-colors ${
+            autoFocus
+              ? "bg-main text-main-foreground"
+              : "bg-background text-foreground hover:bg-main hover:text-main-foreground"
+          }`}
+        >
+          <Focus className="size-4" />
+          Auto-focus
+        </button>
+        <button
+          type="button"
+          onClick={() => setAgentFeedLayout({})}
+          className="flex items-center gap-2 rounded-base border-2 border-border bg-background px-3 py-2 text-xs font-heading shadow-shadow transition-colors hover:bg-main hover:text-main-foreground"
+        >
+          <LayoutGrid className="size-4" />
+          Reset Layout
+        </button>
+      </div>
     </div>
   );
 }

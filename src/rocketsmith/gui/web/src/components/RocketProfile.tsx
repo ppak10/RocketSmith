@@ -31,6 +31,10 @@ export interface ComponentNode {
 export interface Stage {
   name: string;
   components: ComponentNode[];
+  cg?: Qty | null;
+  cp?: Qty | null;
+  stability_cal?: number | null;
+  max_diameter?: Qty | null;
 }
 
 // ── Shape building ─────────────────────────────────────────────────────────

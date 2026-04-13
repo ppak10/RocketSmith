@@ -12,9 +12,10 @@ def register_cadsmith_generate_preview(app: FastMCP):
         name="cadsmith_generate_preview",
         title="Generate Part Preview",
         description=(
-            "Generate preview assets for a STEP file: PNG thumbnail, "
-            "rotating GIF, and/or ASCII animation. Outputs are written to "
-            "<project_dir>/gui/assets/<format>/<part_name>.<ext>. "
+            "Generate preview assets for a STEP file: STL mesh (for the 3D "
+            "viewer), PNG thumbnail, rotating GIF, and/or ASCII animation. "
+            "The STL is always generated to gui/assets/stl/. Other outputs "
+            "are written to gui/assets/<format>/. "
             "Progress is tracked in gui/progress/<part_name>.json "
             "so the GUI can display a live progress bar."
         ),
@@ -28,13 +29,17 @@ def register_cadsmith_generate_preview(app: FastMCP):
         """
         Generate preview assets for a STEP file.
 
+        The STL mesh is always generated (required by the 3D viewer).
+        Additional outputs are optional.
+
         Args:
             step_file_path: Path to the STEP file to preview.
             project_dir: Absolute path to the project root directory.
-            outputs: List of preview types to generate. Options:
+            outputs: List of additional preview types to generate. Options:
                 "thumbnail" (PNG), "gif", "ascii". Defaults to all three.
         """
         import asyncio
+        import subprocess
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         from rocketsmith.cadsmith.preview.progress import PreviewProgress
@@ -61,13 +66,45 @@ def register_cadsmith_generate_preview(app: FastMCP):
 
         part_name = step_file_path.stem
 
-        from rocketsmith.gui.layout import PNG_DIR, GIF_DIR, TXT_DIR
+        from rocketsmith.gui.layout import STL_DIR, PNG_DIR, GIF_DIR, TXT_DIR
 
+        stl_path = project_dir / STL_DIR / f"{part_name}.stl"
         png_path = project_dir / PNG_DIR / f"{part_name}.png"
         gif_path = project_dir / GIF_DIR / f"{part_name}.gif"
         txt_path = project_dir / TXT_DIR / f"{part_name}.txt"
 
-        progress = PreviewProgress(project_dir, part_name, sorted(requested))
+        # Always include STL in the progress tracking.
+        all_outputs = sorted({"stl"} | requested)
+        progress = PreviewProgress(project_dir, part_name, all_outputs)
+
+        def _run_stl() -> tuple[str, Path]:
+            """Convert STEP → STL via build123d in an isolated uv env."""
+            import sys
+
+            progress.update("stl", "in_progress")
+            stl_path.parent.mkdir(parents=True, exist_ok=True)
+
+            script = (
+                "from build123d import import_step, export_stl\n"
+                "from pathlib import Path\n"
+                f"parts = import_step(Path({str(step_file_path)!r}))\n"
+                f"export_stl(parts, Path({str(stl_path)!r}))\n"
+            )
+
+            result = subprocess.run(
+                [sys.executable, "-c", script],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if result.returncode != 0 or not stl_path.exists():
+                raise RuntimeError(
+                    f"STEP→STL conversion failed: {result.stderr or result.stdout}"
+                )
+
+            progress.update("stl", "done", path=str(stl_path.relative_to(project_dir)))
+            return "stl", stl_path
 
         def _run_thumbnail() -> tuple[str, Path]:
             from rocketsmith.cadsmith.preview.image import render_step_png
@@ -97,19 +134,21 @@ def register_cadsmith_generate_preview(app: FastMCP):
             )
             return "ascii", result
 
-        runners = {
+        runners: dict[str, object] = {
+            "stl": _run_stl,  # Always run.
             "thumbnail": _run_thumbnail,
             "gif": _run_gif,
             "ascii": _run_ascii,
         }
 
+        to_run = {"stl"} | requested
+
         results: dict[str, str | None] = {}
         warnings: list[str] = []
 
         loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = {executor.submit(runners[name]): name for name in requested}
-            # Wait without blocking the event loop.
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(runners[name]): name for name in to_run}
             done_futures = await loop.run_in_executor(
                 None,
                 lambda: {f: f.result() for f in as_completed(futures)},

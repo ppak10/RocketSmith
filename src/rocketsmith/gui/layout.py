@@ -20,7 +20,8 @@ GUI_DATA_JS = "gui/data.js"
 # Per-part JSON metadata directory.
 PARTS_DIR = "gui/parts"
 
-# Preview format directories (under gui/assets/).
+# Preview / visualization assets (under gui/assets/).
+STL_DIR = "gui/assets/stl"
 PNG_DIR = "gui/assets/png"
 GIF_DIR = "gui/assets/gif"
 TXT_DIR = "gui/assets/txt"
@@ -29,11 +30,10 @@ PROGRESS_DIR = "gui/progress"
 # Logs directory for agentic session logs.
 LOGS_DIR = "gui/logs"
 
-# CAD directories — scripts, geometry, and meshes.
+# CAD directories — scripts and geometry.
 CADSMITH_DIR = "cadsmith"
 CADSMITH_SOURCE_DIR = "cadsmith/source"
 STEP_DIR = "cadsmith/step"
-STL_DIR = "cadsmith/stl"
 
 # Slicer directories — configs and output.
 PRUSASLICER_DIR = "prusaslicer"

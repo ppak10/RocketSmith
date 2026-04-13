@@ -119,12 +119,19 @@ def _read_text_safe(path: Path) -> Optional[str]:
         return None
 
 
+_BINARY_EXTENSIONS: set[str] = {".stl"}
+_MAX_BINARY_SIZE = 100_000_000
+
+
 def build_snapshot_events(root: Path) -> list[dict]:
     """Build synthetic WatchEvents for all existing files in *root*.
 
     Used to replay the current project state to newly connected WebSocket
-    clients so they don't start with an empty feed.
+    clients so they don't start with an empty feed. Text files include
+    their content; binary files (STL) include a ``__b64__`` wrapper so
+    the frontend can create blob URLs.
     """
+    import base64
     from datetime import datetime, timezone
 
     events: list[dict] = []
@@ -140,7 +147,18 @@ def build_snapshot_events(root: Path) -> list[dict]:
         except ValueError:
             continue
 
-        content = _read_text_safe(path) if _is_text_file(path) else None
+        content: Optional[str] = None
+        if _is_text_file(path):
+            content = _read_text_safe(path)
+        elif path.suffix.lower() in _BINARY_EXTENSIONS:
+            try:
+                if path.stat().st_size <= _MAX_BINARY_SIZE:
+                    raw = path.read_bytes()
+                    content = (
+                        '{"__b64__":"' + base64.b64encode(raw).decode("ascii") + '"}'
+                    )
+            except OSError:
+                pass
 
         events.append(
             {

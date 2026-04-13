@@ -217,7 +217,8 @@ export function Dashboard({
               <SidebarGroupContent>
                 <SidebarMenu>
                   {partFileNodes.map((pf) => {
-                    const partPath = `/${pf.path}`;
+                    // pf.path is "gui/parts/foo.json" — route uses "/parts/foo.json"
+                    const partPath = `/${pf.path.replace(/^gui\//, "")}`;
                     const label = partDisplayNames[pf.path] ?? pf.name.replace(/\.json$/, "");
                     return (
                       <SidebarMenuItem key={pf.path}>

@@ -11,17 +11,17 @@ export const ASSEMBLY_FILE = "gui/assembly.json";
 // Per-part JSON metadata directory.
 export const PARTS_DIR = "gui/parts";
 
-// Preview format directories (under gui/assets/).
+// Preview / visualization assets (under gui/assets/).
+export const STL_DIR = "gui/assets/stl";
 export const PNG_DIR = "gui/assets/png";
 export const GIF_DIR = "gui/assets/gif";
 export const TXT_DIR = "gui/assets/txt";
 export const PROGRESS_DIR = "gui/progress";
 
-// CAD directories — scripts, geometry, and meshes.
+// CAD directories — scripts and geometry.
 export const CADSMITH_DIR = "cadsmith";
 export const CADSMITH_SOURCE_DIR = "cadsmith/source";
 export const STEP_DIR = "cadsmith/step";
-export const STL_DIR = "cadsmith/stl";
 
 // Slicer directories — configs and output.
 export const PRUSASLICER_DIR = "prusaslicer";

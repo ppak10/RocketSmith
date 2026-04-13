@@ -90,7 +90,7 @@ function PartModel({
 interface Part3DViewerCardProps {
   /** Part name (stem, no extension). */
   partName: string;
-  /** Override the STL path (relative to project root). Defaults to "cadsmith/stl/{partName}.stl". */
+  /** Override the STL path (relative to project root). Defaults to "gui/assets/stl/{partName}.stl". */
   stlPath?: string;
   /** Show the display mode toggle (shaded/wireframe/rendered). Default true. */
   showModeToggle?: boolean;
@@ -110,7 +110,7 @@ export function Part3DViewerCard({
   simpleControls = false,
   className = "h-[500px]",
 }: Part3DViewerCardProps) {
-  const resolvedPath = stlPath ?? `cadsmith/stl/${partName}.stl`;
+  const resolvedPath = stlPath ?? `gui/assets/stl/${partName}.stl`;
   const stlUrl = fileUrl(resolvedPath);
   const [mode, setMode] = useState<DisplayMode>("shaded");
 

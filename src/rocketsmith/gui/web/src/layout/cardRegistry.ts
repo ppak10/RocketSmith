@@ -19,18 +19,28 @@ export interface CardDefinition {
 
 /** Defaults for dynamically created part cards (part-{stem}). */
 const PART_CARD_DEFAULTS: Omit<CardDefinition, "id" | "label" | "defaultOrder"> = {
-  colSpan: 1,
-  rowSpan: 2,
-  minColSpan: 1,
-  maxColSpan: 2,
-  minRowSpan: 1,
-  maxRowSpan: 3,
+  colSpan: 3,
+  rowSpan: 4,
+  minColSpan: 2,
+  maxColSpan: 4,
+  minRowSpan: 3,
+  maxRowSpan: 5,
 };
 
 export const CARD_REGISTRY: CardDefinition[] = [
-  { id: "assembly", label: "Assembly", defaultOrder: 1, colSpan: 2, rowSpan: 2, minColSpan: 2, maxColSpan: 4, minRowSpan: 2, maxRowSpan: 4 },
-  { id: "build-progress", label: "Build Progress", defaultOrder: 2, colSpan: 1, rowSpan: 1, minColSpan: 1, maxColSpan: 2, minRowSpan: 1, maxRowSpan: 2 },
-  { id: "session-log", label: "Session Log", defaultOrder: 3, colSpan: 2, rowSpan: 1, minColSpan: 2, maxColSpan: 2, minRowSpan: 1, maxRowSpan: 3 },
+  { id: "assembly", label: "Assembly", defaultOrder: 1, colSpan: 3, rowSpan: 3, minColSpan: 2, maxColSpan: 4, minRowSpan: 2, maxRowSpan: 4 },
+  { id: "build-progress", label: "Build Progress", defaultOrder: 2, colSpan: 2, rowSpan: 1, minColSpan: 2, maxColSpan: 4, minRowSpan: 1, maxRowSpan: 2 },
+  {
+    id: "session-log",
+    label: "Session Log",
+    defaultOrder: 3,
+    colSpan: 2,
+    rowSpan: 1,
+    minColSpan: 2,
+    maxColSpan: 2,
+    minRowSpan: 1,
+    maxRowSpan: 5
+  },
 ];
 
 export const DEFAULT_ORDER = CARD_REGISTRY.map((c) => c.id);

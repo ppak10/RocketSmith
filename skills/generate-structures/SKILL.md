@@ -33,7 +33,6 @@ This skill is **rocketry-agnostic** — it knows about build123d and parts and a
 
 - `<project_root>/cadsmith/source/<name>.py` — one parametric script per part (base geometry only)
 - `<project_root>/cadsmith/step/<name>.step` — the STEP file exported by each script
-- `<project_root>/cadsmith/step/full_assembly.step` — composed from all individual parts if `manifest["assemblies"]` is non-empty
 - `<project_root>/gui/assets/png/<name>.png` — 3-panel render of each part for visual verification
 
 ## Steps
@@ -63,14 +62,9 @@ For each entry in `manifest["parts"]`:
 
 Do not proceed if a part fails verification. Fix the script and re-run.
 
-### 4. Generate the Full Assembly
+### 4. Generate Assembly Layout
 
-After all individual parts are verified, produce `assemblies/full_assembly.step` (well, `step/full_assembly.step` per the layout convention). Each entry in `manifest["assemblies"]` becomes one assembly STEP:
-
-1. Write a composition script in `cadsmith/<assembly_name>.py` that imports each part in the `parts_fore_to_aft` list.
-2. Position each part along Z by cumulative offsets derived from each part's `features["length_mm"]`.
-3. Compose via `Compound` and export to the assembly's `step_path`.
-4. Render with `cadsmith_generate_preview` and `Read` the result. The assembly render is the **first check for cross-part issues** — shoulder alignment, visible gaps, off-axis fins. Spend more time looking at this one than at any individual part render.
+After all individual parts are verified, call `cadsmith_assembly(action="generate", project_dir=<project_root>)` to produce `gui/assembly.json`. This computes the spatial layout from the component tree and STEP bounding boxes — the GUI's 3D assembly viewer reads it directly. No STEP assembly file is needed.
 
 ## Script Structure
 
@@ -93,11 +87,12 @@ ID_MM = 58.0
 # ... other parameters from features ...
 
 # --- Resolve output path relative to this script's location ---
-# This script lives at <project_root>/cadsmith/<name>.py
-# STEP file goes to <project_root>/step/<name>.step
+# This script lives at <project_root>/cadsmith/source/<name>.py
+# STEP file goes to <project_root>/cadsmith/step/<name>.step
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-OUTPUT = PROJECT_ROOT / "step" / "<name>.step"
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+STEP_DIR = PROJECT_ROOT / "cadsmith" / "step"
+OUTPUT = STEP_DIR / "<name>.step"
 
 # --- Build ---
 with BuildPart() as part:
@@ -111,7 +106,7 @@ export_step(part.part, str(OUTPUT))
 
 Key rules:
 
-- **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/cadsmith/<name>.py` and writes to `<project_root>/step/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
+- **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/cadsmith/source/<name>.py` and writes to `<project_root>/cadsmith/step/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
 - **Never embed an absolute path** like `/Users/someone/rockets/my_rocket/step/...` in a script. That breaks the moment anyone else opens the repo.
 - **Parameters are named constants at the top** — match the manifest's feature block exactly.
 - **Imports limited to `build123d`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
@@ -467,28 +462,9 @@ CAD_DIR = PROJECT_ROOT / "step"
 # Nose cones are built shoulder-down for printing; flip 180° about X so
 # the shoulder ends up at the high-Z end of the nose cone's local range,
 # where it will mate with the fore face of the upper airframe.
-nose_cone = import_step(str(CAD_DIR / "nose_cone.step")).rotate(Axis.X, 180)
-upper_airframe = import_step(str(CAD_DIR / "upper_airframe.step"))
-lower_airframe = import_step(str(CAD_DIR / "lower_airframe.step"))
-
-parts = [nose_cone, upper_airframe, lower_airframe]
-
-# Stack along +Z in the order given (fore-to-aft in this layout: nose cone
-# first, motor last). The nose cone sits at low Z and the motor at high Z
-# in the assembly frame — this is "fore-down" in the rocket's own frame,
-# which is fine for a visual sanity render. If you want "fore-up" for the
-# viewer's benefit, compose as shown and then rotate the whole assembly.
-positioned = []
-cursor_z = 0.0
-for p in parts:
-    positioned.append(p.translate((0, 0, cursor_z)))
-    cursor_z += p.bounding_box().size.Z
-
-assembly = Compound(label="full_assembly", children=positioned)
-OUTPUT = CAD_DIR / "full_assembly.step"
-OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-export_step(assembly, str(OUTPUT))
 ```
+
+**Note:** STEP assembly files (`full_assembly.step`) are no longer generated. The assembly layout is handled by `cadsmith_assembly(action="generate")` which produces `gui/assembly.json` for the 3D viewer.
 
 ## Feature Recipe Reference
 
@@ -532,7 +508,7 @@ After the full assembly is generated, **always pause for user feedback** on the 
 - A script emits a STEP file whose bounding box doesn't match the manifest's feature block
 - A part is generated that isn't in the manifest
 - A part in the manifest is skipped without a reported failure
-- `full_assembly.step` shows a visible gap between sections — check `integral_aft_shoulder.od_mm` matches the mating tube's `id_mm`
+- Assembly viewer shows a visible gap between sections — check `integral_aft_shoulder.od_mm` matches the mating tube's `id_mm`
 - `cadsmith_extract_part` volume is zero or NaN — degenerate geometry, script has a topology bug
 - A fin is not fused into the parent body — check the feature block specifies `integrated_fins` and the script uses `Mode.ADD` rather than exporting fins as a separate part
 - A part has its bed face (lowest Z) as a single point, an edge, or a small ring. PrusaSlicer needs a planar face with significant area at Z=0. If the lowest Z is sub-millimeter in cross-section, the orientation is wrong even if the rest of the geometry looks fine in the render.

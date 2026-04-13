@@ -21,7 +21,6 @@ ALLOWED_IMPORTS = frozenset(
 REQUIRED_EXPORTS = frozenset(
     {
         "export_step",
-        "export_stl",
     }
 )
 
@@ -55,7 +54,7 @@ def validate_script(script_path: Path) -> list[str]:
     """Validate a build123d script before execution.
 
     Checks:
-    1. The script contains calls to both ``export_step`` and ``export_stl``.
+    1. The script contains a call to ``export_step``.
     2. All imports come from an allowed set (build123d, pathlib, math, typing).
 
     Returns:
@@ -77,7 +76,7 @@ def validate_script(script_path: Path) -> list[str]:
     for name in sorted(missing_exports):
         errors.append(
             f"Missing required call to `{name}()`. "
-            "The script must export both STEP and STL files."
+            "The script must export a STEP file."
         )
 
     # ── Import allowlist ───────────────────────────────────────────────
