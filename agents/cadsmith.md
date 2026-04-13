@@ -52,9 +52,11 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
   - Returns the list of STEP file paths produced by the script
   - **Use this as the primary execution path — never call `python`, `uv run`, or `conda run` directly.** They will fail or hit the wrong interpreter.
 - `cadsmith_generate_preview` — Generate preview assets for a STEP file (`step_file_path`, `project_dir`, `outputs`)
+  - Always generates an STL mesh to `gui/assets/stl/` for the 3D viewer.
   - `outputs=["thumbnail", "gif", "ascii"]` (default: all three). Generates PNG thumbnails, rotating GIFs, and ASCII animations.
   - Outputs written to `gui/assets/png/`, `gui/assets/gif/`, `gui/assets/txt/` under the project directory.
   - Progress tracked per-part in `gui/progress/<part_name>.json` for the GUI.
+- `gui_navigate` — Navigate the GUI to a route path (e.g. `/parts/nose_cone`)
 - `cadsmith_extract_part` — Extract volume, bounding box, and centre of mass from a STEP file (`step_file_path`)
   - Use to verify dimensions numerically after visual inspection
 - `openrocket_generate_tree` — Convert an `.ork` design into mm-scaled CAD parameters (`rocket_file_path`)

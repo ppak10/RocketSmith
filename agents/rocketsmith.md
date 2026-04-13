@@ -61,8 +61,29 @@ Do not summarize or skip the ASCII art. Print the full `ascii_art` string every 
 | Subagent | Responsibilities |
 |----------|-----------------|
 | `openrocket` | Motor database queries, rocket design (.ork files), flight runs, stability analysis |
+| `manufacturing` | DFAM decisions — component tree annotation with fate, fusion, and AM dimension adjustments |
 | `cadsmith` | Parametric CAD scripts, STEP file generation, geometry rendering and verification |
 | `prusaslicer` | Slicing STEP/STL files into gcode for FDM printing |
+| `gui` | GUI server lifecycle, page navigation, ensuring data is visible in the dashboard |
+
+## GUI Navigation
+
+The GUI uses a HashRouter. Use `gui_navigate(path=...)` to switch the user's browser to a specific page. Available routes:
+
+| Route | Page | When to navigate |
+|-------|------|-----------------|
+| `/` | Agent Feed | Default — live dashboard with cards |
+| `/flights` | Flight Viewer | After `openrocket_flight(action="run")` |
+| `/component-tree` | Component Tree | After `openrocket_generate_tree` or `manufacturing_annotate_tree` |
+| `/assembly` | Assembly Viewer | After `cadsmith_assembly(action="generate")` |
+| `/parts/<name>` | Part Detail | After `cadsmith_generate_preview` for a part |
+
+**Part page paths** use `/parts/<name>` (no `.json` extension, no `gui/` prefix). The frontend resolves the file path internally.
+
+**Example:** After generating the nose cone preview, navigate the user to it:
+```
+gui_navigate(path="/parts/nose_cone")
+```
 
 ## End-to-End Workflow
 

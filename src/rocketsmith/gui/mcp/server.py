@@ -58,21 +58,13 @@ def _cleanup_pid_file(pid_file: Path) -> None:
 
 
 def _kill_pid(pid: int) -> bool:
-    """Kill a process group (PID == PGID), falling back to individual kill.
+    """Kill a single process by PID.
 
-    Safety: never kills our own process group.
+    Uses os.kill (not os.killpg) to avoid accidentally killing
+    the MCP server's process group.
     """
-    # Guard: don't kill our own process group.
-    if pid == os.getpid() or pid == os.getpgrp():
+    if pid == os.getpid():
         return False
-    try:
-        os.killpg(pid, signal.SIGTERM)
-        return True
-    except ProcessLookupError:
-        pass
-    except (PermissionError, OSError):
-        pass
-    # Fallback: kill the individual process.
     try:
         os.kill(pid, signal.SIGTERM)
         return True

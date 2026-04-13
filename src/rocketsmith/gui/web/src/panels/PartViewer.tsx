@@ -111,15 +111,15 @@ export function PartViewer({ file }: PartViewerProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex h-full flex-col gap-4 p-4">
       {/* Name */}
-      <h2 className="text-lg font-heading">{part.display_name ?? part.name}</h2>
+      <h2 className="shrink-0 text-lg font-heading">{part.display_name ?? part.name}</h2>
 
       {/* Deviation warning */}
       {deviations
         .filter((d) => d.partName === part.name)
         .map((d) => (
-          <Alert key={d.field}>
+          <Alert key={d.field} className="shrink-0">
             <AlertTitle>Part out of date</AlertTitle>
             <AlertDescription>
               {d.displayName} {d.field}: expected {d.expected.toFixed(1)} mm from component tree, but CAD is {d.actual.toFixed(1)} mm ({d.diff.toFixed(1)} mm deviation). Regenerate this part to match the current design.
@@ -128,7 +128,7 @@ export function PartViewer({ file }: PartViewerProps) {
         ))}
 
       {/* Summary badges */}
-      <div className="flex flex-wrap gap-3">
+      <div className="shrink-0 flex flex-wrap gap-3">
         {part.mass && <Stat label="Mass" value={fmtQty(part.mass)} />}
         {part.volume && <Stat label="Volume" value={fmtQty(part.volume, 0)} />}
         {part.surface_area && <Stat label="Surface Area" value={fmtQty(part.surface_area, 0)} />}
@@ -137,7 +137,7 @@ export function PartViewer({ file }: PartViewerProps) {
       </div>
 
       {/* Tabbed part viewer — Model / Source */}
-      <PartCard partName={part.name} />
+      <PartCard partName={part.name} className="min-h-0 flex-1" />
 
     </div>
   );

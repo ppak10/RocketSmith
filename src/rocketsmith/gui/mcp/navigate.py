@@ -12,6 +12,9 @@ def register_gui_navigate(app: FastMCP):
         title="Navigate GUI",
         description=(
             "Navigate the RocketSmith GUI to a specific route path. "
+            "Routes: '/' (Agent Feed), '/flights', '/component-tree', "
+            "'/assembly', '/parts/<name>' (part detail). "
+            "Part paths use '/parts/<name>' not '/gui/parts/...'. "
             "Requires the GUI server to be running."
         ),
         structured_output=True,
@@ -22,13 +25,21 @@ def register_gui_navigate(app: FastMCP):
         """
         Navigate the GUI to a route path.
 
+        The GUI uses a HashRouter, so the URL looks like:
+        http://127.0.0.1:5173/#/parts/nose_cone
+
         Args:
             path: Route path to navigate to. Examples:
-                "/" — Agent Feed
-                "/flights" — Flight viewer
-                "/component-tree" — Component tree
-                "/assembly" — Assembly viewer
-                "/gui/parts/nose_cone.json" — Part detail page
+                "/" — Agent Feed (live dashboard with cards)
+                "/flights" — Flight viewer (charts from flight JSON)
+                "/component-tree" — Component tree (rocket profile + parts list)
+                "/assembly" — Assembly viewer (3D spatial layout)
+                "/parts/nose_cone" — Part detail page (3D model + source code)
+                "/parts/upper_body_tube" — Part detail page
+
+            Note: part paths use "/parts/<name>" (NOT "/gui/parts/...").
+            The route strips the "gui/" prefix — the frontend adds it back
+            when loading the file.
         """
         import json
         import urllib.request

@@ -56,7 +56,7 @@ export function App() {
 
 function PartViewerRoute() {
   const location = useLocation();
-  // Route path is "/parts/foo.json" — file lives at "gui/parts/foo.json"
-  const path = location.pathname.replace(/^\/parts\//, "gui/parts/");
-  return <PartViewer file={decodeURIComponent(path)} />;
+  // Route: /parts/nose_cone → file: gui/parts/nose_cone.json
+  const name = location.pathname.replace(/^\/parts\//, "").replace(/\.json$/, "");
+  return <PartViewer file={`gui/parts/${decodeURIComponent(name)}.json`} />;
 }

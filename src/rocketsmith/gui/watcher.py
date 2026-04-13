@@ -251,6 +251,19 @@ async def watch(
                     previous_content = prev_contents.get(path)
                     if content is not None:
                         prev_contents[path] = content
+                elif path.suffix.lower() in _BINARY_EXTENSIONS:
+                    import base64
+
+                    try:
+                        if path.stat().st_size <= _MAX_BINARY_SIZE:
+                            raw = path.read_bytes()
+                            content = (
+                                '{"__b64__":"'
+                                + base64.b64encode(raw).decode("ascii")
+                                + '"}'
+                            )
+                    except OSError:
+                        pass
 
                 await on_change(
                     {

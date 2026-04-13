@@ -139,8 +139,9 @@ export function Dashboard({
   const title = useMemo(() => {
     if (PATH_TITLES[currentPath]) return PATH_TITLES[currentPath];
     if (currentPath.startsWith("/parts/")) {
-      const partPath = currentPath.replace(/^\//, "");
-      return partDisplayNames[partPath] ?? partPath.split("/").pop()?.replace(".json", "") ?? "Part";
+      const partName = currentPath.replace(/^\/parts\//, "");
+      const partFile = `gui/parts/${partName}.json`;
+      return partDisplayNames[partFile] ?? partName.replace(/_/g, " ") ?? "Part";
     }
     return currentPath;
   }, [currentPath, partDisplayNames]);
@@ -217,8 +218,8 @@ export function Dashboard({
               <SidebarGroupContent>
                 <SidebarMenu>
                   {partFileNodes.map((pf) => {
-                    // pf.path is "gui/parts/foo.json" — route uses "/parts/foo.json"
-                    const partPath = `/${pf.path.replace(/^gui\//, "")}`;
+                    // pf.path is "gui/parts/foo.json" — route uses "/parts/foo"
+                    const partPath = `/${pf.path.replace(/^gui\//, "").replace(/\.json$/, "")}`;
                     const label = partDisplayNames[pf.path] ?? pf.name.replace(/\.json$/, "");
                     return (
                       <SidebarMenuItem key={pf.path}>
