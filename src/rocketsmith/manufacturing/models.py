@@ -1,173 +1,201 @@
-"""Pydantic models for the parts manifest.
+"""Pydantic models for the component tree.
 
-The parts manifest is the contract between a design-for-X skill and the
-downstream ``cadsmith`` subagent, ``generate-cad`` skill, and
-``mass-calibration`` skill. It records per-component fate decisions
-(print, fuse, purchase, skip), feature blocks for each printable part,
-and the inverse lookup from OpenRocket components back to the part that
-absorbed them.
+The component tree is a living document that evolves through three phases:
 
-The schema here mirrors the "parts_manifest.json Schema" section in
-``skills/design-for-additive-manufacturing/SKILL.md``. If one changes,
-the other must too. Unit tests lock down the mapping to catch drift.
+1. **OpenRocket agent** populates it from the .ork simulation file —
+   component hierarchy, reference dimensions, and human notes.
+2. **Manufacturing agent** annotates it with DFAM decisions — fate
+   assignments, fusion directives, dimension adjustments.
+3. **Cadsmith agent** reads it to generate CAD — STEP files for
+   printed parts, bounding boxes for purchased items.
+
+The component hierarchy mirrors the OpenRocket component tree.
+Components are never removed — fusion is an annotation, not a deletion.
+Manufacturing decisions are persisted in each component's OpenRocket
+comment field under the ``== agents ==`` delimiter, so the .ork file
+remains the single source of truth.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
 
 from pydantic import BaseModel, Field
+from pintdantic import QuantityModel, QuantityField
+
+from rocketsmith.openrocket.models import Dimensions
+
+
+# ── Enums ──────────────────────────────────────────────────────────────────────
 
 
 class Fate(str, Enum):
-    """Per-component decision made by a design-for-X skill.
-
-    ``print``     — generate CAD for this component as its own printed part
-    ``purchase``  — source this component as COTS (not printed, not fused)
-    ``skip``      — non-physical assembly item (parachute, ballast) or
-                    a component that has been fused into another printed part
-    """
+    """Per-component manufacturing decision."""
 
     PRINT = "print"
+    FUSE = "fuse"
     PURCHASE = "purchase"
     SKIP = "skip"
 
 
-class ManufacturingMethod(str, Enum):
-    """Manufacturing method the manifest was generated for.
+class ComponentCategory(str, Enum):
+    """High-level classification of a component's role."""
 
-    Only ``additive`` is fully implemented today. ``hybrid`` and
-    ``traditional`` are placeholder values for forthcoming skills.
+    STRUCTURAL = "structural"
+    RECOVERY = "recovery"
+    HARDWARE = "hardware"
+    ELECTRONICS = "electronics"
+    PROPULSION = "propulsion"
+
+
+# ── Category defaults by OpenRocket component type ─────────────────────────────
+
+_TYPE_TO_CATEGORY: dict[str, ComponentCategory] = {
+    "NoseCone": ComponentCategory.STRUCTURAL,
+    "BodyTube": ComponentCategory.STRUCTURAL,
+    "TrapezoidFinSet": ComponentCategory.STRUCTURAL,
+    "EllipticalFinSet": ComponentCategory.STRUCTURAL,
+    "FreeformFinSet": ComponentCategory.STRUCTURAL,
+    "InnerTube": ComponentCategory.STRUCTURAL,
+    "TubeCoupler": ComponentCategory.STRUCTURAL,
+    "CenteringRing": ComponentCategory.STRUCTURAL,
+    "BulkHead": ComponentCategory.STRUCTURAL,
+    "Transition": ComponentCategory.STRUCTURAL,
+    "LaunchLug": ComponentCategory.HARDWARE,
+    "RailButton": ComponentCategory.HARDWARE,
+    "Parachute": ComponentCategory.RECOVERY,
+    "Streamer": ComponentCategory.RECOVERY,
+    "ShockCord": ComponentCategory.RECOVERY,
+    "MassComponent": ComponentCategory.HARDWARE,
+    "EngineBlock": ComponentCategory.PROPULSION,
+}
+
+
+def default_category(component_type: str) -> ComponentCategory:
+    """Return the default category for an OpenRocket component type."""
+    return _TYPE_TO_CATEGORY.get(component_type, ComponentCategory.HARDWARE)
+
+
+# ── Agent annotations ──────────────────────────────────────────────────────────
+
+
+class AgentAnnotation(BaseModel):
+    """Structured data written below ``== agents ==`` in an OR comment field.
+
+    These annotations are the manufacturing agent's decisions, persisted
+    in the .ork file so the BOM can be regenerated without losing them.
     """
 
-    ADDITIVE = "additive"
-    HYBRID = "hybrid"
-    TRADITIONAL = "traditional"
-
-
-class Directories(BaseModel):
-    """Project-root-relative directory names for each artefact type."""
-
-    scripts: str = "cadsmith"
-    step: str = "CAD"
-    gcode: str = "gcode"
-    visualizations: str = "visualizations"
-
-
-class Modification(BaseModel):
-    """A detail feature applied to an existing base STEP during Pass 2.
-
-    Modifications are additive or subtractive operations on the base
-    geometry produced by the ``generate-structures`` skill. Typical
-    examples: radial heat-set holes, clearance through-holes, rail
-    button pockets, camera mounts, vent holes, weight-relief pockets.
-
-    The ``kind`` field identifies the modification type; recipe-specific
-    fields vary and are passed through via ``extra="allow"``. The
-    ``modify-structures`` skill documents the supported kinds and their
-    per-kind field shapes.
-    """
-
-    kind: str
-    purpose: str | None = None
+    fate: Fate | None = None
+    fused_into: str | None = None
+    reason: str | None = None
+    updated_by: str | None = None
+    updated_at: str | None = None
 
     model_config = {"extra": "allow"}
 
 
-class Part(BaseModel):
-    """One printable part.
+def parse_comment(comment: str | None) -> tuple[str | None, AgentAnnotation | None]:
+    """Split an OpenRocket comment into human notes and agent annotations.
 
-    ``derived_from`` lists the OpenRocket component identifiers (formatted
-    as ``Type:Name``) that contribute to this part. A simple part derives
-    from one component; a fused part derives from several. The downstream
-    ``mass-calibration`` skill uses this list to distribute the measured
-    filament weight back across the constituent OR components.
+    Returns:
+        (human_notes, agent_annotation) — either may be None.
+    """
+    if not comment or not comment.strip():
+        return None, None
 
-    ``features`` is the base-geometry recipe consumed by the
-    ``generate-structures`` skill in Pass 1. ``modifications`` is the
-    detail-feature list consumed by ``modify-structures`` in Pass 2 —
-    it starts empty and is populated only when DFAM (or the user via
-    fusion_overrides) requests specific modifications like retention
-    holes, accessory mounts, or vent holes.
+    delimiter = "== agents =="
+    if delimiter not in comment:
+        return comment.strip() or None, None
+
+    above, below = comment.split(delimiter, maxsplit=1)
+    human_notes = above.strip() or None
+
+    # Parse key: value pairs from the agent section.
+    data: dict[str, str] = {}
+    for line in below.strip().splitlines():
+        line = line.strip()
+        if not line or ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        data[key.strip()] = value.strip()
+
+    annotation = AgentAnnotation.model_validate(data) if data else None
+    return human_notes, annotation
+
+
+def serialize_comment(
+    human_notes: str | None,
+    annotation: AgentAnnotation | None,
+) -> str:
+    """Rebuild an OpenRocket comment from human notes and agent annotations."""
+    parts: list[str] = []
+    if human_notes:
+        parts.append(human_notes)
+
+    if annotation:
+        parts.append("== agents ==")
+        for key, value in annotation.model_dump(exclude_none=True).items():
+            parts.append(f"{key}: {value}")
+
+    return "\n".join(parts)
+
+
+# ── Component ──────────────────────────────────────────────────────────────────
+
+
+class Component(QuantityModel):
+    """A single item in the rocket's component hierarchy.
+
+    Mirrors one node in the OpenRocket component tree. The hierarchy is
+    preserved via ``children`` — components are never removed, even when
+    fused into a parent for manufacturing.
     """
 
+    type: str
     name: str
-    script_path: str
-    step_path: str
-    gcode_path: str
-    derived_from: list[str]
-    fate: Fate = Fate.PRINT
-    features: dict[str, Any] = Field(default_factory=dict)
-    modifications: list[Modification] = Field(default_factory=list)
+    category: ComponentCategory
+    dimensions: Dimensions
+    mass: QuantityField | None = None
+    override_mass: QuantityField | None = None
+    override_mass_enabled: bool = False
+    material: str | None = None
+    material_density: QuantityField | None = None
+    human_notes: str | None = None
+    agent: AgentAnnotation | None = None
+    cost: float | None = None
+    step_path: str | None = None
+    children: list[Component] = Field(default_factory=list)
 
 
-class PurchasedItem(BaseModel):
-    """An OR component sourced as COTS rather than printed."""
-
-    derived_from: str
-    description: str
-    suggested_source: str | None = None
+# ── Component tree ─────────────────────────────────────────────────────────────
 
 
-class SkippedComponent(BaseModel):
-    """An OR component that becomes neither a printed part nor a COTS item.
-
-    Includes non-physical assembly items (parachutes, ballast) and
-    components that have been fused into another printed part (in which
-    case ``reason`` names the target part).
-    """
+class Stage(QuantityModel):
+    """One stage of the rocket (e.g., Sustainer, Booster)."""
 
     name: str
-    reason: str
+    components: list[Component] = Field(default_factory=list)
+    cg: QuantityField | None = None
+    cp: QuantityField | None = None
+    stability_cal: float | None = None
+    max_diameter: QuantityField | None = None
 
 
-class Assembly(BaseModel):
-    """Optional multi-part STEP assembly composing several parts."""
+class ComponentTree(BaseModel):
+    """Hierarchical component tree for a rocket project.
 
-    name: str
-    step_path: str
-    parts_fore_to_aft: list[str]
-
-
-class Decision(BaseModel):
-    """Auditable record of one fusion / fate decision.
-
-    Every non-default choice should produce one of these so the user (and
-    the agent in a future session) can understand *why* the manifest looks
-    the way it does.
-    """
-
-    decision: str
-    policy_default: str
-    chosen: str
-    reason: str
-
-
-class PartsManifest(BaseModel):
-    """Authoritative parts manifest produced by a design-for-X skill.
-
-    Written to ``<project_root>/parts_manifest.json``. Consumed by:
-
-    - ``generate-cad`` skill / ``cadsmith`` subagent — iterates ``parts``
-      to produce STEP files
-    - ``prusaslicer`` subagent — slices each ``step_path`` to ``gcode_path``
-    - ``mass-calibration`` skill — uses ``component_to_part_map`` to
-      attribute filament weights back to OR components
+    Generated from an OpenRocket .ork file, annotated by the manufacturing
+    agent, and consumed by the cadsmith agent to produce CAD.
+    Written to ``<project_root>/gui/component_tree.json``.
     """
 
     schema_version: int = 1
     source_ork: str
     project_root: str
-    default_policy: ManufacturingMethod
     generated_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    directories: Directories = Field(default_factory=Directories)
-    parts: list[Part] = Field(default_factory=list)
-    purchased_items: list[PurchasedItem] = Field(default_factory=list)
-    skipped_components: list[SkippedComponent] = Field(default_factory=list)
-    assemblies: list[Assembly] = Field(default_factory=list)
-    decisions: list[Decision] = Field(default_factory=list)
-    component_to_part_map: dict[str, str] = Field(default_factory=dict)
+    rocket_name: str
+    stages: list[Stage] = Field(default_factory=list)

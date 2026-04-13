@@ -84,6 +84,7 @@ async def test_motor_not_found_returns_error(mcp_app, tmp_path):
         "INVALID_ARGUMENT",
         "FILE_NOT_FOUND",
         "SIMULATION_FAILED",
+        "FLIGHT_FAILED",
     )
 
 
@@ -91,7 +92,7 @@ async def test_motor_not_found_returns_error(mcp_app, tmp_path):
 
 
 @pytest.mark.anyio
-async def test_create_simulation(mcp_app, openrocket_jar, tmp_path):
+async def test_create_flight(mcp_app, openrocket_jar, tmp_path):
     from rocketsmith.openrocket.components import new_ork, create_component
 
     ork_path = tmp_path / "test.ork"
@@ -111,12 +112,12 @@ async def test_create_simulation(mcp_app, openrocket_jar, tmp_path):
 
     assert result.success is True
     assert result.data["motor_designation"] == "D12"
-    assert "simulation_name" in result.data
+    assert "flight_name" in result.data
     assert "mount_component" in result.data
 
 
 @pytest.mark.anyio
-async def test_create_then_delete_simulation(mcp_app, openrocket_jar, tmp_path):
+async def test_create_then_delete_flight(mcp_app, openrocket_jar, tmp_path):
     from rocketsmith.openrocket.components import new_ork, create_component
 
     ork_path = tmp_path / "test.ork"
@@ -168,8 +169,8 @@ async def test_delete_nonexistent_sim_returns_error(mcp_app, openrocket_jar, tmp
 
 
 @pytest.mark.anyio
-async def test_create_then_simulate(mcp_app, openrocket_jar, tmp_path):
-    """Full workflow: build rocket → assign motor → run sim → check stability."""
+async def test_create_then_run_flight(mcp_app, openrocket_jar, tmp_path):
+    """Full workflow: build rocket → assign motor → run flight → check stability."""
     from rocketsmith.openrocket.components import new_ork, create_component
     from rocketsmith.openrocket.simulation import run_simulation
 

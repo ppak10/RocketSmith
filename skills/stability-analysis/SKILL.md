@@ -1,6 +1,6 @@
 ---
 name: stability-analysis
-description: Use when a simulation returns stability outside 1.0–1.5 calibers, or when min_stability_cal is null
+description: Use when a flight returns stability outside 1.0–1.5 calibers, or when min_stability_cal is null
 ---
 
 # Stability Analysis
@@ -23,7 +23,7 @@ Stability margin = (CP − CG) / reference diameter, measured in calibers. The t
 
 ### 1. Read the Numbers
 
-Run `openrocket_inspect` and note:
+Run `openrocket_generate_tree` and note:
 - `cg_x` — center of gravity from nose tip (m)
 - `cp_x` — center of pressure from nose tip (m)
 - `max_diameter_m` — reference diameter
@@ -75,13 +75,13 @@ Work one change at a time. Re-simulate after each.
 ### 4. Iterate
 
 After each change:
-1. `openrocket_simulate` — check new `min_stability_cal`
+1. `openrocket_flight(action="run")` — check new `min_stability_cal`
 2. Also check `max_stability_cal` — stability varies over the flight as propellant burns
 3. Stop when 1.0–1.5 cal across the full flight
 
 ### 5. Verify Final Design
 
-Run `openrocket_inspect` one more time. Confirm:
+Run `openrocket_generate_tree` one more time. Confirm:
 - `cp_x` > `cg_x` (CP aft of CG)
 - `stability_cal` in range
 - No component geometry was accidentally broken

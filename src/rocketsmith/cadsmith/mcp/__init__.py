@@ -1,9 +1,11 @@
-from .extract import register_cadsmith_extract
-from .render import register_cadsmith_render
-from .script import register_cadsmith_script
+from .assembly import register_cadsmith_assembly
+from .extract_part import register_cadsmith_extract_part
+from .generate_preview import register_cadsmith_generate_preview
+from .run_script import register_cadsmith_run_script
 
 __all__ = [
-    "register_cadsmith_extract",
-    "register_cadsmith_render",
-    "register_cadsmith_script",
+    "register_cadsmith_assembly",
+    "register_cadsmith_extract_part",
+    "register_cadsmith_generate_preview",
+    "register_cadsmith_run_script",
 ]

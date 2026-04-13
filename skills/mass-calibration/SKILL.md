@@ -9,29 +9,29 @@ description: Use after slicing printed parts to feed measured filament weights b
 
 OpenRocket assigns every component a mass based on its configured material (cardboard by default, typically ~680 kg/m³). Real printed parts are made of PLA or PETG and use variable wall/infill settings — their actual mass can differ from OpenRocket's estimate by 2–4×. A design that simulated stable with default material assumptions may be unstable once built.
 
-Mass calibration closes the loop: slice each printed part, read the filament weight from the slicer, apply it back to the matching OpenRocket component as a mass override, and re-run the simulation to confirm stability still holds.
+Mass calibration closes the loop: slice each printed part, read the filament weight from the slicer, apply it back to the matching OpenRocket component as a mass override, and re-run the flight to confirm stability still holds.
 
-**Core principle:** A design is not flight-ready until simulation has been re-verified against the *real* printed part weights, not the material defaults.
+**Core principle:** A design is not flight-ready until the flight has been re-verified against the *real* printed part weights, not the material defaults.
 
 ## When to Use
 
-- `cadsmith_script` has produced STEP files AND `prusaslicer_slice` has produced gcode for at least one printed part
+- `cadsmith_run_script` has produced STEP files AND `prusaslicer_slice` has produced gcode for at least one printed part
 - Before committing to a final build
 - After changing any print setting (infill, wall count, material) that would change part mass
 - When the user asks "will it still fly stable once printed?"
 
 ## Preconditions
 
-1. The design has already passed an initial stability check in the 1.0–1.5 cal range with default masses. If not, run `rocketsmith:stability-analysis` first — calibrating on an already-unstable design just obscures the root cause.
-2. `<project_dir>/parts_manifest.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
+1. The design has already passed an initial stability check in the 1.0–1.5 cal range with default masses. If not, run `rocketsmith:stability-analysis` first — calibrating on an already-unstable design obscures the root cause.
+2. `<project_dir>/gui/component_tree.json` exists (produced earlier by the `design-for-additive-manufacturing` skill or a sibling DFx skill). This is the authoritative mapping from printed parts back to OR components.
 3. Each printed part listed in the manifest has a sliced `.gcode` file with a `filament_used_g` reading. If any part is missing, slice it first.
 
 ## Steps
 
-### 1. Load the Parts Manifest
+### 1. Load the Component Tree
 
 ```
-manifest = read_json("<project_dir>/parts_manifest.json")
+manifest = read_json("<project_dir>/gui/component_tree.json")
 ```
 
 The two sections you care about are:
@@ -99,10 +99,10 @@ Components marked `"skipped"` or `"purchased"` in `component_to_part_map` are no
 
 **Units gotcha (always):** If you pass grams (62.1) instead of kilograms (0.0621), OpenRocket will treat the component as weighing 62 kg and simulated apogee will collapse to near zero. Always divide by 1000.
 
-### 4. Re-Run the Simulation
+### 4. Re-Run the Flight
 
 ```
-openrocket_simulate(rocket_file_path=<path>)
+openrocket_flight(action="run", rocket_file_path=<path>)
 ```
 
 Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
@@ -116,9 +116,19 @@ Note the new `min_stability_cal`, `max_altitude_m`, and `max_velocity_ms`.
 | Climbed above 1.5 | ✓ | ✗ | Reduce nose weight, or increase fin area modestly |
 | Apogee dropped > 25% | — | — | Consider stepping up one motor class |
 
-Apply fixes one at a time. After each fix, re-run `openrocket_simulate` (the overrides are already in place — you don't need to re-apply them).
+Apply fixes one at a time. After each fix, re-run `openrocket_flight(action="run")` (the overrides are already in place — you don't need to re-apply them).
 
-### 6. Confirm and Record
+### 6. Regenerate the Component Tree
+
+After all mass overrides are applied and the flight is verified stable, regenerate the component tree so it reflects the calibrated masses:
+
+```
+openrocket_generate_tree(rocket_file_path=<path>, project_dir=<project_dir>)
+```
+
+This updates `gui/component_tree.json` with the new `override_mass` values from the `.ork` file, keeping the component tree in sync with the flight-verified design. The GUI's component tree page and rocket profile will then show the correct calibrated masses.
+
+### 7. Confirm and Record
 
 Once stability is back in range, report the final mass budget to the user:
 
@@ -135,8 +145,8 @@ Final calibrated mass budget:
 
 ## Red Flags — Stop and Fix
 
-- A filament weight was passed in grams instead of kilograms (apogee will drop to near zero — obvious in the simulation output)
-- The parts manifest was ignored and the mapping was guessed from filenames — always use `component_to_part_map`, never improvise
+- A filament weight was passed in grams instead of kilograms (apogee will drop to near zero — obvious in the flight output)
+- The component tree was ignored and the mapping was guessed from filenames — always use `component_to_part_map`, never improvise
 - A fused part's mass was pinned entirely to a single OR component when `derived_from` has multiple entries — use Option B1 (proportional distribution) for mid-power and above, or Option B2 (pin primary, zero secondaries) only for small LPR parts
 - Only some parts in the manifest had overrides applied — every printed part in the manifest must be covered, otherwise you're mixing real and default masses and skewing CG
 - An override was applied to a component whose `component_to_part_map` entry is `"skipped"` or `"purchased"` — these should not receive mass overrides from printed-part weights
@@ -149,8 +159,8 @@ Final calibrated mass budget:
 # grams → kilograms
 override_mass_kg = filament_used_g / 1000
 
-# re-sim after every override pass
-openrocket_simulate(rocket_file_path=<path>)
+# re-run flight after every override pass
+openrocket_flight(action="run", rocket_file_path=<path>)
 
 # check stability stayed in [1.0, 1.5]
 assert 1.0 <= min_stability_cal <= 1.5

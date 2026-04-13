@@ -1,13 +1,13 @@
 ---
 name: generate-structures
-description: Use when producing base geometry (tubes, cones, integrated fins, integral shoulders, motor mount wall thickening, full assembly) from a parts manifest via build123d. Pass 1 of the CAD pipeline — no holes, no pockets, no detail features (those are Pass 2, see modify-structures).
+description: Use when producing base geometry (tubes, cones, integrated fins, integral shoulders, motor mount wall thickening, full assembly) from a component tree via build123d. Pass 1 of the CAD pipeline — no holes, no pockets, no detail features (those are Pass 2, see modify-structures).
 ---
 
 # Generate Structures
 
 ## Overview
 
-`generate-structures` is **Pass 1 of the CAD pipeline**. It takes a parts manifest and produces the base geometry for every printable part — the structural shell. Pass 2 (`modify-structures`) then adds detail features like holes, pockets, and mounts on top of these base STEPs.
+`generate-structures` is **Pass 1 of the CAD pipeline**. It takes a component tree and produces the base geometry for every printable part — the structural shell. Pass 2 (`modify-structures`) then adds detail features like holes, pockets, and mounts on top of these base STEPs.
 
 The separation matters because:
 
@@ -21,27 +21,26 @@ This skill is **rocketry-agnostic** — it knows about build123d and parts and a
 
 ## When to Use
 
-- `parts_manifest.json` exists at `<project_root>/parts_manifest.json` and needs Pass 1 geometry
+- `component_tree.json` exists at `<project_root>/gui/component_tree.json` and needs Pass 1 geometry
 - A base STEP file is missing or out of sync with its feature block
 - The user asks to regenerate structural geometry
 
 ## Inputs
 
-`<project_root>/parts_manifest.json` — the authoritative parts list. Specifically the `parts[].features` block for each part. Do not read the `modifications` block — that's `modify-structures`' job.
+`<project_root>/gui/component_tree.json` — the authoritative parts list. Specifically the `parts[].features` block for each part. Do not read the `modifications` block — that's `modify-structures`' job.
 
 ## Output
 
-- `<project_root>/cadsmith/<name>.py` — one parametric script per part (base geometry only)
-- `<project_root>/CAD/<name>.step` — the STEP file exported by each script
-- `<project_root>/CAD/full_assembly.step` — composed from all individual parts if `manifest["assemblies"]` is non-empty
-- `<project_root>/visualizations/<name>.png` — 3-panel render of each part for visual verification
+- `<project_root>/cadsmith/source/<name>.py` — one parametric script per part (base geometry only)
+- `<project_root>/cadsmith/step/<name>.step` — the STEP file exported by each script
+- `<project_root>/gui/assets/png/<name>.png` — 3-panel render of each part for visual verification
 
 ## Steps
 
 ### 1. Load the Manifest
 
 ```
-manifest = manufacturing_manifest(action="read", project_root="<project_root>")
+manifest = read_json("<project_root>/gui/component_tree.json")
 ```
 
 Verify it has `schema_version`, `parts`, `directories`, and `assemblies`. If anything is missing, stop and ask the `design-for-additive-manufacturing` skill to regenerate the manifest — do not fill in missing fields.
@@ -49,7 +48,7 @@ Verify it has `schema_version`, `parts`, `directories`, and `assemblies`. If any
 ### 2. Create Directories
 
 ```
-Bash("mkdir -p <project_root>/cadsmith <project_root>/CAD <project_root>/visualizations")
+Bash("mkdir -p <project_root>/cadsmith <project_root>/step <project_root>/stl <project_root>/gcode <project_root>/parts <project_root>/png <project_root>/progress")
 ```
 
 ### 3. Generate Each Part's Base Geometry
@@ -57,20 +56,15 @@ Bash("mkdir -p <project_root>/cadsmith <project_root>/CAD <project_root>/visuali
 For each entry in `manifest["parts"]`:
 
 1. **Write the script** with the `Write` tool. Use the script structure below and build only the features in `features` — ignore `modifications` entirely at this stage. For any part with **more than one shape-producing operation** (nose cone with shoulder + ogive, airframe with integrated fins, tube with integral aft shoulder, etc.) follow the iterative per-feature loop in **Build Iteratively — Verify Each Feature** below. Single-feature parts (plain body tube, plain ring) can be written in one shot.
-2. **Execute** via `cadsmith_script(script_path=<scripts_dir>/<name>.py, out_dir=<step_dir>)`.
-3. **Render** via `cadsmith_render(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `CAD/` to the sibling `visualizations/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<visualizations_dir>/<name>.png` explicitly. The PNG has **three panels — side (eye at −X, low Z on the left → high Z on the right), end (eye at +Z, showing the high-Z face), isometric 45°** — check all three, not just the iso view. Note that panel labels describe the **part-local frame**, not the rocket-logical frame — for a nose cone built per convention, low Z is the shoulder (rocket-aft) and high Z is the tip (rocket-fore). The rocket-frame view only exists in the assembly render.
-4. **Verify** via `cadsmith_extract` that the bounding box matches `features["length_mm"]` and `features["od_mm"]`.
+2. **Execute** via `cadsmith_run_script(script_path=<scripts_dir>/<name>.py, out_dir=<step_dir>)`.
+3. **Render** via `cadsmith_generate_preview(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `step/` to the sibling `png/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<images_dir>/<name>.png` explicitly. The PNG has **three panels — side (eye at −X, low Z on the left → high Z on the right), end (eye at +Z, showing the high-Z face), isometric 45°** — check all three, not just the iso view. Note that panel labels describe the **part-local frame**, not the rocket-logical frame — for a nose cone built per convention, low Z is the shoulder (rocket-aft) and high Z is the tip (rocket-fore). The rocket-frame view only exists in the assembly render.
+4. **Verify** via `cadsmith_extract_part` that the bounding box matches `features["length_mm"]` and `features["od_mm"]`.
 
 Do not proceed if a part fails verification. Fix the script and re-run.
 
-### 4. Generate the Full Assembly
+### 4. Generate Assembly Layout
 
-After all individual parts are verified, produce `assemblies/full_assembly.step` (well, `CAD/full_assembly.step` per the layout convention). Each entry in `manifest["assemblies"]` becomes one assembly STEP:
-
-1. Write a composition script in `cadsmith/<assembly_name>.py` that imports each part in the `parts_fore_to_aft` list.
-2. Position each part along Z by cumulative offsets derived from each part's `features["length_mm"]`.
-3. Compose via `Compound` and export to the assembly's `step_path`.
-4. Render with `cadsmith_render` and `Read` the result. The assembly render is the **first check for cross-part issues** — shoulder alignment, visible gaps, off-axis fins. Spend more time looking at this one than at any individual part render.
+After all individual parts are verified, call `cadsmith_assembly(action="generate", project_dir=<project_root>)` to produce `gui/assembly.json`. This computes the spatial layout from the component tree and STEP bounding boxes — the GUI's 3D assembly viewer reads it directly. No STEP assembly file is needed.
 
 ## Script Structure
 
@@ -93,11 +87,12 @@ ID_MM = 58.0
 # ... other parameters from features ...
 
 # --- Resolve output path relative to this script's location ---
-# This script lives at <project_root>/cadsmith/<name>.py
-# STEP file goes to <project_root>/CAD/<name>.step
+# This script lives at <project_root>/cadsmith/source/<name>.py
+# STEP file goes to <project_root>/cadsmith/step/<name>.step
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-OUTPUT = PROJECT_ROOT / "CAD" / "<name>.step"
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+STEP_DIR = PROJECT_ROOT / "cadsmith" / "step"
+OUTPUT = STEP_DIR / "<name>.step"
 
 # --- Build ---
 with BuildPart() as part:
@@ -111,10 +106,10 @@ export_step(part.part, str(OUTPUT))
 
 Key rules:
 
-- **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/cadsmith/<name>.py` and writes to `<project_root>/CAD/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
-- **Never embed an absolute path** like `/Users/someone/rockets/my_rocket/CAD/...` in a script. That breaks the moment anyone else opens the repo.
+- **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/cadsmith/source/<name>.py` and writes to `<project_root>/cadsmith/step/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
+- **Never embed an absolute path** like `/Users/someone/rockets/my_rocket/step/...` in a script. That breaks the moment anyone else opens the repo.
 - **Parameters are named constants at the top** — match the manifest's feature block exactly.
-- **Imports limited to `build123d`, `pathlib`, `math`, `typing`** — `cadsmith_script` runs in isolated mode.
+- **Imports limited to `build123d`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
 - **No hole patterns, no pocket subtractions, no retention features.** Those are Pass 2.
 
 ## Part Orientation Convention
@@ -161,13 +156,13 @@ Treat each **shape-producing operation** (`extrude`, `revolve`, `add`, `offset`,
 For each feature in a multi-feature part:
 
 1. **Write** the script containing every feature so far plus the new one. Use `Write` for the first feature, `Edit` to append subsequent features — do not rewrite the whole script when appending one feature.
-2. **Execute**: `cadsmith_script(...)`.
-3. **Render + Read**: `cadsmith_render(...)` then `Read` the PNG.
+2. **Execute**: `cadsmith_run_script(...)`.
+3. **Render + Read**: `cadsmith_generate_preview(...)` then `Read` the PNG.
 4. **Verify visually against the three panels**. The render labels describe the **part-local frame** — not the rocket's fore-aft frame. Reason in terms of "Z=0 is the part's local print-bed face" first, then translate to rocket semantics only when composing the assembly.
    - **Side panel** — Z is horizontal, low Z on the left, high Z on the right. Is the new feature in the expected local-Z range? Is it fused to the correct face of the existing geometry? For a body tube built fore-at-Z=0, left = rocket-fore. For a nose cone built shoulder-at-Z=0, left = rocket-aft (shoulder) and right = rocket-fore (tip) — the opposite. "Left = fore" is NOT a universal truth; check the per-part-type orientation table above before interpreting the side view.
    - **End panel** — camera looks down +Z toward −Z, so you see the high-Z face of the part. Symmetry counts (fin count, bolt circle count) and radial placement are obvious here.
    - **Isometric** — 3D sanity check. Is the feature on the expected side of the body? In this render's iso projection, high Z tends to appear toward the bottom-right of the panel (worth internalizing if you debug orientation issues often).
-5. **Verify numerically**: `cadsmith_extract` and compare the bbox Z extent against what you expect after this feature. If feature 2 was supposed to grow the part by `SHOULDER_LEN_MM` in +Z, the bbox Z max should have increased by exactly that. If it decreased, the feature extruded the wrong way.
+5. **Verify numerically**: `cadsmith_extract_part` and compare the bbox Z extent against what you expect after this feature. If feature 2 was supposed to grow the part by `SHOULDER_LEN_MM` in +Z, the bbox Z max should have increased by exactly that. If it decreased, the feature extruded the wrong way.
 6. **Ask the user for feedback on complex features.** See the **User Feedback Checkpoints** section below for which features require a pause and what to show the user. Simple features (plain extrudes, basic cylinders) do not need user confirmation — proceed autonomously.
 7. **If wrong (or the user flags an issue), fix before adding the next feature.** Do not stack a new feature onto a broken one — the bug compounds and the diagnosis gets harder with every additional operation.
 8. **Only when this feature is visually and numerically correct (and user-approved, if applicable)**, move to the next.
@@ -246,7 +241,7 @@ When pausing for feedback, present:
 
 - **"Looks good" / approval** — proceed to the next feature.
 - **"Change X"** — update the script (or the manifest if it's a design-level change), re-run, re-render, and ask again.
-- **"I'm not sure"** — offer to render from additional angles (`cadsmith_render` with `format="ascii"` and different `angle_deg` values) or provide dimensional details from `cadsmith_extract`.
+- **"I'm not sure"** — offer to render from additional angles (`cadsmith_generate_preview` with `format="ascii"` and different `angle_deg` values) or provide dimensional details from `cadsmith_extract_part`.
 
 ## Common build123d API Patterns
 
@@ -299,7 +294,7 @@ SHOULDER_LEN_MM = 30.0       # shoulder length (from manifest features.shoulder.
 # --- Resolve output path relative to this script's location ---
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-OUTPUT = PROJECT_ROOT / "CAD" / "nose_cone.step"
+OUTPUT = PROJECT_ROOT / "step" / "nose_cone.step"
 
 # --- Tangent ogive profile ---
 BASE_R_MM = BASE_OD_MM / 2
@@ -461,34 +456,15 @@ from pathlib import Path
 # Resolve paths relative to this script's location (same pattern as per-part scripts)
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-CAD_DIR = PROJECT_ROOT / "CAD"
+CAD_DIR = PROJECT_ROOT / "step"
 
 # Import and re-orient each part into the assembly frame.
 # Nose cones are built shoulder-down for printing; flip 180° about X so
 # the shoulder ends up at the high-Z end of the nose cone's local range,
 # where it will mate with the fore face of the upper airframe.
-nose_cone = import_step(str(CAD_DIR / "nose_cone.step")).rotate(Axis.X, 180)
-upper_airframe = import_step(str(CAD_DIR / "upper_airframe.step"))
-lower_airframe = import_step(str(CAD_DIR / "lower_airframe.step"))
-
-parts = [nose_cone, upper_airframe, lower_airframe]
-
-# Stack along +Z in the order given (fore-to-aft in this layout: nose cone
-# first, motor last). The nose cone sits at low Z and the motor at high Z
-# in the assembly frame — this is "fore-down" in the rocket's own frame,
-# which is fine for a visual sanity render. If you want "fore-up" for the
-# viewer's benefit, compose as shown and then rotate the whole assembly.
-positioned = []
-cursor_z = 0.0
-for p in parts:
-    positioned.append(p.translate((0, 0, cursor_z)))
-    cursor_z += p.bounding_box().size.Z
-
-assembly = Compound(label="full_assembly", children=positioned)
-OUTPUT = CAD_DIR / "full_assembly.step"
-OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-export_step(assembly, str(OUTPUT))
 ```
+
+**Note:** STEP assembly files (`full_assembly.step`) are no longer generated. The assembly layout is handled by `cadsmith_assembly(action="generate")` which produces `gui/assembly.json` for the 3D viewer.
 
 ## Feature Recipe Reference
 
@@ -510,15 +486,15 @@ For feature types or build123d API patterns not covered above, query `rag_refere
 
 ## Verification Workflow
 
-After each successful `cadsmith_script` call:
+After each successful `cadsmith_run_script` call:
 
-1. **`cadsmith_render(step_file_path, out_path=<visualizations_dir>/<name>.png)`** — writes the PNG into `visualizations/`
+1. **`cadsmith_generate_preview(step_file_path, out_path=<images_dir>/<name>.png)`** — writes the PNG into `png/`
 2. **`Read(file_path=<png_path>)`** — visually inspect:
    - Does the overall shape match the feature block's intent?
    - Are any expected geometric features visible and correctly placed?
    - Is the part inside-out (walls appearing solid where there should be a bore)?
    - Is any dimension obviously wrong?
-3. **`cadsmith_extract(step_file_path)`** — compare the bounding box Z extent to `features["length_mm"]` and the max XY extent to `features["od_mm"]`. Mismatches > 1 mm indicate a script bug.
+3. **`cadsmith_extract_part(step_file_path)`** — compare the bounding box Z extent to `features["length_mm"]` and the max XY extent to `features["od_mm"]`. Mismatches > 1 mm indicate a script bug.
 4. **Pause for user feedback** if this feature is in the feedback checkpoint list (see **User Feedback Checkpoints** above). Show the render, describe what was built, and ask a targeted question. Wait for user approval before continuing.
 5. **If any check fails (or the user requests changes), fix the script and re-run.** Do not accept broken geometry, do not defer verification to "I'll check all of them at the end".
 
@@ -532,8 +508,8 @@ After the full assembly is generated, **always pause for user feedback** on the 
 - A script emits a STEP file whose bounding box doesn't match the manifest's feature block
 - A part is generated that isn't in the manifest
 - A part in the manifest is skipped without a reported failure
-- `full_assembly.step` shows a visible gap between sections — check `integral_aft_shoulder.od_mm` matches the mating tube's `id_mm`
-- `cadsmith_extract` volume is zero or NaN — degenerate geometry, script has a topology bug
+- Assembly viewer shows a visible gap between sections — check `integral_aft_shoulder.od_mm` matches the mating tube's `id_mm`
+- `cadsmith_extract_part` volume is zero or NaN — degenerate geometry, script has a topology bug
 - A fin is not fused into the parent body — check the feature block specifies `integrated_fins` and the script uses `Mode.ADD` rather than exporting fins as a separate part
 - A part has its bed face (lowest Z) as a single point, an edge, or a small ring. PrusaSlicer needs a planar face with significant area at Z=0. If the lowest Z is sub-millimeter in cross-section, the orientation is wrong even if the rest of the geometry looks fine in the render.
 
@@ -553,10 +529,10 @@ Do not run `modify-structures` twice for the same manifest — a successful modi
 for part in manifest["parts"]:
     for feature in part["features"]:
         write_or_append_script(part, feature)
-        cadsmith_script(script_path, out_dir)
-        cadsmith_render(step_file_path, out_path=visualizations_dir/<name>.png)
+        cadsmith_run_script(script_path, out_dir)
+        cadsmith_generate_preview(step_file_path, out_path=images_dir/<name>.png)
         Read(png_path)
-        cadsmith_extract(step_file_path)
+        cadsmith_extract_part(step_file_path)
         if is_complex_feature(feature):  # fillets, lofts, revolves, arrays, fuses
             ask_user("Does this look right? <describe what was added>")
             wait_for_response()
@@ -565,8 +541,8 @@ for part in manifest["parts"]:
 # then the assembly (always pause for feedback)
 for asm in manifest["assemblies"]:
     write_assembly_script(asm)
-    cadsmith_script(...)
-    cadsmith_render(...) → Read → verify cross-part alignment
+    cadsmith_run_script(...)
+    cadsmith_generate_preview(...) → Read → verify cross-part alignment
     ask_user("Assembly looks like <description>. Do the proportions and joints look right?")
     wait_for_response()
 

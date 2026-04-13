@@ -9,9 +9,9 @@ from typing_extensions import Annotated
 from rocketsmith.openrocket.utils import get_openrocket_path
 
 
-def register_openrocket_run_simulation(app: typer.Typer):
-    @app.command(name="run-simulation")
-    def openrocket_run_simulation(
+def register_openrocket_run_flight(app: typer.Typer):
+    @app.command(name="run-flight")
+    def openrocket_run_flight(
         rocket_file_path: Annotated[
             Path,
             typer.Argument(help="Path to the .ork or .rkt design file."),
@@ -24,7 +24,7 @@ def register_openrocket_run_simulation(app: typer.Typer):
             ),
         ] = None,
     ) -> None:
-        """Run all simulations defined in an .ork or .rkt file."""
+        """Run all flight configs defined in an .ork or .rkt file."""
         from orhelper import FlightDataType, FlightEvent
         from rocketsmith.openrocket.simulation import run_simulation
 
@@ -38,16 +38,16 @@ def register_openrocket_run_simulation(app: typer.Typer):
             rprint(f"⚠️  [yellow]Design file not found: {rocket_file_path}[/yellow]")
             raise typer.Exit(1)
 
-        rprint(f"[blue]Running simulations in:[/blue] [cyan]{rocket_file_path}[/cyan]")
+        rprint(f"[blue]Running flights in:[/blue] [cyan]{rocket_file_path}[/cyan]")
 
         try:
             results = run_simulation(rocket_file_path, jar)
         except Exception as e:
-            rprint(f"⚠️  [yellow]Simulation failed: {e}[/yellow]")
+            rprint(f"⚠️  [yellow]Flight failed: {e}[/yellow]")
             raise typer.Exit(1)
 
         table = Table(title=rocket_file_path.name)
-        table.add_column("Simulation", style="cyan")
+        table.add_column("Flight", style="cyan")
         table.add_column("Max Altitude", justify="right")
         table.add_column("Max Velocity", justify="right")
         table.add_column("Time to Apogee", justify="right")
@@ -71,4 +71,4 @@ def register_openrocket_run_simulation(app: typer.Typer):
 
         Console().print(table)
 
-    return openrocket_run_simulation
+    return openrocket_run_flight

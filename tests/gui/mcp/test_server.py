@@ -2,6 +2,10 @@
 
 import os
 import signal
+import subprocess
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from mcp.server.fastmcp import FastMCP
@@ -80,28 +84,90 @@ async def test_start_path_is_file(tool, tmp_path):
 async def test_start_launches_server(tool, tmp_path, monkeypatch):
     opened = []
     monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url))
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server._is_port_in_use",
+        lambda port, host="127.0.0.1": False,
+    )
+    gui_build_dir = tmp_path / "src" / "rocketsmith" / "data" / "gui"
+    gui_build_dir.mkdir(parents=True)
+    (gui_build_dir / "index.html").write_text("<html></html>")
+    (gui_build_dir / "main.js").write_text("console.log('ok')")
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.resolve",
+        lambda p: (
+            tmp_path / "src" / "rocketsmith" / "gui" / "mcp" / "server.py"
+            if str(p).endswith("server.py")
+            else Path(p).absolute()
+        ),
+    )
+    # Mock file operations
+    monkeypatch.setattr("shutil.copy2", lambda src, dst: None)
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.mkdir", lambda p, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.write_text", lambda p, text, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "rocketsmith.gui.server.write_files_tree_snapshot", lambda p: None
+    )
+    monkeypatch.setattr("rocketsmith.gui.server.write_offline_data", lambda p: None)
+
+    mock_proc = MagicMock()
+    mock_proc.pid = 12345
+    monkeypatch.setattr("subprocess.Popen", lambda *args, **kwargs: mock_proc)
 
     result = await tool.fn(action="start", project_dir=str(tmp_path), port=0)
 
     assert result.success is True
-    assert result.data["pid"] > 0
-    assert result.data["url"].startswith("http://127.0.0.1:")
+    assert result.data["pid"] == 12345
+    assert result.data["server_url"].startswith("http://127.0.0.1:")
     assert result.data["project_dir"] == str(tmp_path)
     assert len(opened) == 1
-
-    os.kill(result.data["pid"], signal.SIGTERM)
 
 
 @pytest.mark.anyio
 async def test_start_uses_default_port(tool, tmp_path, monkeypatch):
     monkeypatch.setattr("webbrowser.open", lambda url: None)
+    # Mock port free
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server._is_port_in_use",
+        lambda port, host="127.0.0.1": False,
+    )
+    gui_build_dir = tmp_path / "src" / "rocketsmith" / "data" / "gui"
+    gui_build_dir.mkdir(parents=True)
+    (gui_build_dir / "index.html").write_text("<html></html>")
+    (gui_build_dir / "main.js").write_text("console.log('ok')")
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.resolve",
+        lambda p: (
+            tmp_path / "src" / "rocketsmith" / "gui" / "mcp" / "server.py"
+            if str(p).endswith("server.py")
+            else Path(p).absolute()
+        ),
+    )
+    # Mock file operations
+    monkeypatch.setattr("shutil.copy2", lambda src, dst: None)
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.mkdir", lambda p, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.Path.write_text", lambda p, text, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "rocketsmith.gui.server.write_files_tree_snapshot", lambda p: None
+    )
+    monkeypatch.setattr("rocketsmith.gui.server.write_offline_data", lambda p: None)
+
+    mock_proc = MagicMock()
+    mock_proc.pid = 12346
+    monkeypatch.setattr("subprocess.Popen", lambda *args, **kwargs: mock_proc)
 
     result = await tool.fn(action="start", project_dir=str(tmp_path))
 
     assert result.success is True
-    assert result.data["url"] == "http://127.0.0.1:24880"
-
-    os.kill(result.data["pid"], signal.SIGTERM)
+    assert result.data["server_url"] == "http://127.0.0.1:24880"
+    assert result.data["pid"] == 12346
 
 
 # ── Stop: error cases ───────────────────────────────────────────────────────
@@ -125,17 +191,9 @@ async def test_stop_nonexistent_pid(tool):
 
 
 @pytest.mark.anyio
-async def test_stop_kills_process(tool):
-    import subprocess
-    import sys
+async def test_stop_kills_process(tool, monkeypatch):
+    monkeypatch.setattr("rocketsmith.gui.mcp.server._kill_pid", lambda pid: True)
 
-    proc = subprocess.Popen(
-        [sys.executable, "-c", "import time; time.sleep(60)"],
-        start_new_session=True,
-    )
-
-    result = await tool.fn(action="stop", pid=proc.pid)
+    result = await tool.fn(action="stop", pid=54321)
     assert result.success is True
-    assert result.data["pid"] == proc.pid
-
-    proc.wait(timeout=5)
+    assert 54321 in result.data["killed_pids"]

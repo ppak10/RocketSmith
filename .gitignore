@@ -215,3 +215,11 @@ dev/
 
 # Node / React frontend (src/rocketsmith/gui/web)
 node_modules/
+
+# GUI server PID file
+.gui.pid
+
+# Compiled gui in development here.
+index.css 
+index.html 
+main.js 

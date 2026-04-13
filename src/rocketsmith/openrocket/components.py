@@ -190,58 +190,17 @@ def inspect_rocket_file(path: Path, jar_path: Path | None = None) -> dict:
 
         _walk(rocket, 0)
 
-        # 2. Calculate CG (manual walk to be robust across OR versions)
-        total_mass = 0.0
-        total_moment = 0.0
-        max_d = 0.0
-        for c in orhelper.JIterator(rocket):
-            m = float(c.getMass())
-            if m > 0:
-                total_mass += m
-                # Absolute X
-                abs_x = 0.0
-                curr = c
-                while curr is not None:
-                    try:
-                        p = curr.getPosition()
-                        try:
-                            abs_x += float(p.x)
-                        except:
-                            abs_x += float(p)
-                    except:
-                        pass
-                    curr = curr.getParent()
+        # 2. Calculate stability (CG, CP, margin)
+        from rocketsmith.openrocket.stability import barrowman_stability
 
-                total_moment += m * (abs_x + float(c.getCG().x))
-
-            try:
-                # getOuterRadius returns radius
-                d = float(c.getOuterRadius()) * 2
-                if d > max_d:
-                    max_d = d
-            except:
-                pass
-
-        cg_x = total_moment / total_mass if total_mass > 0 else 0.0
-
-        # 3. Calculate CP (using Barrowman)
-        cp_x = 0.0
-        try:
-            BC = jpype.JClass("net.sf.openrocket.aerodynamics.BarrowmanCalculator")
-            FC = jpype.JClass("net.sf.openrocket.aerodynamics.FlightConditions")
-            WS = jpype.JClass("net.sf.openrocket.logging.WarningSet")
-            calc = BC()
-            conds = FC(config)
-            warnings = WS()
-            cp_x = float(calc.getCP(config, conds, warnings).x)
-        except Exception:
-            pass
+        stability = barrowman_stability(rocket, config)
 
         return {
             "components": results,
-            "cg_x": round(cg_x, 4),
-            "cp_x": round(cp_x, 4),
-            "max_diameter_m": round(max_d, 4),
+            "cg_x": stability.cg_m,
+            "cp_x": stability.cp_m,
+            "max_diameter_m": stability.max_diameter_m,
+            "stability_cal": stability.stability_cal,
         }
 
 
@@ -297,6 +256,18 @@ def _extract_properties(comp) -> dict:
         "type": str(comp.getClass().getSimpleName()),
         "name": str(comp.getName()),
     }
+
+    try:
+        props["mass_kg"] = round(float(comp.getMass()), 6)
+    except Exception:
+        pass
+
+    try:
+        comment = str(comp.getComment())
+        if comment:
+            props["comment"] = comment
+    except Exception:
+        pass
 
     type_name = props["type"]
 

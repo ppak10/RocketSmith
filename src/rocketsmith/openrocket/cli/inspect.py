@@ -2,7 +2,6 @@ import typer
 
 from pathlib import Path
 from rich import print as rprint
-from rich.tree import Tree
 from rich.console import Console
 from typing_extensions import Annotated
 
@@ -24,8 +23,9 @@ def register_openrocket_inspect(app: typer.Typer):
             ),
         ] = None,
     ) -> None:
-        """Display the full component tree of an .ork or .rkt file."""
+        """Read and display the component tree, CG, and CP from an .ork or .rkt file."""
         from rocketsmith.openrocket.components import inspect_rocket_file
+        from rocketsmith.openrocket.ascii import render_rocket_ascii
 
         try:
             jar = get_openrocket_path(openrocket_path)
@@ -38,52 +38,34 @@ def register_openrocket_inspect(app: typer.Typer):
             raise typer.Exit(1)
 
         try:
-            result = inspect_rocket_file(rocket_file_path, jar)
-            components = result["components"]
+            raw = inspect_rocket_file(rocket_file_path, jar)
+
+            # Print the ASCII profile
+            ascii_art = render_rocket_ascii(
+                raw["components"],
+                cg_x=raw.get("cg_x"),
+                cp_x=raw.get("cp_x"),
+                max_diameter=raw.get("max_diameter_m"),
+            )
+            rprint(ascii_art)
+
+            # Print the component tree
+            rprint("\n[bold]Component Tree:[/bold]")
+            for comp in raw["components"]:
+                indent = "  " * comp.get("depth", 0)
+                rprint(f"{indent}• [cyan]{comp['type']}[/cyan]: {comp['name']}")
+
+            # Print summary info
+            rprint(f"\n[bold cyan]Rocket:[/bold cyan] {rocket_file_path.name}")
+            if "stability_cal" in raw and raw["stability_cal"] is not None:
+                rprint(f"[bold]Stability:[/bold] {raw['stability_cal']:.2f} cal")
+            if "cg_x" in raw and raw["cg_x"] is not None:
+                rprint(f"[bold]CG:[/bold] {raw['cg_x']*1000:.1f} mm from tip")
+            if "cp_x" in raw and raw["cp_x"] is not None:
+                rprint(f"[bold]CP:[/bold] {raw['cp_x']*1000:.1f} mm from tip")
+
         except Exception as e:
-            rprint(f"⚠️  [yellow]Failed to inspect design file: {e}[/yellow]")
+            rprint(f"⚠️  [yellow]Failed to inspect design: {e}[/yellow]")
             raise typer.Exit(1)
-
-        # ── ASCII side-profile ────────────────────────────────────────────
-        from rocketsmith.openrocket.ascii import render_rocket_ascii
-
-        console = Console()
-        ascii_art = render_rocket_ascii(
-            components,
-            cg_x=result.get("cg_x"),
-            cp_x=result.get("cp_x"),
-            max_diameter=result.get("max_diameter_m"),
-        )
-        console.print(ascii_art, markup=False)
-        console.print()
-
-        # ── Component tree ────────────────────────────────────────────────
-        root_label = f"[bold]{rocket_file_path.name}[/bold]"
-        rich_tree = Tree(root_label)
-        stack = [(rich_tree, -1)]  # (node, depth)
-
-        for entry in components:
-            depth = entry["depth"]
-            type_name = entry["type"]
-            name = entry["name"]
-
-            # Format property summary
-            props = {
-                k: v for k, v in entry.items() if k not in ("depth", "type", "name")
-            }
-            prop_str = "  ".join(
-                f"[dim]{k}=[/dim][cyan]{v}[/cyan]" for k, v in props.items()
-            )
-            label = (
-                f"[bold cyan]{type_name}[/bold cyan] [white]{name}[/white]  {prop_str}"
-            )
-
-            while len(stack) > 1 and stack[-1][1] >= depth:
-                stack.pop()
-
-            node = stack[-1][0].add(label)
-            stack.append((node, depth))
-
-        console.print(rich_tree)
 
     return openrocket_inspect

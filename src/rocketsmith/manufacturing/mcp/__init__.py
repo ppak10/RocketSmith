@@ -1,5 +1,5 @@
-from .manifest import register_manufacturing_manifest
+from .annotate_tree import register_manufacturing_annotate_tree
 
 __all__ = [
-    "register_manufacturing_manifest",
+    "register_manufacturing_annotate_tree",
 ]
