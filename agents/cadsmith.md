@@ -47,10 +47,15 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 ## Available MCP Tools
 
 - `cadsmith_run_script` — Execute a build123d Python script in an isolated `uv` environment (`script_path`, `out_dir`)
-  - Runs the script with `uv run --isolated --with build123d` so no host Python or conda env is required
+  - Runs the script with `uv run --isolated --with build123d --with bd-warehouse` so no host Python or conda env is required
   - The script must write one or more `.step` files to `out_dir` (which must exist)
   - Returns the list of STEP file paths produced by the script
   - **Use this as the primary execution path — never call `python`, `uv run`, or `conda run` directly.** They will fail or hit the wrong interpreter.
+- `cadsmith_bd_warehouse_info` — Instantiate a bd_warehouse parametric part and return its geometric properties and dimensional attributes (`generator_class`, `generator_params`, `project_dir`)
+  - Use before writing Pass 2 scripts to discover clearance drill sizes, head diameters, nut thickness, and other dimensions needed for boolean cuts
+  - Returns a Part model (bounding box, volume, source, generator metadata) plus an `attributes` dict with fastener-specific values (e.g. `clearance_drill_sizes`, `nut_data`, `screw_data`, `head_diameter`, `thread_diameter`)
+  - Optionally exports a STEP file and Part JSON when `project_dir` is provided
+  - Example: `cadsmith_bd_warehouse_info(generator_class="HexNut", generator_params={"size": "M4-0.7", "fastener_type": "iso4032"})`
 - `cadsmith_generate_preview` — Generate preview assets for a STEP file (`step_file_path`, `project_dir`, `outputs`)
   - Always generates an STL mesh to `gui/assets/stl/` for the 3D viewer.
   - `outputs=["thumbnail", "gif", "ascii"]` (default: all three). Generates PNG thumbnails, rotating GIFs, and ASCII animations.
@@ -115,7 +120,8 @@ The detailed procedure for each step inside generate-structures and modify-struc
 
 - **Trust the manifest.** Do not add parts, do not skip parts, do not modify feature values. If the manifest is wrong, regenerate it via the DFx skill rather than working around it in a script.
 - **Never invoke `python`, `uv run`, or `conda run` directly.** Always go through `cadsmith_run_script`. Direct invocation either fails (no environment) or hits the wrong interpreter and silently produces stale output.
-- **Isolated-mode import allowlist.** `cadsmith_run_script` runs with `uv run --isolated --with build123d`, so generated scripts can only import from `build123d`, `pathlib`, `math`, `typing`. Importing `numpy`, `os`, `sys`, `subprocess`, or anything else will fail at execution time.
+- **Isolated-mode import allowlist.** `cadsmith_run_script` runs with `uv run --isolated --with build123d --with bd-warehouse`, so generated scripts can only import from `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`. Importing `numpy`, `os`, `sys`, `subprocess`, or anything else will fail at execution time.
+- **Use `cadsmith_bd_warehouse_info` before writing Pass 2 scripts that involve fasteners.** Do not guess attribute names or dimensions — call the tool to discover what a bd_warehouse part exposes, then use those exact attribute names in your script. The tool returns the clearance hole sizes, nut dimensions, head geometry, etc. that you need for boolean cuts.
 - **Absolute paths for all file I/O.** Scripts must write to absolute `step_path` values resolved from `project_root` + the manifest's `directories.step`. Relative paths work in local testing but fail inside the isolated subprocess.
 - **Verify every part individually before moving on.** Do not batch up "I'll check them all at the end" — a failure early in the list often cascades into later parts, and spotting it immediately saves iteration.
 - **Pause for user feedback on complex features.** Fillets, revolves, polar arrays, fused geometry, all modifications, and full assemblies require user confirmation before proceeding. Do not skip the feedback checkpoint to save time — catching a user preference mismatch early is far cheaper than reworking a completed part. See the skills for the exact checkpoint rules.

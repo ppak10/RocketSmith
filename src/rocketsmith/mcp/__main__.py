@@ -22,6 +22,7 @@ from rocketsmith.prusaslicer.mcp import (
 )
 from rocketsmith.cadsmith.mcp import (
     register_cadsmith_assembly,
+    register_cadsmith_bd_warehouse_info,
     register_cadsmith_extract_part,
     register_cadsmith_generate_preview,
     register_cadsmith_run_script,
@@ -42,6 +43,7 @@ _ = register_prusaslicer_slice(app)
 _ = register_prusaslicer_config(app)
 _ = register_prusaslicer_database(app)
 _ = register_cadsmith_assembly(app)
+_ = register_cadsmith_bd_warehouse_info(app)
 _ = register_cadsmith_extract_part(app)
 _ = register_cadsmith_generate_preview(app)
 _ = register_cadsmith_run_script(app)

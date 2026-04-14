@@ -109,7 +109,7 @@ Key rules:
 - **OUTPUT is a relative path resolved from `__file__`**, not an absolute path hardcoded into the script. The script assumes it lives at `<project_root>/cadsmith/source/<name>.py` and writes to `<project_root>/cadsmith/step/<name>.step`. This keeps the script **portable** — the project directory can be moved, renamed, or checked out on a different machine and the script still works without editing.
 - **Never embed an absolute path** like `/Users/someone/rockets/my_rocket/step/...` in a script. That breaks the moment anyone else opens the repo.
 - **Parameters are named constants at the top** — match the manifest's feature block exactly.
-- **Imports limited to `build123d`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
+- **Imports limited to `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
 - **No hole patterns, no pocket subtractions, no retention features.** Those are Pass 2.
 
 ## Part Orientation Convention
@@ -503,7 +503,7 @@ After the full assembly is generated, **always pause for user feedback** on the 
 ## Red Flags — Stop and Fix
 
 - **A nose cone (or any revolved part with a clear "wide end" and "narrow end") is built tip-down.** PrusaSlicer will fail with `"There is an object with no extrusions in the first layer"`. The fix is always: rebuild with the wide face at Z=0 (see the tangent ogive recipe above). This is the single most common slice failure for fresh designs — verify orientation BEFORE handing off to the prusaslicer subagent.
-- A script imports anything outside `build123d`, `pathlib`, `math`, `typing`
+- A script imports anything outside `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`
 - A script has `Hole(...)` or `extrude(..., mode=Mode.SUBTRACT)` subtracting a hole pattern — that's a Pass 2 operation, belongs in `modify-structures`
 - A script emits a STEP file whose bounding box doesn't match the manifest's feature block
 - A part is generated that isn't in the manifest

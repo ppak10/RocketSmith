@@ -48,6 +48,10 @@ class Part(QuantityModel):
     surface_area: QuantityField | None = None
     center_of_mass: UnitVector | None = None
     mass: QuantityField | None = None
+    count: int = 1
+    source: str | None = None
+    generator_class: str | None = None
+    generator_params: dict | None = None
 
 
 class AssemblyPart(QuantityModel):

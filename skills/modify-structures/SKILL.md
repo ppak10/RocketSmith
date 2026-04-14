@@ -108,7 +108,7 @@ Key rules:
 - **Import the base STEP, don't rebuild the shell.** If you find yourself re-declaring `LENGTH_MM` and `OD_MM` to rebuild a cylinder, you're in the wrong skill.
 - **Apply modifications in manifest order.** Some modifications interact (e.g. a pocket inside a heat-set boss region); order matters.
 - **Overwrite the base STEP in place.** The manifest's `step_path` is the canonical location; don't emit a separate `_modified.step` file.
-- **Imports limited to `build123d`, `pathlib`, `math`, `typing`.** Same isolated-mode constraint as Pass 1.
+- **Imports limited to `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`.** Same isolated-mode constraint as Pass 1. Use `bd_warehouse.fastener` for spec-correct fastener geometry in boolean cuts (heat-set pockets, counterbores, nut traps).
 
 ## Modification Recipe Reference
 
@@ -144,7 +144,14 @@ for angle_deg in positions:
     extrude(amount=modification["hole_depth_mm"], mode=Mode.SUBTRACT)
 ```
 
-Use this for heat-set insert receivers (blind, typically 5.7 mm × 7 mm for M4) and shear pin holes (blind, typically 2–4 mm).
+Use this for heat-set insert receivers and shear pin holes. For heat-set inserts, prefer using `bd_warehouse` for spec-correct pocket dimensions — call `cadsmith_bd_warehouse_info(generator_class="HeatSetNut", generator_params={"size": "M4-0.7-8", "fastener_type": "Hilitchi"})` to get exact `nut_diameter` and `nut_thickness`, then subtract the geometry directly:
+
+```python
+from bd_warehouse.fastener import HeatSetNut
+insert = HeatSetNut("M4-0.7-8", "Hilitchi", simple=True, mode=Mode.PRIVATE)
+# Use insert.nut_diameter and insert.nut_thickness for the pocket,
+# or subtract the insert geometry directly with mode=Mode.SUBTRACT
+```
 
 ### `radial_through_holes` — through-wall clearance holes
 
