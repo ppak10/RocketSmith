@@ -68,7 +68,16 @@ def register_cadsmith_run_script(app: FastMCP):
         # ── Execute ────────────────────────────────────────────────────
         try:
             result = subprocess.run(
-                ["uv", "run", "--isolated", "--with", "build123d", str(script_path)],
+                [
+                    "uv",
+                    "run",
+                    "--isolated",
+                    "--with",
+                    "build123d",
+                    "--with",
+                    "bd-warehouse",
+                    str(script_path),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=120,

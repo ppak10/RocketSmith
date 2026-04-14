@@ -47,7 +47,7 @@ Record the user's choice and pass it to every subagent invocation as part of the
 
 ## ASCII Art Display Rule (MANDATORY — both modes)
 
-**Every time `openrocket_generate_tree` is called, the `ascii_art` field MUST be printed to the user in a fenced code block.** This applies in both interactive and zero-shot mode. The ASCII side profile is the user's primary visual feedback during the design phase — it shows how the rocket's shape evolves as components are added, moved, or resized. Without it, the user is blind to structural changes until CAD generation.
+**Every time `openrocket_component` (action="read") is called, the `ascii_art` field MUST be printed to the user in a fenced code block.** This applies in both interactive and zero-shot mode. The ASCII side profile is the user's primary visual feedback during the design phase — it shows how the rocket's shape evolves as components are added, moved, or resized. Without it, the user is blind to structural changes until CAD generation.
 
 Display it at minimum:
 1. After adding or modifying components
@@ -72,17 +72,21 @@ The GUI uses a HashRouter. Use `gui_navigate(path=...)` to switch the user's bro
 
 | Route | Page | When to navigate |
 |-------|------|-----------------|
-| `/` | Agent Feed | Default — live dashboard with cards |
+| `/` | Agent Feed | Default — live dashboard with cards. **Navigate here when moving to a different task.** |
 | `/flights` | Flight Viewer | After `openrocket_flight(action="run")` |
-| `/component-tree` | Component Tree | After `openrocket_generate_tree` or `manufacturing_annotate_tree` |
+| `/component-tree` | Component Tree | After `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
 | `/assembly` | Assembly Viewer | After `cadsmith_assembly(action="generate")` |
 | `/parts/<name>` | Part Detail | After `cadsmith_generate_preview` for a part |
 
 **Part page paths** use `/parts/<name>` (no `.json` extension, no `gui/` prefix). The frontend resolves the file path internally.
 
-**Example:** After generating the nose cone preview, navigate the user to it:
+**Navigation pattern:** Navigate to a detail page (e.g. `/flights`) to present finished results. When the pipeline moves on to the next piece of work, navigate back to `/` so the user sees new cards appear in the Agent Feed. The feed auto-focuses on the most recently updated card.
+
+**Example:** After running a flight, navigate to `/flights` to present the results. When CAD generation starts next, navigate back to `/` so the user sees part cards appear:
 ```
-gui_navigate(path="/parts/nose_cone")
+gui_navigate(path="/flights")   # present flight results
+# ... later, when cadsmith starts ...
+gui_navigate(path="/")          # return to feed for new activity
 ```
 
 ## End-to-End Workflow
@@ -101,7 +105,7 @@ Phase 1 — Flight Design (openrocket subagent)
      [zero-shot]  Use sensible defaults from the user's request
   3. Query motor/preset database
   4. Create .ork file and build component tree
-  5. After every openrocket_generate_tree call, print ascii_art to the user (BOTH modes)
+  5. After every openrocket_component(action="read") call, print ascii_art to the user (BOTH modes)
      This is the user's visual checkpoint — they see the rocket's shape evolve
   6. Run flight — iterate until stability 1.0–1.5 cal
   7. [interactive] Present flight results and ask if the user wants changes
@@ -164,7 +168,7 @@ Pass the chosen method to the manufacturing subagent. If the user answers "addit
 
 When handing off between phases, pass the key outputs explicitly:
 
-- **openrocket → manufacturing**: provide the `.ork` file path, the chosen manufacturing method, and the `interaction_mode`. The openrocket agent must have shown the user the final ASCII side profile (from `openrocket_generate_tree.ascii_art`) in a fenced code block before handoff. The manufacturing agent will annotate `component_tree.json` and may send dimension changes back to the openrocket agent via `openrocket_component(action="update")`.
+- **openrocket → manufacturing**: provide the `.ork` file path, the chosen manufacturing method, and the `interaction_mode`. The openrocket agent must have shown the user the final ASCII side profile (from `openrocket_component(action="read").ascii_art`) in a fenced code block before handoff. The manufacturing agent will annotate `component_tree.json` and may send dimension changes back to the openrocket agent via `openrocket_component(action="update")`.
 - **manufacturing → cadsmith**: provide the annotated `gui/component_tree.json` and `interaction_mode`. The cadsmith agent reads the tree to know which components to generate STEP files for. It does not make manufacturing decisions.
 - **cadsmith → prusaslicer**: provide `<project_dir>/gui/component_tree.json`, the list of generated STEP file paths in `<project_dir>/cadsmith/step/`, and the `interaction_mode`.
 - **prusaslicer → openrocket (calibration)**: provide a mapping of component name → `filament_used_g` for every printed part. Each entry becomes an `override_mass_kg` update on the corresponding `openrocket_component` (divide grams by 1000).
@@ -223,10 +227,12 @@ The user launched Gemini CLI from the directory they want the rocket artefacts i
 
 The `gui/component_tree.json` is the single source of truth for which parts exist and how they're derived from OpenRocket components. The manufacturing agent annotates it with DFAM decisions; the `generate-structures` skill reads it for Pass 1 (base geometry) and the `modify-structures` skill reads it for Pass 2 (detail features); the `mass-calibration` skill uses it during the calibration phase.
 
+**Never edit `component_tree.json` directly.** It is a derived artifact. All design changes must flow through `openrocket_component` (to modify the `.ork` file) and `manufacturing_annotate_tree` (to re-annotate the tree). Direct edits are fragile — they get overwritten on the next tree regeneration and skip validation. If a feature isn't expressible through these tools (e.g., detail modifications like mounting holes or vent holes), that's a tool gap to be addressed, not a reason to hand-edit the JSON.
+
 **Absolute path discipline (required for every tool call):**
 
 - `openrocket_new(name="H100W", out_path="<project_dir>/openrocket/H100W.ork")` — never omit `out_path`
-- `openrocket_generate_tree(rocket_file_path="<project_dir>/openrocket/H100W.ork", project_dir="<project_dir>")` — absolute
+- `openrocket_component(action="read", rocket_file_path="<project_dir>/openrocket/H100W.ork", project_dir="<project_dir>")` — absolute
 - `manufacturing_annotate_tree(project_dir="<project_dir>")` — reads/writes gui/component_tree.json
 - `cadsmith_run_script(script_path="<project_dir>/cadsmith/source/nose_cone.py", out_dir="<project_dir>/cadsmith/step")` — absolute
 - `cadsmith_generate_preview(step_file_path="<project_dir>/cadsmith/step/nose_cone.step", project_dir="<project_dir>")` — writes to gui/assets/png/, gif/, txt/

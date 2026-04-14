@@ -11,6 +11,7 @@ license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "bd-warehouse>=0.2.0",
     "build123d>=0.10.0",
     "chromadb>=0.6.0",
     "datasets>=3.0.0",

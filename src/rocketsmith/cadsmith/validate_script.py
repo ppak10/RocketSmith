@@ -12,6 +12,7 @@ from pathlib import Path
 ALLOWED_IMPORTS = frozenset(
     {
         "build123d",
+        "bd_warehouse",
         "pathlib",
         "math",
         "typing",

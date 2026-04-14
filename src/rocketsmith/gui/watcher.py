@@ -7,6 +7,7 @@ from typing import Callable, Awaitable, Optional
 
 from rocketsmith.gui.layout import (
     OPENROCKET_DIR,
+    FLIGHTS_DIR,
     CADSMITH_DIR,
     CADSMITH_SOURCE_DIR,
     STEP_DIR,
@@ -36,6 +37,7 @@ _PREFIX_MAP: list[tuple[str, str]] = [
     (TXT_DIR, "preview"),
     (PROGRESS_DIR, "preview"),
     (LOGS_DIR, "log"),
+    (FLIGHTS_DIR, "flight"),
     (OPENROCKET_DIR, "openrocket"),
     (CADSMITH_DIR, "cadsmith"),
     (PRUSASLICER_DIR, "prusaslicer"),

@@ -98,6 +98,8 @@ interface Part3DViewerCardProps {
   autoRotate?: boolean;
   /** Use simple OrbitControls instead of TrackballControls. Default false. */
   simpleControls?: boolean;
+  /** Disable all camera controls (static preview). Default false. */
+  staticPreview?: boolean;
   /** CSS class for the card. */
   className?: string;
 }
@@ -108,6 +110,7 @@ export function Part3DViewerCard({
   showModeToggle = true,
   autoRotate = false,
   simpleControls = false,
+  staticPreview = false,
   className = "h-[500px]",
 }: Part3DViewerCardProps) {
   const resolvedPath = stlPath ?? `gui/assets/stl/${partName}.stl`;
@@ -155,7 +158,7 @@ export function Part3DViewerCard({
             <Suspense fallback={null}>
               <PartModel url={stlUrl} mode={mode} autoRotate={autoRotate} />
             </Suspense>
-            {simpleControls ? (
+            {staticPreview ? null : simpleControls ? (
               <OrbitControls enableDamping dampingFactor={0.1} />
             ) : (
               <TrackballControls noZoom={false} noPan={false} noRotate={false} dynamicDampingFactor={0.1} />

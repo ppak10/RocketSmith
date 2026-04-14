@@ -53,7 +53,7 @@ def register_manufacturing_annotate_tree(app: FastMCP):
         if not tree_path.exists():
             return tool_error(
                 f"component_tree.json not found at {tree_path}. "
-                "Run openrocket_generate_tree first.",
+                "Run openrocket_component with action='read' and project_dir first.",
                 "FILE_NOT_FOUND",
                 file_path=str(tree_path),
             )

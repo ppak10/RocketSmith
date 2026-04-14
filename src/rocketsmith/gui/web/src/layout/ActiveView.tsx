@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { fetchText } from "@/lib/server";
+import { fetchText, hasOfflineFile } from "@/lib/server";
 import {
   DndContext,
   PointerSensor,
@@ -14,6 +14,7 @@ import { DraggableCard } from "@/components/DraggableCard";
 import { SessionLogCard, eventsToLogs } from "@/components/SessionLogCard";
 import { useProgressData } from "@/components/ProgressCard";
 import { ComponentTreeCard } from "@/components/ComponentTreeCard";
+import { FlightCard } from "@/components/FlightCard";
 import type { LogEntry } from "@/components/SessionLogCard";
 import { usePreferences } from "@/hooks/usePreferences";
 import type { CardLayout } from "@/hooks/usePreferences";
@@ -55,8 +56,36 @@ function getPartFormat(event: WatchEvent): string | null {
 interface PartGroup {
   stem: string;
   formats: Set<string>;
+  /** Latest timestamp per format directory prefix. */
+  formatTimestamps: Map<string, string>;
   latestEvent: WatchEvent;
   latestTimestamp: string;
+}
+
+/**
+ * Pipeline stage order. A downstream stage is only considered "done" if
+ * its latest event is newer than the latest event of any upstream stage.
+ * This handles regeneration: when source is re-written, step/stl/gcode
+ * reset to pending until they catch up.
+ */
+const PIPELINE_ORDER = ["cadsmith/source", "cadsmith/step", "gui/assets/stl", "prusaslicer/gcode"];
+
+/** Given per-format timestamps, return the set of formats that are current (not stale). */
+function currentFormats(formatTimestamps: Map<string, string>): Set<string> {
+  const result = new Set<string>();
+  let latestUpstream = "";
+
+  for (const key of PIPELINE_ORDER) {
+    const ts = formatTimestamps.get(key);
+    if (ts && ts >= latestUpstream) {
+      result.add(key);
+      latestUpstream = ts;
+    } else {
+      // This stage and all downstream are stale — stop here.
+      break;
+    }
+  }
+  return result;
 }
 
 function groupPartEvents(events: WatchEvent[]): PartGroup[] {
@@ -70,6 +99,10 @@ function groupPartEvents(events: WatchEvent[]): PartGroup[] {
     const existing = map.get(stem);
     if (existing) {
       existing.formats.add(fmt);
+      const prev = existing.formatTimestamps.get(fmt);
+      if (!prev || e.timestamp > prev) {
+        existing.formatTimestamps.set(fmt, e.timestamp);
+      }
       if (e.timestamp > existing.latestTimestamp) {
         existing.latestEvent = e;
         existing.latestTimestamp = e.timestamp;
@@ -78,6 +111,7 @@ function groupPartEvents(events: WatchEvent[]): PartGroup[] {
       map.set(stem, {
         stem,
         formats: new Set([fmt]),
+        formatTimestamps: new Map([[fmt, e.timestamp]]),
         latestEvent: e,
         latestTimestamp: e.timestamp,
       });
@@ -420,11 +454,19 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
     };
   }, [events]);
 
-  // Filter to renderable event types: parts, assembly, manifest.
+  // Show the component tree card if a live manifest/assembly event arrived
+  // OR the component_tree.json already exists in the offline bundle (e.g.
+  // generated before the browser connected).
   const RENDERABLE_TYPES = new Set(["manifest", "assembly"]);
   const renderableNonPart = [...nonPartEvents]
     .reverse()
     .find((e) => RENDERABLE_TYPES.has(e.type)) ?? null;
+  const hasExistingTree = useMemo(
+    () => hasOfflineFile("gui/component_tree.json"),
+    // Re-check whenever the offline bundle's file tree is updated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [treeVersion],
+  );
 
   // Build visible cards keyed by card ID.
   const visibleCards: Record<string, ReactNode> = {};
@@ -448,25 +490,57 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
     return map;
   }, [progressData]);
 
+  // Count STL events per part to trigger 3D viewer refresh.
+  const stlVersionByPart = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of events) {
+      if (e.relative_path.startsWith("gui/assets/stl/") && e.relative_path.endsWith(".stl")) {
+        const stem = getStem(e.path);
+        map.set(stem, (map.get(stem) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [events]);
+
   for (const group of partGroups) {
-    const hasStl = group.formats.has("gui/assets/stl");
+    const current = currentFormats(group.formatTimestamps);
+    const hasStl = current.has("gui/assets/stl");
     const srcEvent = sourceEvents.get(group.stem);
     visibleCards[`part-${group.stem}`] = (
       <PartCard
         partName={group.stem}
         autoRotate
         simpleControls
+        staticPreview
         showModeToggle={false}
         defaultTab={hasStl ? "model" : "source"}
         previousSourceContent={srcEvent?.previous_content ?? null}
         progress={progressByPart.get(group.stem) ?? null}
+        stlVersion={stlVersionByPart.get(group.stem) ?? 0}
+        completedFormats={current}
         className="h-full"
       />
     );
   }
 
-  if (renderableNonPart) {
-    visibleCards["assembly"] = <ComponentTreeCard className="h-full" />;
+  // Count manifest events so the card re-fetches on each update.
+  const manifestVersion = useMemo(
+    () => events.filter((e) => e.type === "manifest").length + treeVersion,
+    [events, treeVersion],
+  );
+
+  if (renderableNonPart || hasExistingTree) {
+    visibleCards["assembly"] = <ComponentTreeCard className="h-full" treeVersion={manifestVersion} />;
+  }
+
+  // Show flight card when a flight event arrives or flight data already exists.
+  const hasFlightEvent = events.some((e) => e.type === "flight");
+  const flightVersion = useMemo(
+    () => events.filter((e) => e.type === "flight").length + treeVersion,
+    [events, treeVersion],
+  );
+  if (hasFlightEvent) {
+    visibleCards["flight"] = <FlightCard className="h-full" treeVersion={flightVersion} />;
   }
 
   if (sessionLogs.length > 0) {
@@ -482,6 +556,7 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
     const fmt = getPartFormat(latest);
     if (fmt) return `part-${getStem(latest.path)}`;
     if (latest.type === "manifest" || latest.type === "assembly") return "assembly";
+    if (latest.type === "flight") return "flight";
     if (latest.type === "preview") return "build-progress";
     if (latest.type === "log") return "session-log";
     return null;

@@ -49,17 +49,28 @@ function ComponentRow({
   depth,
   isLast,
   parentLines,
+  hoveredName,
+  onHover,
 }: {
   node: ComponentNode;
   depth: number;
   isLast: boolean;
   parentLines: boolean[];
+  hoveredName: string | null;
+  onHover: (name: string | null) => void;
 }) {
   const fate = node.agent?.fate ?? "unknown";
+  const isHighlighted = hoveredName === node.name;
 
   return (
     <>
-      <li className="flex items-center gap-2 text-sm">
+      <li
+        className={`flex items-center gap-2 text-sm cursor-default rounded-sm transition-colors ${
+          isHighlighted ? "bg-main/10" : ""
+        }`}
+        onMouseEnter={() => onHover(node.name)}
+        onMouseLeave={() => onHover(null)}
+      >
         <div className="flex shrink-0" style={{ width: `${depth * 20}px` }}>
           {parentLines.map((showLine, i) => (
             <span
@@ -97,6 +108,8 @@ function ComponentRow({
           depth={depth + 1}
           isLast={i === node.children.length - 1}
           parentLines={[...parentLines, !isLast]}
+          hoveredName={hoveredName}
+          onHover={onHover}
         />
       ))}
     </>
@@ -107,13 +120,16 @@ function ComponentRow({
 
 interface ComponentTreeCardProps {
   className?: string;
+  /** Bumped by the parent whenever the offline data bundle is refreshed. */
+  treeVersion?: number;
 }
 
-export const ComponentTreeCard = memo(function ComponentTreeCard({ className }: ComponentTreeCardProps) {
+export const ComponentTreeCard = memo(function ComponentTreeCard({ className, treeVersion = 0 }: ComponentTreeCardProps) {
   const [tree, setTree] = useState<ComponentTree | null>(null);
   const [cgMm, setCgMm] = useState<number | null>(null);
   const [cpMm, setCpMm] = useState<number | null>(null);
   const [stabilityCal, setStabilityCal] = useState<number | null>(null);
+  const [hoveredName, setHoveredName] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJson<ComponentTree>("gui/component_tree.json").then((data) => {
@@ -181,7 +197,7 @@ export const ComponentTreeCard = memo(function ComponentTreeCard({ className }: 
         } catch {}
       })();
     });
-  }, []);
+  }, [treeVersion]);
 
   if (!tree?.stages) {
     return (
@@ -232,7 +248,7 @@ export const ComponentTreeCard = memo(function ComponentTreeCard({ className }: 
       </CardHeader>
       <CardContent className="min-h-0 flex-1 overflow-y-auto space-y-3">
         {/* Rocket profile visualization */}
-        <RocketProfile stages={tree.stages} cgMm={cgMm} cpMm={cpMm} />
+        <RocketProfile stages={tree.stages} cgMm={cgMm} cpMm={cpMm} highlightedName={hoveredName} />
 
         {/* CG / CP / Stability */}
         {(cgMm !== null || cpMm !== null || stabilityCal !== null) && (
@@ -288,6 +304,8 @@ export const ComponentTreeCard = memo(function ComponentTreeCard({ className }: 
                 depth={0}
                 isLast={i === stage.components.length - 1}
                 parentLines={[]}
+                hoveredName={hoveredName}
+                onHover={setHoveredName}
               />
             ))}
           </ul>

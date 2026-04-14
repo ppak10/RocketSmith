@@ -2,7 +2,7 @@
 
 Unit tests verify the translation rules against a ComponentTree,
 skipping the OpenRocket JAR dependency. Integration tests round-trip
-through a real .ork file using openrocket_generate_tree.
+through a real .ork file using openrocket_component (action="read").
 """
 
 import pytest

@@ -19,6 +19,8 @@ This skill is **rocketry-agnostic** — it knows about build123d boolean operati
 
 **Core principle:** Modifications are applied to base STEPs produced by Pass 1. Do not re-generate base geometry here. If a modification requires changing the structural shell, update the manifest's `features` block and re-run Pass 1.
 
+**Never edit `component_tree.json` directly to add or change modifications.** The modifications list is populated by `manufacturing_annotate_tree` based on DFAM rules and user-specified overrides. If the modifications list is missing entries the user wants (e.g., rail button holes, vent holes), re-run `manufacturing_annotate_tree` with the appropriate parameters — do not hand-edit the JSON.
+
 ## When to Use
 
 - `generate-structures` has completed Pass 1 successfully
@@ -29,7 +31,7 @@ If every part's `modifications` list is empty (which is the default for a freshl
 
 ## Inputs
 
-- `<project_root>/gui/component_tree.json` — the `parts[].modifications` lists are the authoritative spec
+- `<project_root>/gui/component_tree.json` — the `parts[].modifications` lists are the authoritative spec (populated by `manufacturing_annotate_tree`, never hand-edited)
 - `<project_root>/cadsmith/step/<name>.step` — base STEPs from Pass 1
 
 ## Output
@@ -108,7 +110,7 @@ Key rules:
 - **Import the base STEP, don't rebuild the shell.** If you find yourself re-declaring `LENGTH_MM` and `OD_MM` to rebuild a cylinder, you're in the wrong skill.
 - **Apply modifications in manifest order.** Some modifications interact (e.g. a pocket inside a heat-set boss region); order matters.
 - **Overwrite the base STEP in place.** The manifest's `step_path` is the canonical location; don't emit a separate `_modified.step` file.
-- **Imports limited to `build123d`, `pathlib`, `math`, `typing`.** Same isolated-mode constraint as Pass 1.
+- **Imports limited to `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`.** Same isolated-mode constraint as Pass 1. Use `bd_warehouse.fastener` for spec-correct fastener geometry in boolean cuts (heat-set pockets, counterbores, nut traps).
 
 ## Modification Recipe Reference
 
@@ -144,7 +146,14 @@ for angle_deg in positions:
     extrude(amount=modification["hole_depth_mm"], mode=Mode.SUBTRACT)
 ```
 
-Use this for heat-set insert receivers (blind, typically 5.7 mm × 7 mm for M4) and shear pin holes (blind, typically 2–4 mm).
+Use this for heat-set insert receivers and shear pin holes. For heat-set inserts, prefer using `bd_warehouse` for spec-correct pocket dimensions — call `cadsmith_bd_warehouse_info(generator_class="HeatSetNut", generator_params={"size": "M4-0.7-8", "fastener_type": "Hilitchi"})` to get exact `nut_diameter` and `nut_thickness`, then subtract the geometry directly:
+
+```python
+from bd_warehouse.fastener import HeatSetNut
+insert = HeatSetNut("M4-0.7-8", "Hilitchi", simple=True, mode=Mode.PRIVATE)
+# Use insert.nut_diameter and insert.nut_thickness for the pocket,
+# or subtract the insert geometry directly with mode=Mode.SUBTRACT
+```
 
 ### `radial_through_holes` — through-wall clearance holes
 
