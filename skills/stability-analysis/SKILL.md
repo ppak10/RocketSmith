@@ -23,7 +23,7 @@ Stability margin = (CP − CG) / reference diameter, measured in calibers. The t
 
 ### 1. Read the Numbers
 
-Run `openrocket_generate_tree` and note:
+Run `openrocket_component` (action="read") and note:
 - `cg_x` — center of gravity from nose tip (m)
 - `cp_x` — center of pressure from nose tip (m)
 - `max_diameter_m` — reference diameter
@@ -81,7 +81,7 @@ After each change:
 
 ### 5. Verify Final Design
 
-Run `openrocket_generate_tree` one more time. Confirm:
+Run `openrocket_component` (action="read") one more time. Confirm:
 - `cp_x` > `cg_x` (CP aft of CG)
 - `stability_cal` in range
 - No component geometry was accidentally broken

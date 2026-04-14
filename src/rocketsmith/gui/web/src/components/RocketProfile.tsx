@@ -47,6 +47,7 @@ interface Shape {
   radius: number;
   innerRadius?: number;
   tipRadius?: number;
+  aftRadius?: number;
   finSpan?: number;
   finSweep?: number;
   finTipChord?: number;
@@ -62,8 +63,12 @@ const SHAPE_COLORS: Record<string, string> = {
   EllipticalFinSet: "#e76f51",
   FreeformFinSet: "#e76f51",
   TubeCoupler: "#2a9d8f",
+  Transition: "#b5838d",
   Parachute: "#ffb703",
   ShockCord: "#ffb703",
+  CenteringRing: "#6d6875",
+  MassComponent: "#6d6875",
+  LaunchLug: "#9a8c98",
 };
 
 function dimVal(dims: Record<string, unknown>, key: string): number {
@@ -73,11 +78,30 @@ function dimVal(dims: Record<string, unknown>, key: string): number {
   return 0;
 }
 
+/** Find the sibling InnerTube (motor mount) to derive centering ring positions. */
+function findMotorMount(siblings: ComponentNode[]): { x: number; length: number; radius: number } | null {
+  for (const s of siblings) {
+    if (s.type === "InnerTube") {
+      const d = s.dimensions as Record<string, unknown>;
+      return { x: 0, length: dimVal(d, "length"), radius: dimVal(d, "od") / 2 };
+    }
+  }
+  return null;
+}
+
 function buildShapes(stages: Stage[]): Shape[] {
   const shapes: Shape[] = [];
   let cursor = 0;
 
   function walkComponents(components: ComponentNode[], parentX: number, parentLength: number, parentRadius: number) {
+    // Pre-compute motor mount position for centering ring placement.
+    const mount = findMotorMount(components);
+    const mountX = mount ? parentX + parentLength - mount.length : null;
+    const mountEnd = mount ? parentX + parentLength : null;
+    const mountRadius = mount?.radius ?? parentRadius * 0.5;
+    // Track centering ring index to distribute forward/aft.
+    let ringIndex = 0;
+
     for (const comp of components) {
       const dims = comp.dimensions as Record<string, unknown>;
 
@@ -103,6 +127,13 @@ function buildShapes(stages: Stage[]): Shape[] {
         const radius = dimVal(dims, "od") / 2;
         const x = parentX + parentLength - length;
         shapes.push({ type: "InnerTube", name: comp.name, x, length, radius, innerRadius: dimVal(dims, "id") / 2, color: SHAPE_COLORS.InnerTube });
+      } else if (comp.type === "Transition") {
+        const length = dimVal(dims, "length");
+        const foreRadius = dimVal(dims, "fore_od") / 2;
+        const aftRadius = dimVal(dims, "aft_od") / 2;
+        shapes.push({ type: "Transition", name: comp.name, x: cursor, length, radius: foreRadius, aftRadius, color: SHAPE_COLORS.Transition });
+        cursor += length;
+        walkComponents(comp.children, cursor - length, length, aftRadius);
       } else if (comp.type.includes("FinSet")) {
         const rootChord = dimVal(dims, "root_chord");
         const span = dimVal(dims, "span");
@@ -111,6 +142,34 @@ function buildShapes(stages: Stage[]): Shape[] {
         const count = dimVal(dims, "count") || 3;
         const x = parentX + parentLength - rootChord;
         shapes.push({ type: comp.type, name: comp.name, x, length: rootChord, radius: parentRadius, finSpan: span, finSweep: sweep, finTipChord: tipChord, finCount: count, color: SHAPE_COLORS.TrapezoidFinSet });
+      } else if (comp.type === "Parachute") {
+        const diameter = dimVal(dims, "diameter");
+        const iconLen = Math.min(diameter * 0.1, parentLength * 0.15) || 10;
+        const x = parentX + parentLength * 0.3;
+        shapes.push({ type: "Parachute", name: comp.name, x, length: iconLen, radius: parentRadius * 0.5, color: SHAPE_COLORS.Parachute });
+      } else if (comp.type === "CenteringRing" || (comp.type === "MassComponent" && comp.name.toLowerCase().includes("centering"))) {
+        const ringThickness = 3;
+        let x: number;
+        if (mountX != null && mountEnd != null) {
+          // Place first ring at forward end of motor mount, second at aft end.
+          x = ringIndex === 0 ? mountX : mountEnd - ringThickness;
+        } else {
+          // Fallback: spread evenly along the parent.
+          x = parentX + parentLength * (ringIndex === 0 ? 0.4 : 0.9);
+        }
+        ringIndex++;
+        shapes.push({ type: "CenteringRing", name: comp.name, x, length: ringThickness, radius: parentRadius, innerRadius: mountRadius, color: SHAPE_COLORS.CenteringRing });
+      } else if (comp.type === "LaunchLug" || (comp.type === "MassComponent" && comp.name.toLowerCase().includes("launch lug"))) {
+        // Launch lug: small tube on the outside of the body, at the midpoint.
+        const lugLength = dimVal(dims, "length") || parentLength * 0.08;
+        const lugHeight = parentRadius * 0.25;
+        const x = parentX + (parentLength - lugLength) / 2;
+        shapes.push({ type: "LaunchLug", name: comp.name, x, length: lugLength, radius: parentRadius + lugHeight, innerRadius: parentRadius, color: SHAPE_COLORS.LaunchLug });
+      }
+
+      // Recurse into children for any component type not already handled above.
+      if (!["NoseCone", "BodyTube", "TubeCoupler", "InnerTube", "Transition"].includes(comp.type) && !comp.type.includes("FinSet")) {
+        walkComponents(comp.children, parentX, parentLength, parentRadius);
       }
     }
   }
@@ -127,9 +186,10 @@ interface RocketProfileProps {
   stages: Stage[];
   cgMm?: number | null;
   cpMm?: number | null;
+  highlightedName?: string | null;
 }
 
-export function RocketProfile({ stages, cgMm = null, cpMm = null }: RocketProfileProps) {
+export function RocketProfile({ stages, cgMm = null, cpMm = null, highlightedName = null }: RocketProfileProps) {
   const shapes = useMemo(() => buildShapes(stages), [stages]);
 
   if (shapes.length === 0) return null;
@@ -164,18 +224,23 @@ export function RocketProfile({ stages, cgMm = null, cpMm = null }: RocketProfil
         const sx = padding + shape.x * scale;
         const sl = shape.length * scale;
         const sr = shape.radius * scale;
+        const isActive = highlightedName != null;
+        const isHit = highlightedName === shape.name;
+        const dimOpacity = isActive && !isHit ? 0.3 : 1;
+        const highlightStroke = isHit ? "var(--foreground)" : "var(--border)";
+        const highlightStrokeWidth = isHit ? 2.5 : 1.5;
 
         if (shape.type === "NoseCone") {
           const tipX = sx;
           const baseX = sx + sl;
           const upper = `M ${tipX} ${centerY} Q ${tipX + sl * 0.3} ${centerY - sr} ${baseX} ${centerY - sr}`;
           return (
-            <g key={i}>
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
               <path
                 d={`${upper} L ${baseX} ${centerY + sr} Q ${tipX + sl * 0.3} ${centerY + sr} ${tipX} ${centerY} Z`}
                 fill={shape.color}
-                stroke="var(--border)"
-                strokeWidth={1.5}
+                stroke={highlightStroke}
+                strokeWidth={highlightStrokeWidth}
               />
             </g>
           );
@@ -183,16 +248,30 @@ export function RocketProfile({ stages, cgMm = null, cpMm = null }: RocketProfil
 
         if (shape.type === "BodyTube" || shape.type === "TubeCoupler") {
           return (
-            <g key={i}>
-              <rect x={sx} y={centerY - sr} width={sl} height={sr * 2} fill={shape.color} stroke="var(--border)" strokeWidth={1.5} />
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect x={sx} y={centerY - sr} width={sl} height={sr * 2} fill={shape.color} stroke={highlightStroke} strokeWidth={highlightStrokeWidth} />
             </g>
           );
         }
 
         if (shape.type === "InnerTube") {
           return (
-            <g key={i}>
-              <rect x={sx} y={centerY - sr} width={sl} height={sr * 2} fill={shape.color} fillOpacity={0.5} stroke="var(--border)" strokeWidth={1} strokeDasharray="3 2" />
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect x={sx} y={centerY - sr} width={sl} height={sr * 2} fill={shape.color} fillOpacity={0.5} stroke={isHit ? highlightStroke : "var(--border)"} strokeWidth={isHit ? highlightStrokeWidth : 1} strokeDasharray={isHit ? undefined : "3 2"} />
+            </g>
+          );
+        }
+
+        if (shape.type === "Transition") {
+          const aftR = (shape.aftRadius ?? sr) * scale;
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <path
+                d={`M ${sx} ${centerY - sr} L ${sx + sl} ${centerY - aftR} L ${sx + sl} ${centerY + aftR} L ${sx} ${centerY + sr} Z`}
+                fill={shape.color}
+                stroke={highlightStroke}
+                strokeWidth={highlightStrokeWidth}
+              />
             </g>
           );
         }
@@ -205,9 +284,57 @@ export function RocketProfile({ stages, cgMm = null, cpMm = null }: RocketProfil
           const uy1 = centerY - sr;
           const ly1 = centerY + sr;
           return (
-            <g key={i}>
-              <path d={`M ${ux1} ${uy1} L ${ux1 + sweepPx} ${uy1 - finSpanPx} L ${ux1 + sweepPx + tipChordPx} ${uy1 - finSpanPx} L ${ux1 + sl} ${uy1} Z`} fill={shape.color} stroke="var(--border)" strokeWidth={1.5} />
-              <path d={`M ${ux1} ${ly1} L ${ux1 + sweepPx} ${ly1 + finSpanPx} L ${ux1 + sweepPx + tipChordPx} ${ly1 + finSpanPx} L ${ux1 + sl} ${ly1} Z`} fill={shape.color} stroke="var(--border)" strokeWidth={1.5} />
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <path d={`M ${ux1} ${uy1} L ${ux1 + sweepPx} ${uy1 - finSpanPx} L ${ux1 + sweepPx + tipChordPx} ${uy1 - finSpanPx} L ${ux1 + sl} ${uy1} Z`} fill={shape.color} stroke={highlightStroke} strokeWidth={highlightStrokeWidth} />
+              <path d={`M ${ux1} ${ly1} L ${ux1 + sweepPx} ${ly1 + finSpanPx} L ${ux1 + sweepPx + tipChordPx} ${ly1 + finSpanPx} L ${ux1 + sl} ${ly1} Z`} fill={shape.color} stroke={highlightStroke} strokeWidth={highlightStrokeWidth} />
+            </g>
+          );
+        }
+
+        if (shape.type === "Parachute") {
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect
+                x={sx}
+                y={centerY - sr}
+                width={sl}
+                height={sr * 2}
+                fill={shape.color}
+                fillOpacity={isHit ? 0.35 : 0.15}
+                stroke={isHit ? highlightStroke : shape.color}
+                strokeWidth={highlightStrokeWidth}
+                strokeDasharray={isHit ? undefined : "4 3"}
+              />
+            </g>
+          );
+        }
+
+        if (shape.type === "CenteringRing") {
+          const ir = (shape.innerRadius ?? 0) * scale;
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect x={sx} y={centerY - sr} width={sl} height={sr - ir} fill={shape.color} fillOpacity={isHit ? 1 : 0.8} stroke={highlightStroke} strokeWidth={isHit ? highlightStrokeWidth : 0.75} />
+              <rect x={sx} y={centerY + ir} width={sl} height={sr - ir} fill={shape.color} fillOpacity={isHit ? 1 : 0.8} stroke={highlightStroke} strokeWidth={isHit ? highlightStrokeWidth : 0.75} />
+            </g>
+          );
+        }
+
+        if (shape.type === "LaunchLug") {
+          // Small rectangle protruding from the body tube (top side only).
+          const ir = (shape.innerRadius ?? 0) * scale;
+          const lugH = sr - ir;
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect
+                x={sx}
+                y={centerY - sr}
+                width={sl}
+                height={lugH}
+                fill={shape.color}
+                stroke={highlightStroke}
+                strokeWidth={isHit ? highlightStrokeWidth : 1}
+                rx={1}
+              />
             </g>
           );
         }

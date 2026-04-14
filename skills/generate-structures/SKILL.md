@@ -27,7 +27,7 @@ This skill is **rocketry-agnostic** — it knows about build123d and parts and a
 
 ## Inputs
 
-`<project_root>/gui/component_tree.json` — the authoritative parts list. Specifically the `parts[].features` block for each part. Do not read the `modifications` block — that's `modify-structures`' job.
+`<project_root>/gui/component_tree.json` — the authoritative parts list (populated by `manufacturing_annotate_tree`, never hand-edited). Specifically the `parts[].features` block for each part. Do not read the `modifications` block — that's `modify-structures`' job.
 
 ## Output
 

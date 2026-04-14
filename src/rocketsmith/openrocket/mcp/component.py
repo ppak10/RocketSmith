@@ -16,7 +16,11 @@ def register_openrocket_component(app: FastMCP):
             "Valid component types for create: nose-cone, body-tube, inner-tube, transition, fin-set, parachute, mass. "
             "inner-tube serves two purposes: motor mount (set motor_mount=true, sized to motor diameter) "
             "and coupler (short tube joining two body sections, OD = body tube ID, no motor_mount flag). "
-            "Use axial_offset_m and axial_offset_method to position components precisely within their parent."
+            "Use axial_offset_m and axial_offset_method to position components precisely within their parent. "
+            "After create, update, or delete, the full component tree is regenerated automatically "
+            "when project_dir is provided. A read with no component_name returns the full hierarchical "
+            "component tree (dimensions in mm, stability, ASCII profile) — use this instead of "
+            "generating the tree separately."
         ),
         structured_output=True,
     )
@@ -58,10 +62,18 @@ def register_openrocket_component(app: FastMCP):
         Actions:
             create: Add a new component. Requires 'component_type'. Use 'parent' to
                     specify a named parent; otherwise a sensible default is chosen.
-            read:   Return properties of a named component. Requires 'component_name'.
+                    Returns the full component tree when project_dir is set.
+            read:   With 'component_name', return properties of that component.
+                    Without 'component_name', generate and return the full
+                    hierarchical component tree (requires 'project_dir'). The tree
+                    includes typed dimensions in mm, per-component mass/material,
+                    agent annotations, static stability (CG/CP/calibers), and an
+                    ASCII side profile. Writes component_tree.json to project_dir.
             update: Modify properties of a named component. Requires 'component_name'.
                     Only the provided properties are changed; others are left as-is.
+                    Returns the full component tree when project_dir is set.
             delete: Remove a named component. Requires 'component_name'.
+                    Returns the full component tree when project_dir is set.
 
         Preset and material support (create and update):
             preset_part_no: Part number from openrocket_database (e.g. 'BT-20').
@@ -141,23 +153,33 @@ def register_openrocket_component(app: FastMCP):
             update_component,
             delete_component,
         )
+        from rocketsmith.openrocket.generate_tree import generate_tree
         from rocketsmith.openrocket.utils import get_openrocket_path
 
-        def _regen_tree() -> None:
-            """Regenerate component_tree.json if project_dir is set."""
-            if project_dir is None:
-                return
-            try:
-                from rocketsmith.openrocket.generate_tree import generate_tree
+        def _generate_tree() -> dict:
+            """Generate component tree and write component_tree.json.
 
-                resolved_project = resolve_path(project_dir)
-                generate_tree(
-                    rocket_file_path=rocket_file_path,
-                    project_dir=resolved_project,
-                    jar_path=openrocket_path,
-                )
-            except Exception:
-                pass  # Best-effort — don't fail the component op
+            Returns the tree payload (tree dict, ascii_art, tree_path).
+            Requires ``project_dir`` to be set.
+            """
+            resolved_project = resolve_path(project_dir)
+            tree, ascii_art = generate_tree(
+                rocket_file_path=rocket_file_path,
+                project_dir=resolved_project,
+                jar_path=openrocket_path,
+            )
+
+            from rocketsmith.gui.layout import TREE_FILE
+
+            tree_path = resolved_project / TREE_FILE
+            tree_path.parent.mkdir(parents=True, exist_ok=True)
+            tree_path.write_text(tree.model_dump_json(indent=2), encoding="utf-8")
+
+            return {
+                "tree": tree.model_dump(mode="json"),
+                "ascii_art": ascii_art,
+                "tree_path": str(tree_path),
+            }
 
         rocket_file_path = resolve_path(rocket_file_path)
         if not rocket_file_path.exists():
@@ -214,21 +236,26 @@ def register_openrocket_component(app: FastMCP):
                     material_type=material_type,
                     **props,
                 )
-                _regen_tree()
+                if project_dir is not None:
+                    result = _generate_tree()
                 return tool_success(result)
 
             elif action == "read":
-                if component_name is None:
+                if component_name is not None:
+                    result = read_component(
+                        path=rocket_file_path,
+                        component_name=component_name,
+                        jar_path=openrocket_path,
+                    )
+                    return tool_success(result)
+
+                # No component_name — return the full component tree.
+                if project_dir is None:
                     return tool_error(
-                        "'component_name' is required for action 'read'.",
+                        "'project_dir' is required to read the full component tree.",
                         "MISSING_ARGUMENT",
                     )
-                result = read_component(
-                    path=rocket_file_path,
-                    component_name=component_name,
-                    jar_path=openrocket_path,
-                )
-                return tool_success(result)
+                return tool_success(_generate_tree())
 
             elif action == "update":
                 if component_name is None:
@@ -246,7 +273,8 @@ def register_openrocket_component(app: FastMCP):
                     material_type=material_type,
                     **props,
                 )
-                _regen_tree()
+                if project_dir is not None:
+                    result = _generate_tree()
                 return tool_success(result)
 
             elif action == "delete":
@@ -260,8 +288,12 @@ def register_openrocket_component(app: FastMCP):
                     component_name=component_name,
                     jar_path=openrocket_path,
                 )
-                _regen_tree()
-                return tool_success({"deleted": deleted_name})
+                if project_dir is not None:
+                    result = _generate_tree()
+                    result["deleted"] = deleted_name
+                else:
+                    result = {"deleted": deleted_name}
+                return tool_success(result)
 
         except FileNotFoundError as e:
             return tool_error(

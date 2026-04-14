@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchText, fetchTextFromApi } from "@/lib/server";
 
 const MAX_DISPLAY_LINES = 2000;
@@ -59,8 +59,9 @@ export function CodeViewerCard({
 }: CodeViewerCardProps) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [truncated, setTruncated] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const firstDiffRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -83,6 +84,15 @@ export function CodeViewerCard({
       })
       .catch(() => setLoading(false));
   }, [file]);
+
+  const showDiff = previousContent !== null;
+
+  // Scroll to the first diff line when diff content changes.
+  useEffect(() => {
+    if (showDiff && firstDiffRef.current && scrollRef.current) {
+      firstDiffRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [previousContent, content, showDiff]);
 
   const filename = file.split("/").pop() ?? file;
   const displayTitle = title ?? filename;
@@ -118,7 +128,9 @@ export function CodeViewerCard({
   }
 
   const lines = computeDiff(previousContent, content);
-  const showDiff = previousContent !== null;
+
+  // Track whether we've already assigned the first diff ref.
+  let firstDiffAssigned = false;
 
   return (
     <Card className={className ?? "py-0 gap-0 h-[500px] flex flex-col"}>
@@ -128,11 +140,19 @@ export function CodeViewerCard({
         </CardHeader>
       )}
       <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 min-h-0 overflow-auto bg-secondary-background px-3 py-2">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto bg-secondary-background px-3 py-2">
           <pre className="text-xs leading-relaxed min-w-full w-max">
-            {lines.map((line, i) => (
+            {lines.map((line, i) => {
+              const isDiff = showDiff && (line.type === "added" || line.type === "removed");
+              let ref: React.Ref<HTMLDivElement> | undefined;
+              if (isDiff && !firstDiffAssigned) {
+                ref = firstDiffRef;
+                firstDiffAssigned = true;
+              }
+              return (
               <div
                 key={i}
+                ref={ref}
                 className={`hover:bg-foreground/5 ${
                   showDiff && line.type === "added"
                     ? "bg-green-500/10 text-green-700 dark:text-green-400"
@@ -155,7 +175,8 @@ export function CodeViewerCard({
                 )}
                 {line.content}
               </div>
-            ))}
+              );
+            })}
           </pre>
         </div>
         {truncated && (

@@ -46,9 +46,9 @@ The GUI uses a HashRouter. URLs look like `http://host:port/#/path`.
 
 | Route | Page | Navigate after... |
 |-------|------|-------------------|
-| `/` | Agent Feed | Default — shows live dashboard with cards |
+| `/` | Agent Feed | Default — live dashboard with all cards. **Navigate here when switching to a new task/card.** |
 | `/flights` | Flight Viewer | `openrocket_flight(action="run")` |
-| `/component-tree` | Component Tree | `openrocket_generate_tree` or `manufacturing_annotate_tree` |
+| `/component-tree` | Component Tree | `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
 | `/assembly` | Assembly Viewer | `cadsmith_assembly(action="generate")` |
 | `/parts/<name>` | Part Detail | `cadsmith_generate_preview` for a part |
 
@@ -112,6 +112,12 @@ The orchestrator or domain agents should invoke this agent (or call `gui_navigat
 3. **After generating a part preview** → `/parts/<name>` (show the 3D model and source)
 4. **After assembly generation** → `/assembly` (show how parts fit together)
 5. **When returning to the dashboard** → `/` (show the Agent Feed with all cards)
+
+### Returning to the Agent Feed
+
+The Agent Feed (`/`) is the primary live dashboard. When the user is viewing a detail page (e.g. `/flights`, `/parts/nose_cone`) and new activity starts on a **different card** — for example, a new part begins generating while viewing flights — navigate back to `/` so the user sees the new card appear in the feed. The Agent Feed auto-focuses on the most recently updated card, so returning to it keeps the user in sync with pipeline progress.
+
+**Rule of thumb:** Navigate to a detail page to *present* finished results. Navigate back to `/` when the pipeline moves on to the *next* piece of work.
 
 In **interactive mode**, navigate after each major step so the user sees results. In **zero-shot mode**, the Agent Feed (`/`) auto-updates via WebSocket — only navigate to specific pages when the user asks or when presenting final results.
 

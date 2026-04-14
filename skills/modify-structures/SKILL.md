@@ -19,6 +19,8 @@ This skill is **rocketry-agnostic** — it knows about build123d boolean operati
 
 **Core principle:** Modifications are applied to base STEPs produced by Pass 1. Do not re-generate base geometry here. If a modification requires changing the structural shell, update the manifest's `features` block and re-run Pass 1.
 
+**Never edit `component_tree.json` directly to add or change modifications.** The modifications list is populated by `manufacturing_annotate_tree` based on DFAM rules and user-specified overrides. If the modifications list is missing entries the user wants (e.g., rail button holes, vent holes), re-run `manufacturing_annotate_tree` with the appropriate parameters — do not hand-edit the JSON.
+
 ## When to Use
 
 - `generate-structures` has completed Pass 1 successfully
@@ -29,7 +31,7 @@ If every part's `modifications` list is empty (which is the default for a freshl
 
 ## Inputs
 
-- `<project_root>/gui/component_tree.json` — the `parts[].modifications` lists are the authoritative spec
+- `<project_root>/gui/component_tree.json` — the `parts[].modifications` lists are the authoritative spec (populated by `manufacturing_annotate_tree`, never hand-edited)
 - `<project_root>/cadsmith/step/<name>.step` — base STEPs from Pass 1
 
 ## Output

@@ -22,7 +22,7 @@ The physical parts list — what actually gets produced and assembled — is a f
 
 ## Inputs
 
-1. The component tree from `openrocket_generate_tree(rocket_file_path=<path>)` — authoritative mm-scaled geometry and the derived motor mount / body tube ID
+1. The component tree from `openrocket_component(action="read", rocket_file_path=<path>, project_dir=<project_dir>)` — authoritative mm-scaled geometry and the derived motor mount / body tube ID
 2. The **default policy** (passed by the orchestrator): `"additive"` means print everything that can be printed and fuse aggressively; `"hybrid"` means print the nose cone and fin can but purchase body tubes and motor mount; `"traditional"` falls back to a separate skill not yet implemented
 3. Optional user overrides on specific fusion decisions
 
@@ -67,13 +67,13 @@ manufacturing_annotate_tree(
 
 The tool:
 
-1. Calls `openrocket_generate_tree` internally to get the mm-scaled component tree
+1. Calls `openrocket_component` (action="read") internally to get the mm-scaled component tree
 2. Walks the tree, applies the DFAM fusion rules (defaults + any overrides you passed), and builds the part list
 3. Validates the result against the `ComponentTree` Pydantic schema
 4. Writes `<project_root>/gui/component_tree.json`
 5. Returns the manifest dict
 
-**Do not use the `Write` tool to hand-craft the manifest.** The Python implementation is the source of truth for the fusion rules; hand-writing is both slower (more context tokens) and error-prone (schema drift, typos, missing fields). The `manufacturing_annotate_tree` tool is the only way to produce a manifest.
+**Do not use the `Write` tool to hand-craft or edit the manifest.** The Python implementation is the source of truth for the fusion rules; hand-writing is both slower (more context tokens) and error-prone (schema drift, typos, missing fields). The `manufacturing_annotate_tree` tool is the only way to produce a manifest. This includes detail modifications (holes, vents, rail button mounts, retention hardware) — these must be specified through tool parameters, not by directly editing `component_tree.json`.
 
 ### 4. Translation Rules Reference
 
@@ -295,7 +295,7 @@ Feature block:
 
 ```
 # the translation
-openrocket_generate_tree → {components, derived, handoff_notes}
+openrocket_component(action="read") → {components, derived, handoff_notes}
                       ↓
                  this skill applies policy + fusion rules
                       ↓

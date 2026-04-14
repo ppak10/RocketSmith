@@ -25,12 +25,18 @@ interface PartCardProps {
   showModeToggle?: boolean;
   /** Use simple OrbitControls. Default false. */
   simpleControls?: boolean;
+  /** Disable camera controls (static auto-rotating preview). Default false. */
+  staticPreview?: boolean;
   /** Default active tab. Auto-switches to "model" when STL becomes available. */
   defaultTab?: "source" | "model" | "gcode";
   /** Previous source content for diff highlighting. */
   previousSourceContent?: string | null;
   /** Preview generation progress outputs. Shown as badges when generating. */
   progress?: PartProgressOutputs | null;
+  /** Bumped when the STL file is updated, to refresh the 3D viewer. */
+  stlVersion?: number;
+  /** Set of completed format directory prefixes (e.g. "cadsmith/source", "cadsmith/step"). */
+  completedFormats?: Set<string>;
   /** CSS class for the outer card. */
   className?: string;
 }
@@ -43,9 +49,12 @@ export const PartCard = memo(function PartCard({
   autoRotate = false,
   showModeToggle = true,
   simpleControls = false,
+  staticPreview = false,
   defaultTab = "model",
   previousSourceContent = null,
   progress = null,
+  stlVersion = 0,
+  completedFormats,
   className = "h-[500px]",
 }: PartCardProps) {
   const resolvedSource = sourcePath ?? `cadsmith/source/${partName}.py`;
@@ -59,10 +68,33 @@ export const PartCard = memo(function PartCard({
     }
   }, [defaultTab]);
 
-  // Show progress badges only while generating (not all done).
-  const showProgress =
-    progress &&
-    Object.values(progress).some((o) => o.status !== "done");
+  // Switch to source tab when a new diff arrives (cadsmith update).
+  useEffect(() => {
+    if (previousSourceContent != null) {
+      setActiveTab("source");
+    }
+  }, [previousSourceContent]);
+
+  // Pipeline stages in order. Each maps a format dir prefix to a label.
+  const PIPELINE_STAGES = [
+    { key: "cadsmith/source", label: "source" },
+    { key: "cadsmith/step", label: "step" },
+    { key: "gui/assets/stl", label: "stl" },
+    { key: "prusaslicer/gcode", label: "gcode" },
+  ];
+
+  // Determine per-stage status from completedFormats.
+  const stageStatuses = PIPELINE_STAGES.map(({ key, label }) => {
+    const done = completedFormats?.has(key) ?? false;
+    return { label, done };
+  });
+
+  // The "in progress" stage is the first not-done after the last done.
+  const lastDoneIdx = stageStatuses.reduce(
+    (acc, s, i) => (s.done ? i : acc),
+    -1,
+  );
+  const inProgressIdx = lastDoneIdx + 1 < stageStatuses.length ? lastDoneIdx + 1 : -1;
 
   return (
     <Card className={`${className} flex flex-col overflow-hidden pb-0 gap-0`}>
@@ -70,22 +102,17 @@ export const PartCard = memo(function PartCard({
         <CardTitle className="flex items-center gap-2 text-sm">
           <Box className="size-4" /> {partName.replace(/_/g, " ")}
         </CardTitle>
-        {showProgress && (
+        {completedFormats && completedFormats.size > 0 && (
           <div className="flex flex-wrap gap-1">
-            {Object.entries(progress!).map(([name, info]) => (
+            {stageStatuses.map(({ label, done }, i) => (
               <Badge
-                key={name}
-                variant={info.status === "done" ? "default" : "neutral"}
-                className="text-[9px] px-1.5 py-0"
+                key={label}
+                variant={done ? "default" : "neutral"}
+                className={`text-[9px] px-1.5 py-0 ${
+                  i === inProgressIdx ? "animate-pulse" : ""
+                }`}
               >
-                {info.status === "failed"
-                  ? "\u2717 "
-                  : info.status === "done"
-                    ? "\u2713 "
-                    : info.status === "in_progress"
-                      ? "\u25CB "
-                      : ""}
-                {name}
+                {done ? "\u2713 " : i === inProgressIdx ? "\u25CB " : ""}{label}
               </Badge>
             ))}
           </div>
@@ -114,11 +141,13 @@ export const PartCard = memo(function PartCard({
         <TabsContent value="model" className="flex-1 min-h-0 m-0 mt-2 overflow-hidden">
           {activeTab === "model" && (
             <Part3DViewerCard
+              key={stlVersion}
               partName={partName}
               stlPath={stlPath}
               autoRotate={autoRotate}
               showModeToggle={showModeToggle}
               simpleControls={simpleControls}
+              staticPreview={staticPreview}
               className="h-full border-0 shadow-none"
             />
           )}

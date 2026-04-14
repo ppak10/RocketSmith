@@ -342,6 +342,7 @@ async def _start_watcher(app: web.Application) -> None:
     # Event type labels for the session log.
     _TYPE_VERBS = {
         "openrocket": "Updating design",
+        "flight": "Running flight",
         "cadsmith": "Writing script",
         "step": "Generating",
         "stl": "Exporting",

@@ -23,7 +23,7 @@ Motor selection balances impulse (altitude), diameter (fit), and thrust curve (s
 ### 1. Gather Constraints
 
 Before querying, establish:
-- **Rocket mass** — from `openrocket_generate_tree` component weights, or user-provided
+- **Rocket mass** — from `openrocket_component` (action="read") component weights, or user-provided
 - **Target apogee** — what the user wants to achieve
 - **Motor mount ID** — inner diameter of the motor mount inner-tube
 - **Motor class ceiling** — any certification or field limits (e.g. Estes field = max D)

@@ -29,6 +29,7 @@ const PART_CARD_DEFAULTS: Omit<CardDefinition, "id" | "label" | "defaultOrder"> 
 
 export const CARD_REGISTRY: CardDefinition[] = [
   { id: "assembly", label: "Assembly", defaultOrder: 1, colSpan: 3, rowSpan: 3, minColSpan: 2, maxColSpan: 4, minRowSpan: 2, maxRowSpan: 4 },
+  { id: "flight", label: "Flight", defaultOrder: 2, colSpan: 3, rowSpan: 3, minColSpan: 2, maxColSpan: 4, minRowSpan: 2, maxRowSpan: 5 },
   {
     id: "session-log",
     label: "Session Log",
