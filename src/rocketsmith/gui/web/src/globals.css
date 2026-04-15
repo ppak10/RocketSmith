@@ -29,8 +29,8 @@
   --comp-recovery: #f59e0b;
   --comp-ring: #78716c;
   --comp-lug: #a3a3a3;
-  --comp-cg: #3b82f6;
-  --comp-cp: #ef4444;
+  --comp-cg: var(--foreground);
+  --comp-cp: var(--foreground);
 }
 
 .dark {
@@ -43,7 +43,7 @@
   --ring: #ffffff;
   --shadow: 4px 4px 0px 0px var(--border);
   --shadow-lg: 8px 8px 0px 0px var(--border);
-  --chart-1: #eb6d00;
+  --chart-1: #ffffff;
   --chart-2: #008ae5;
   --chart-3: #e5ac00;
   --chart-4: #00bd84;
@@ -59,8 +59,8 @@
   --comp-recovery: #fbbf24;
   --comp-ring: #57534e;
   --comp-lug: #78716c;
-  --comp-cg: #60a5fa;
-  --comp-cp: #f87171;
+  --comp-cg: var(--foreground);
+  --comp-cp: var(--foreground);
 }
 
 @theme inline {

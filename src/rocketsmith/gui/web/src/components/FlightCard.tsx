@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Rocket } from "lucide-react";
-import { fetchJson, hasOfflineFile } from "@/lib/server";
+import { fetchJson } from "@/lib/server";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -23,6 +23,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
 import { useFileTree } from "@/hooks/useFileTree";
 import type { FileNode } from "@/hooks/useFileTree";
 
@@ -214,6 +215,16 @@ function MiniChart({ sim, chartId }: { sim: FlightData; chartId: string }) {
   const time = sim.timeseries.TYPE_TIME;
   const yData = sim.timeseries[chart.yKey];
 
+  const tMin = time?.[0] ?? 0;
+  const tMax = time?.[time.length - 1] ?? 0;
+  const recovery = sim.events.RECOVERY_DEVICE_DEPLOYMENT?.[0];
+  const defaultMax = recovery != null ? Math.min(recovery + 2, tMax) : tMax;
+  const [range, setRange] = useState([tMin, defaultMax]);
+
+  useEffect(() => {
+    setRange([tMin, defaultMax]);
+  }, [tMin, defaultMax]);
+
   if (!time || !yData) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -224,11 +235,13 @@ function MiniChart({ sim, chartId }: { sim: FlightData; chartId: string }) {
 
   const data = useMemo(
     () =>
-      time.map((t, i) => ({
-        time: parseFloat(t.toFixed(3)),
-        value: parseFloat(yData[i]?.toFixed(4) ?? "0"),
-      })),
-    [time, yData],
+      time
+        .map((t, i) => ({
+          time: parseFloat(t.toFixed(3)),
+          value: parseFloat(yData[i]?.toFixed(4) ?? "0"),
+        }))
+        .filter((d) => d.time >= range[0] && d.time <= range[1]),
+    [time, yData, range],
   );
 
   const apogee = sim.events.APOGEE?.[0];
@@ -239,6 +252,7 @@ function MiniChart({ sim, chartId }: { sim: FlightData; chartId: string }) {
   };
 
   return (
+    <>
     <ChartContainer config={chartConfig} className="min-h-0 flex-1 w-full">
       <LineChart data={data}>
         <CartesianGrid
@@ -295,32 +309,48 @@ function MiniChart({ sim, chartId }: { sim: FlightData; chartId: string }) {
           dot={false}
         />
         {burnout != null && (
-          <ReferenceLine
-            x={parseFloat(burnout.toFixed(3))}
-            stroke="var(--chart-5)"
-            strokeDasharray="4 4"
-            label={{
-              value: "BURNOUT",
-              position: "insideTopLeft",
-              fontSize: 8,
-              fill: "var(--chart-5)",
-            }}
-          />
+          <ReferenceLine x={parseFloat(burnout.toFixed(3))} stroke="var(--chart-5)" strokeDasharray="4 4" />
         )}
         {apogee != null && (
-          <ReferenceLine
-            x={parseFloat(apogee.toFixed(3))}
-            stroke="var(--chart-4)"
-            strokeDasharray="4 4"
-            label={{
-              value: "APOGEE",
-              position: "insideTopRight",
-              fontSize: 8,
-              fill: "var(--chart-4)",
-            }}
-          />
+          <ReferenceLine x={parseFloat(apogee.toFixed(3))} stroke="var(--chart-4)" strokeDasharray="4 4" />
+        )}
+        {recovery != null && (
+          <ReferenceLine x={parseFloat(recovery.toFixed(3))} stroke="var(--chart-3)" strokeDasharray="4 4" />
         )}
       </LineChart>
     </ChartContainer>
+      <div className="flex items-center justify-center gap-4 flex-wrap">
+        {burnout != null && (
+          <div className="flex items-center gap-1.5">
+            <div className="h-[2px] w-4 border-t-2 border-dashed" style={{ borderColor: "var(--chart-5)" }} />
+            <span className="text-[10px] font-mono text-foreground/70">BURNOUT {burnout.toFixed(1)}s</span>
+          </div>
+        )}
+        {apogee != null && (
+          <div className="flex items-center gap-1.5">
+            <div className="h-[2px] w-4 border-t-2 border-dashed" style={{ borderColor: "var(--chart-4)" }} />
+            <span className="text-[10px] font-mono text-foreground/70">APOGEE {apogee.toFixed(1)}s</span>
+          </div>
+        )}
+        {recovery != null && (
+          <div className="flex items-center gap-1.5">
+            <div className="h-[2px] w-4 border-t-2 border-dashed" style={{ borderColor: "var(--chart-3)" }} />
+            <span className="text-[10px] font-mono text-foreground/70">RECOVERY {recovery.toFixed(1)}s</span>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-3 px-1">
+        <span className="text-[10px] font-mono text-foreground/50 whitespace-nowrap">{range[0].toFixed(1)}s</span>
+        <Slider
+          value={range}
+          onValueChange={setRange}
+          min={tMin}
+          max={tMax}
+          step={0.1}
+          className="flex-1"
+        />
+        <span className="text-[10px] font-mono text-foreground/50 whitespace-nowrap">{range[1].toFixed(1)}s</span>
+      </div>
+    </>
   );
 }
