@@ -593,12 +593,12 @@ def create_component(
     """Create a new component and add it to a parent in an .ork or .rkt file."""
     from rocketsmith.openrocket.utils import get_openrocket_path
 
-    if jar_path is None:
-        jar_path = get_openrocket_path()
-
     java_class_name = COMPONENT_TYPES.get(component_type)
     if not java_class_name:
         raise ValueError(f"Unknown component type: {component_type}")
+
+    if jar_path is None:
+        jar_path = get_openrocket_path()
 
     with _or_context(jar_path) as instance:
         import orhelper

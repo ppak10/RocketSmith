@@ -89,6 +89,18 @@ def register_openrocket_flight(app: FastMCP):
                 file_path=str(rocket_file_path),
             )
 
+        # Validate required arguments before resolving JAR path.
+        if action == "create" and motor_designation is None:
+            return tool_error(
+                "'motor_designation' is required for action 'create'.",
+                "MISSING_ARGUMENT",
+            )
+        if action == "delete" and sim_name is None:
+            return tool_error(
+                "'sim_name' is required for action 'delete'.",
+                "MISSING_ARGUMENT",
+            )
+
         try:
             if openrocket_path is None:
                 openrocket_path = get_openrocket_path()
