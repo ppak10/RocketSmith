@@ -15,6 +15,7 @@ from rocketsmith.gui.lifecycle import (
     _read_pid_file,
     _kill_all_from_pid_file,
     check_existing_servers,
+    start_gui_server,
     stop_gui_server,
 )
 
@@ -33,11 +34,12 @@ def register_gui_server(app: FastMCP):
         title="GUI Server",
         description=(
             "Manage the RocketSmith GUI server. "
-            "The server is started automatically by rocketsmith_setup — you do not "
-            "need to start it manually. "
+            "Use action='start' to launch the GUI (copies bundle to project, starts backend, opens browser). "
+            "rocketsmith_setup also calls start automatically — use this tool to recover if the GUI did not open "
+            "or to launch it explicitly. "
             "Use action='dev' to launch in development mode with Vite HMR for frontend hot-reloading. "
             "Use action='stop' to shut down a running GUI server. "
-            "Pass project_dir to stop (reads the PID file automatically) or pid to stop a specific process."
+            "Pass project_dir for all actions."
         ),
         structured_output=True,
     )
@@ -46,34 +48,27 @@ def register_gui_server(app: FastMCP):
         project_dir: Optional[str] = None,
         pid: Optional[int] = None,
         host: Optional[str] = None,
+        port: Optional[int] = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
-        Manage the RocketSmith GUI server (dev mode and stop only).
-
-        The production GUI server is started automatically by rocketsmith_setup.
+        Manage the RocketSmith GUI server.
 
         Args:
-            action: One of "dev" or "stop".
-            project_dir: (dev/stop) Path to the project directory.
-            pid: (stop only) PID of a specific GUI server process to stop.
-                 If omitted, reads the PID file from project_dir.
-            host: (dev) Host IP to bind to. Defaults to 127.0.0.1.
+            action: One of "start", "dev", or "stop".
+            project_dir: Path to the project directory (required for start/dev/stop).
+            pid: (stop only) PID of a specific process to stop instead of reading PID file.
+            host: Bind address. Defaults to 127.0.0.1.
+            port: (start only) Backend port. Defaults to 24880.
         """
-        if action == "dev":
+        if action == "start":
+            return await _start(project_dir, host, port)
+        elif action == "dev":
             return await _dev(project_dir, host)
         elif action == "stop":
             return await _stop(pid, project_dir)
-        elif action == "start":
-            return tool_error(
-                "action='start' is no longer supported on gui_server. "
-                "The GUI server is started automatically by rocketsmith_setup. "
-                "Call rocketsmith_setup(action='check', project_dir='<path>') instead.",
-                "DEPRECATED",
-                action=action,
-            )
         else:
             return tool_error(
-                f"Unknown action: {action!r}. Use 'dev' or 'stop'.",
+                f"Unknown action: {action!r}. Use 'start', 'dev', or 'stop'.",
                 "INVALID_ACTION",
                 action=action,
             )
@@ -113,6 +108,41 @@ def register_gui_server(app: FastMCP):
             f"Run 'lsof -i :{busy[0]}' to find the owner.",
             "PORTS_OCCUPIED",
             ports=busy,
+        )
+
+    # ── start ──────────────────────────────────────────────────────────────
+
+    async def _start(
+        project_dir: Optional[str],
+        host: Optional[str],
+        port: Optional[int],
+    ) -> Union[ToolSuccess[dict], ToolError]:
+        result = await _validate_project_dir(project_dir)
+        if isinstance(result, ToolError):
+            return result
+        resolved = result
+
+        bind_host = host if host is not None else DEFAULT_HOST
+        bind_port = port if port is not None else DEFAULT_PORT
+
+        outcome = start_gui_server(resolved, host=bind_host, port=bind_port)
+        if outcome.get("error"):
+            return tool_error(
+                outcome["error"],
+                "SERVER_LAUNCH_FAILED",
+                project_dir=str(resolved),
+            )
+        return tool_success(
+            {
+                "pid": outcome["pid"],
+                "server_url": outcome["server_url"],
+                "project_dir": str(resolved),
+                "reused": outcome["reused"],
+                "message": (
+                    f"GUI server {'already running' if outcome['reused'] else 'started'} "
+                    f"at {outcome['server_url']}."
+                ),
+            }
         )
 
     # ── dev ────────────────────────────────────────────────────────────────

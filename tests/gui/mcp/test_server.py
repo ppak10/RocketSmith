@@ -1,6 +1,8 @@
 """Tests for the gui_server MCP tool."""
 
 import pytest
+from pathlib import Path
+from unittest.mock import MagicMock
 from mcp.server.fastmcp import FastMCP
 
 from rocketsmith.gui.mcp.server import register_gui_server
@@ -44,15 +46,88 @@ async def test_invalid_action(tool):
     assert result.error_code == "INVALID_ACTION"
 
 
-# ── Start: deprecated ────────────────────────────────────────────────────────
+# ── Start: error cases ───────────────────────────────────────────────────────
 
 
 @pytest.mark.anyio
-async def test_start_returns_deprecated(tool):
-    """action='start' is no longer supported; rocketsmith_setup handles it."""
+async def test_start_missing_project_dir(tool):
     result = await tool.fn(action="start")
     assert result.success is False
-    assert result.error_code == "DEPRECATED"
+    assert result.error_code == "MISSING_PARAMETER"
+
+
+@pytest.mark.anyio
+async def test_start_nonexistent_dir(tool, tmp_path):
+    result = await tool.fn(action="start", project_dir=str(tmp_path / "nope"))
+    assert result.success is False
+    assert result.error_code == "DIR_NOT_FOUND"
+
+
+@pytest.mark.anyio
+async def test_start_path_is_file(tool, tmp_path):
+    f = tmp_path / "not_a_dir.txt"
+    f.write_text("hello")
+    result = await tool.fn(action="start", project_dir=str(f))
+    assert result.success is False
+    assert result.error_code == "NOT_A_DIRECTORY"
+
+
+# ── Start: success ───────────────────────────────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_start_launches_server(tool, tmp_path, monkeypatch):
+    mock_outcome = {
+        "pid": 12345,
+        "server_url": "http://127.0.0.1:24880",
+        "reused": False,
+        "error": None,
+    }
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.start_gui_server",
+        lambda resolved, host, port: mock_outcome,
+    )
+
+    result = await tool.fn(action="start", project_dir=str(tmp_path))
+    assert result.success is True
+    assert result.data["pid"] == 12345
+    assert result.data["server_url"] == "http://127.0.0.1:24880"
+    assert result.data["reused"] is False
+
+
+@pytest.mark.anyio
+async def test_start_reuses_existing(tool, tmp_path, monkeypatch):
+    mock_outcome = {
+        "pid": 9999,
+        "server_url": "http://127.0.0.1:24880",
+        "reused": True,
+        "error": None,
+    }
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.start_gui_server",
+        lambda resolved, host, port: mock_outcome,
+    )
+
+    result = await tool.fn(action="start", project_dir=str(tmp_path))
+    assert result.success is True
+    assert result.data["reused"] is True
+
+
+@pytest.mark.anyio
+async def test_start_propagates_lifecycle_error(tool, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "rocketsmith.gui.mcp.server.start_gui_server",
+        lambda resolved, host, port: {
+            "pid": None,
+            "server_url": None,
+            "reused": False,
+            "error": "GUI build not found.",
+        },
+    )
+
+    result = await tool.fn(action="start", project_dir=str(tmp_path))
+    assert result.success is False
+    assert result.error_code == "SERVER_LAUNCH_FAILED"
 
 
 # ── Stop: error cases ───────────────────────────────────────────────────────
