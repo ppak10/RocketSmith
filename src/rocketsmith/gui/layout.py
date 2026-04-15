@@ -37,5 +37,5 @@ STEP_DIR = "cadsmith/step"
 
 # Slicer directories — configs and output.
 PRUSASLICER_DIR = "prusaslicer"
-PRUSASLICER_CONFIG_DIR = "prusaslicer/config"
+PRUSASLICER_CONFIG_DIR = "prusaslicer/configs"
 GCODE_DIR = "prusaslicer/gcode"

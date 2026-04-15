@@ -73,7 +73,7 @@ Manage local `.ini` config files stored under `prusaslicer/configs/{type}/{name}
 - `settings`: key-value dict of PrusaSlicer settings (required for `create` and `set`)
   - `set` merges keys into an existing config — only provided keys are changed, others are preserved
   - `create` fails if the config already exists
-- `prusaslicer_config_path`: override the default `prusaslicer/config/` root (optional)
+- `prusaslicer_config_path`: override the default `prusaslicer/configs/` root (optional)
 
 ### `prusaslicer_slice`
 Slice a 3D model file and return print metadata (time, filament usage, layer count).
