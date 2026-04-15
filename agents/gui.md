@@ -46,31 +46,31 @@ The GUI uses a HashRouter. URLs look like `http://host:port/#/path`.
 
 | Route | Page | Navigate after... |
 |-------|------|-------------------|
-| `/` | Agent Feed | Default — live dashboard with all cards. **Navigate here when switching to a new task/card.** |
-| `/flights` | Flight Viewer | `openrocket_flight(action="run")` |
-| `/component-tree` | Component Tree | `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
-| `/assembly` | Assembly Viewer | `cadsmith_assembly(action="generate")` |
-| `/parts/<name>` | Part Detail | `cadsmith_generate_assets` for a part |
+| `#/` | Agent Feed | Default — live dashboard with all cards. **Navigate here when switching to a new task/card.** |
+| `#/flights` | Flight Viewer | `openrocket_flight(action="run")` |
+| `#/component-tree` | Component Tree | `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
+| `#/assembly` | Assembly Viewer | `cadsmith_assembly(action="generate")` |
+| `#/parts/<name>` | Part Detail | `cadsmith_generate_assets` for a part |
 
-**Part paths use `/parts/<name>`** — no `.json` extension, no `gui/` prefix. The route is just a key — the frontend looks up `gui/parts/<name>.json` in the in-memory offline data bundle. No files are fetched directly by the browser.
+**Part paths use `#/parts/<name>`** — no `.json` extension, no `gui/` prefix. The route is just a key — the frontend looks up `gui/parts/<name>.json` in the in-memory offline data bundle. No files are fetched directly by the browser.
 
 ## Navigation Examples
 
 ```
 # After the openrocket agent runs a flight:
-gui_navigate(path="/flights")
+gui_navigate(path="#/flights")
 
 # After the manufacturing agent annotates the component tree:
-gui_navigate(path="/component-tree")
+gui_navigate(path="#/component-tree")
 
 # After cadsmith generates and previews the nose cone:
-gui_navigate(path="/parts/nose_cone")
+gui_navigate(path="#/parts/nose_cone")
 
 # After cadsmith generates the assembly layout:
-gui_navigate(path="/assembly")
+gui_navigate(path="#/assembly")
 
 # Return to the live dashboard:
-gui_navigate(path="/")
+gui_navigate(path="#/")
 ```
 
 ## Server Lifecycle
@@ -107,19 +107,19 @@ Reads PID files and kills all GUI server processes.
 
 The orchestrator or domain agents should invoke this agent (or call `gui_navigate` directly) at these moments:
 
-1. **After flight runs** → `/flights` (show the user their flight charts)
-2. **After component tree generation or DFAM annotation** → `/component-tree` (show the design overview)
-3. **After generating a part preview** → `/parts/<name>` (show the 3D model and source)
-4. **After assembly generation** → `/assembly` (show how parts fit together)
-5. **When returning to the dashboard** → `/` (show the Agent Feed with all cards)
+1. **After flight runs** → `#/flights` (show the user their flight charts)
+2. **After component tree generation or DFAM annotation** → `#/component-tree` (show the design overview)
+3. **After generating a part preview** → `#/parts/<name>` (show the 3D model and source)
+4. **After assembly generation** → `#/assembly` (show how parts fit together)
+5. **When returning to the dashboard** → `#/` (show the Agent Feed with all cards)
 
 ### Returning to the Agent Feed
 
-The Agent Feed (`/`) is the primary live dashboard. When the user is viewing a detail page (e.g. `/flights`, `/parts/nose_cone`) and new activity starts on a **different card** — for example, a new part begins generating while viewing flights — navigate back to `/` so the user sees the new card appear in the feed. The Agent Feed auto-focuses on the most recently updated card, so returning to it keeps the user in sync with pipeline progress.
+The Agent Feed (`#/`) is the primary live dashboard. When the user is viewing a detail page (e.g. `#/flights`, `#/parts/nose_cone`) and new activity starts on a **different card** — for example, a new part begins generating while viewing flights — navigate back to `#/` so the user sees the new card appear in the feed. The Agent Feed auto-focuses on the most recently updated card, so returning to it keeps the user in sync with pipeline progress.
 
-**Rule of thumb:** Navigate to a detail page to *present* finished results. Navigate back to `/` when the pipeline moves on to the *next* piece of work.
+**Rule of thumb:** Navigate to a detail page to *present* finished results. Navigate back to `#/` when the pipeline moves on to the *next* piece of work.
 
-In **interactive mode**, navigate after each major step so the user sees results. In **zero-shot mode**, the Agent Feed (`/`) auto-updates via WebSocket — only navigate to specific pages when the user asks or when presenting final results.
+In **interactive mode**, navigate after each major step so the user sees results. In **zero-shot mode**, the Agent Feed (`#/`) auto-updates via WebSocket — only navigate to specific pages when the user asks or when presenting final results.
 
 ## What This Agent Does NOT Do
 

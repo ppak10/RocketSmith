@@ -12,9 +12,9 @@ def register_gui_navigate(app: FastMCP):
         title="Navigate GUI",
         description=(
             "Navigate the RocketSmith GUI to a specific route path. "
-            "Routes: '/' (Agent Feed), '/flights', '/component-tree', "
-            "'/assembly', '/parts/<name>' (part detail). "
-            "Part paths use '/parts/<name>' not '/gui/parts/...'. "
+            "Routes: '#/' (Agent Feed), '#/flights', '#/component-tree', "
+            "'#/assembly', '#/parts/<name>' (part detail). "
+            "Part paths use '#/parts/<name>' not '/gui/parts/...'. "
             "Requires the GUI server to be running."
         ),
         structured_output=True,
@@ -29,15 +29,15 @@ def register_gui_navigate(app: FastMCP):
         http://127.0.0.1:5173/#/parts/nose_cone
 
         Args:
-            path: Route path to navigate to. Examples:
-                "/" — Agent Feed (live dashboard with cards)
-                "/flights" — Flight viewer (charts from flight JSON)
-                "/component-tree" — Component tree (rocket profile + parts list)
-                "/assembly" — Assembly viewer (3D spatial layout)
-                "/parts/nose_cone" — Part detail page (3D model + source code)
-                "/parts/upper_body_tube" — Part detail page
+            path: Hash route path to navigate to. Examples:
+                "#/" — Agent Feed (live dashboard with cards)
+                "#/flights" — Flight viewer (charts from flight JSON)
+                "#/component-tree" — Component tree (rocket profile + parts list)
+                "#/assembly" — Assembly viewer (3D spatial layout)
+                "#/parts/nose_cone" — Part detail page (3D model + source code)
+                "#/parts/upper_body_tube" — Part detail page
 
-            Note: part paths use "/parts/<name>" (NOT "/gui/parts/...").
+            Note: part paths use "#/parts/<name>" (NOT "/gui/parts/...").
             The route strips the "gui/" prefix — the frontend adds it back
             when loading the file.
         """
@@ -47,7 +47,10 @@ def register_gui_navigate(app: FastMCP):
 
         from rocketsmith.gui.mcp.server import DEFAULT_HOST, DEFAULT_PORT, WS_PORT
 
-        payload = json.dumps({"path": path}).encode("utf-8")
+        # Normalize: strip leading '#' — React Router's navigate() expects a
+        # plain path ("/component-tree"), not a hash fragment ("#/component-tree").
+        normalized_path = path.lstrip("#") or "/"
+        payload = json.dumps({"path": normalized_path}).encode("utf-8")
 
         for port in [DEFAULT_PORT, WS_PORT]:
             url = f"http://{DEFAULT_HOST}:{port}/api/navigate"
@@ -62,8 +65,8 @@ def register_gui_navigate(app: FastMCP):
                     if resp.status == 200:
                         return tool_success(
                             {
-                                "path": path,
-                                "message": f"Navigated to {path}",
+                                "path": normalized_path,
+                                "message": f"Navigated to {normalized_path}",
                             }
                         )
             except (urllib.error.URLError, OSError):

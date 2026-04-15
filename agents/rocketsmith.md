@@ -72,21 +72,21 @@ The GUI uses a HashRouter. Use `gui_navigate(path=...)` to switch the user's bro
 
 | Route | Page | When to navigate |
 |-------|------|-----------------|
-| `/` | Agent Feed | Default — live dashboard with cards. **Navigate here when moving to a different task.** |
-| `/flights` | Flight Viewer | After `openrocket_flight(action="run")` |
-| `/component-tree` | Component Tree | After `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
-| `/assembly` | Assembly Viewer | After `cadsmith_assembly(action="generate")` |
-| `/parts/<name>` | Part Detail | After `cadsmith_generate_assets` for a part |
+| `#/` | Agent Feed | Default — live dashboard with cards. **Navigate here when moving to a different task.** |
+| `#/flights` | Flight Viewer | After `openrocket_flight(action="run")` |
+| `#/component-tree` | Component Tree | After `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
+| `#/assembly` | Assembly Viewer | After `cadsmith_assembly(action="generate")` |
+| `#/parts/<name>` | Part Detail | After `cadsmith_generate_assets` for a part |
 
-**Part page paths** use `/parts/<name>` (no `.json` extension, no `gui/` prefix). The frontend resolves the file path internally.
+**Part page paths** use `#/parts/<name>` (no `.json` extension, no `gui/` prefix). The frontend resolves the file path internally.
 
-**Navigation pattern:** Navigate to a detail page (e.g. `/flights`) to present finished results. When the pipeline moves on to the next piece of work, navigate back to `/` so the user sees new cards appear in the Agent Feed. The feed auto-focuses on the most recently updated card.
+**Navigation pattern:** Navigate to a detail page (e.g. `#/flights`) to present finished results. When the pipeline moves on to the next piece of work, navigate back to `#/` so the user sees new cards appear in the Agent Feed. The feed auto-focuses on the most recently updated card.
 
-**Example:** After running a flight, navigate to `/flights` to present the results. When CAD generation starts next, navigate back to `/` so the user sees part cards appear:
+**Example:** After running a flight, navigate to `#/flights` to present the results. When CAD generation starts next, navigate back to `#/` so the user sees part cards appear:
 ```
-gui_navigate(path="/flights")   # present flight results
+gui_navigate(path="#/flights")   # present flight results
 # ... later, when cadsmith starts ...
-gui_navigate(path="/")          # return to feed for new activity
+gui_navigate(path="#/")          # return to feed for new activity
 ```
 
 ## End-to-End Workflow
