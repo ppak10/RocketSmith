@@ -220,6 +220,9 @@ node_modules/
 .gui.pid
 
 # Compiled gui in development here.
-index.css 
-index.html 
-main.js 
+index.css
+index.html
+main.js
+
+# Runtime project data (gui_server output when run against the repo itself)
+/gui/

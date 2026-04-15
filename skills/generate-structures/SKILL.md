@@ -111,6 +111,7 @@ Key rules:
 - **Parameters are named constants at the top** — match the manifest's feature block exactly.
 - **Imports limited to `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
 - **No hole patterns, no pocket subtractions, no retention features.** Those are Pass 2.
+- **Script filename is always `<name>.py`.** Never add a pass number, suffix, or version tag (`_pass1`, `_pass2`, `_modified`, `_v2`, `_revised`, etc.) to the filename. One canonical file per part — git history provides the audit trail if you need to see what changed.
 
 ## Part Orientation Convention
 
