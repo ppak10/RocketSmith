@@ -73,7 +73,7 @@ Manage local `.ini` config files stored under `prusaslicer/configs/{type}/{name}
 - `settings`: key-value dict of PrusaSlicer settings (required for `create` and `set`)
   - `set` merges keys into an existing config — only provided keys are changed, others are preserved
   - `create` fails if the config already exists
-- `prusaslicer_config_path`: override the default `prusaslicer/config/` root (optional)
+- `prusaslicer_config_path`: override the default `prusaslicer/configs/` root (optional)
 
 ### `prusaslicer_slice`
 Slice a 3D model file and return print metadata (time, filament usage, layer count).
@@ -90,7 +90,8 @@ The returned `filament_used_g` is the **input to `rocketsmith:mass-calibration`*
 Check or install dependencies.
 
 - `action`: `"check"` | `"install"`
-- Call `rocketsmith_setup(action="check")` first if PrusaSlicer availability is uncertain
+- `project_dir`: absolute path to the project directory — **always pass this**
+- Call `rocketsmith_setup(action="check", project_dir="<project_dir>")` first if PrusaSlicer availability is uncertain
 
 ## Workflow
 
@@ -111,7 +112,9 @@ Check or install dependencies.
 
 ### Slicing
 ```
-1. rocketsmith_setup(action="check")        → verify PrusaSlicer is installed (if uncertain)
+1. rocketsmith_setup(action="check", project_dir="<project_dir>")
+                                             → verify PrusaSlicer is installed (if uncertain)
+                                               and register project directory for the session
 2. read_json("<project_root>/gui/component_tree.json")
                                              → load the component tree — it owns
                                                the authoritative step_path and

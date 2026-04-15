@@ -119,7 +119,7 @@ def register_cadsmith_bd_warehouse_info(app: FastMCP):
     async def cadsmith_bd_warehouse_info(
         generator_class: str,
         generator_params: dict,
-        project_dir: Path | None = None,
+        out_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Instantiate a bd_warehouse part and return its properties.
@@ -132,8 +132,9 @@ def register_cadsmith_bd_warehouse_info(app: FastMCP):
                 {"size": "M4-0.7", "fastener_type": "iso4032"} for a HexNut, or
                 {"size": "M4-0.7", "length": 10, "fastener_type": "iso4762"}
                 for a SocketHeadCapScrew.
-            project_dir: Optional project root. When provided, exports a STEP
-                file to cadsmith/step/ and writes a Part JSON to gui/parts/.
+            out_path: Optional path to write the exported STEP file. Defaults
+                to ``<project_dir>/cadsmith/step/<stem>.step``. A Part JSON is
+                always written alongside it to ``<project_dir>/gui/parts/``.
         """
         import bd_warehouse.fastener
         from build123d import Mode, export_step
@@ -211,32 +212,34 @@ def register_cadsmith_bd_warehouse_info(app: FastMCP):
         # ── Extract dimensional attributes ────────────────────────────
         attributes = _extract_attributes(instance)
 
-        # ── Optional: export STEP + Part JSON ─────────────────────────
-        if project_dir is not None:
-            from rocketsmith.gui.layout import PARTS_DIR, STEP_DIR
+        # ── Export STEP + Part JSON ────────────────────────────────────
+        from rocketsmith.gui.layout import PARTS_DIR, STEP_DIR
+        from rocketsmith.mcp.utils import get_project_dir
 
-            resolved_dir = resolve_path(project_dir)
+        project_dir = get_project_dir()
 
-            # Export STEP.
-            step_dir = resolved_dir / STEP_DIR
-            step_dir.mkdir(parents=True, exist_ok=True)
-            step_path = step_dir / f"{stem}.step"
-            try:
-                export_step(instance, str(step_path))
-                part.step_path = str(step_path)
-            except Exception as e:
-                return tool_error(
-                    f"Failed to export STEP for {generator_class}: {e}",
-                    "EXPORT_FAILED",
-                    exception_type=type(e).__name__,
-                    exception_message=str(e),
-                )
+        if out_path is not None:
+            step_path = resolve_path(out_path)
+        else:
+            step_path = project_dir / STEP_DIR / f"{stem}.step"
 
-            # Write Part JSON.
-            parts_dir = resolved_dir / PARTS_DIR
-            parts_dir.mkdir(parents=True, exist_ok=True)
-            part_path = parts_dir / f"{stem}.json"
-            part_path.write_text(part.model_dump_json(indent=2), encoding="utf-8")
+        step_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            export_step(instance, str(step_path))
+            part.step_path = str(step_path)
+        except Exception as e:
+            return tool_error(
+                f"Failed to export STEP for {generator_class}: {e}",
+                "EXPORT_FAILED",
+                exception_type=type(e).__name__,
+                exception_message=str(e),
+            )
+
+        # Write Part JSON.
+        parts_dir = project_dir / PARTS_DIR
+        parts_dir.mkdir(parents=True, exist_ok=True)
+        part_path = parts_dir / f"{stem}.json"
+        part_path.write_text(part.model_dump_json(indent=2), encoding="utf-8")
 
         return tool_success(
             {

@@ -64,11 +64,12 @@ def register_prusaslicer_config(app: FastMCP):
             prusaslicer_config_path: Root directory for config storage.
                                      Defaults to prusaslicer/configs/ in the working directory.
         """
-        base = (
-            prusaslicer_config_path
-            if prusaslicer_config_path is not None
-            else DEFAULT_CONFIG_PATH
-        )
+        if prusaslicer_config_path is not None:
+            base = prusaslicer_config_path
+        else:
+            from rocketsmith.mcp.utils import get_project_dir
+
+            base = get_project_dir() / DEFAULT_CONFIG_PATH
 
         # Validate required args per action
         needs_type = action in ("show", "create", "set", "delete")

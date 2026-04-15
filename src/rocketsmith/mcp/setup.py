@@ -51,8 +51,14 @@ def register_setup(app: FastMCP):
     @app.tool(name="rocketsmith_setup")
     def rocketsmith_setup(
         action: Literal["check", "install"] = "check",
+        project_dir: Path | None = None,
     ) -> DependencyStatus:
         """Check or install rocketsmith dependencies (Java, OpenRocket, PrusaSlicer).
+
+        Always call this at the start of a session with ``project_dir`` set to
+        the user's project directory. This persists the project directory for
+        the lifetime of the MCP server process so all subsequent tools resolve
+        paths correctly without requiring an explicit ``project_dir`` argument.
 
         Actions:
         - check: Return the current installation status of each dependency.
@@ -63,6 +69,11 @@ def register_setup(app: FastMCP):
         - Linux: Java via apt, OpenRocket JAR downloaded directly, PrusaSlicer via Homebrew or AppImage
         - Windows: Java via winget (Temurin), OpenRocket JAR downloaded directly, PrusaSlicer via winget
         """
+        if project_dir is not None:
+            from rocketsmith.mcp.utils import set_project_dir
+
+            set_project_dir(project_dir)
+
         if action == "check":
             return _check()
 

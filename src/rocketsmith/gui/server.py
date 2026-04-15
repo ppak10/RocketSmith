@@ -309,6 +309,16 @@ async def _ws_handler(request: web.Request) -> web.WebSocketResponse:
         # Also send the current file tree.
         tree = _build_tree(project_dir)
         await ws.send_str(json.dumps({"type": "files-tree", "tree": tree}))
+        # Send project info so the frontend knows the folder name in dev mode.
+        await ws.send_str(
+            json.dumps(
+                {
+                    "type": "project-info",
+                    "name": project_dir.name,
+                    "path": str(project_dir),
+                }
+            )
+        )
     except Exception:
         pass  # Best-effort — don't fail the connection.
 

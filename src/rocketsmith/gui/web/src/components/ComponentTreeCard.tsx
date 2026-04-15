@@ -255,10 +255,7 @@ export const ComponentTreeCard = memo(function ComponentTreeCard({ className, tr
           <div className="flex flex-wrap gap-2 items-center">
             {cgMm !== null && (
               <div className="flex items-center gap-1.5">
-                <Badge
-                  className="text-[10px] px-1.5 py-0 text-white gap-1"
-                  style={{ backgroundColor: "#3b82f6" }}
-                >
+                <Badge variant="neutral" className="text-[10px] px-1.5 py-0 gap-1">
                   <CirclePlus className="size-3" />
                   CG
                 </Badge>
@@ -269,10 +266,7 @@ export const ComponentTreeCard = memo(function ComponentTreeCard({ className, tr
             )}
             {cpMm !== null && (
               <div className="flex items-center gap-1.5">
-                <Badge
-                  className="text-[10px] px-1.5 py-0 text-white gap-1"
-                  style={{ backgroundColor: "#ef4444" }}
-                >
+                <Badge variant="neutral" className="text-[10px] px-1.5 py-0 gap-1">
                   <CircleDot className="size-3" />
                   CP
                 </Badge>

@@ -10,7 +10,7 @@ import { ComponentTreeViewer } from "@/panels/ComponentTreeViewer";
 import { PartViewer } from "@/panels/PartViewer";
 
 export function App() {
-  const { events, connected, offline, navigation, clearNavigation, treeVersion } = useWatchSocket();
+  const { events, connected, offline, navigation, clearNavigation, treeVersion, projectInfo } = useWatchSocket();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export function App() {
                 navigation={navigation}
                 clearNavigation={clearNavigation}
                 treeVersion={treeVersion}
+                projectInfo={projectInfo}
               />
             }
           >

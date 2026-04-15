@@ -37,7 +37,8 @@ You are a manufacturing planning agent. Your job is to take a component tree gen
 - `manufacturing_annotate_tree` — Apply DFAM rules to `component_tree.json`. Annotates each component with fate (print, fuse, purchase, skip), fusion directives, and AM-specific dimension adjustments. Accepts `fusion_overrides` for user-specified decisions.
 - `openrocket_component` — Update component dimensions in the `.ork` file when DFAM requires changes (e.g., wall thickness increase). Use `action="update"` with the adjusted values.
 - `openrocket_component` (action="read") — Regenerate the component tree after `.ork` changes. Call with `rocket_file_path` and `project_dir` but no `component_name` to get the full tree. The tree must be regenerated after any dimension changes so annotations reflect the current design.
-- `rocketsmith_setup` — Check or install dependencies (`action`: check/install)
+- `rocketsmith_setup` — Check or install dependencies (`action`: check/install, `project_dir`: absolute path to the project)
+  - Always pass `project_dir`
 
 ## Skills You Rely On
 

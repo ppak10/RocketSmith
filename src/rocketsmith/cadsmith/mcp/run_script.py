@@ -18,7 +18,7 @@ def register_cadsmith_run_script(app: FastMCP):
             "(build123d, pathlib, math, typing). "
             "After execution, verifies that non-empty .step files "
             "were written to the output directory. "
-            "STL files are generated separately by cadsmith_generate_preview."
+            "STL files are generated separately by cadsmith_generate_assets."
         ),
         structured_output=True,
     )

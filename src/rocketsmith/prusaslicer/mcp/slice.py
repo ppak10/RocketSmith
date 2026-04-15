@@ -57,15 +57,14 @@ def register_prusaslicer_slice(app: FastMCP):
             from rocketsmith.gui.layout import GCODE_DIR
 
             project_root = model_file_path.parent.parent.parent
-            gcode_dir = project_root / GCODE_DIR
-            gcode_dir.mkdir(parents=True, exist_ok=True)
-            output_path = gcode_dir / (model_file_path.stem + ".gcode")
+            output_path = project_root / GCODE_DIR / (model_file_path.stem + ".gcode")
         else:
             output_path = model_file_path.with_suffix(".gcode")
 
         from rocketsmith.prusaslicer.slice import PrusaSlicerSliceError
 
         try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             result = prusaslicer_slice_fn(
                 model_path=model_file_path,
                 output_path=output_path,

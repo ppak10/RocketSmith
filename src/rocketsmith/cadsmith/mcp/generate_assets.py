@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 
-def register_cadsmith_generate_preview(app: FastMCP):
+def register_cadsmith_generate_assets(app: FastMCP):
     from pathlib import Path
     from typing import Union
 
@@ -9,10 +9,10 @@ def register_cadsmith_generate_preview(app: FastMCP):
     from rocketsmith.mcp.utils import resolve_path, tool_success, tool_error
 
     @app.tool(
-        name="cadsmith_generate_preview",
-        title="Generate Part Preview",
+        name="cadsmith_generate_assets",
+        title="Generate Part Assets",
         description=(
-            "Generate preview assets for a STEP file: STL mesh (for the 3D "
+            "Generate assets for a STEP file: STL mesh (for the 3D "
             "viewer), PNG thumbnail, rotating GIF, and/or ASCII animation. "
             "The STL is always generated to gui/assets/stl/. Other outputs "
             "are written to gui/assets/<format>/. "
@@ -21,10 +21,10 @@ def register_cadsmith_generate_preview(app: FastMCP):
         ),
         structured_output=True,
     )
-    async def cadsmith_generate_preview(
+    async def cadsmith_generate_assets(
         step_file_path: Path,
-        project_dir: Path,
         outputs: list[str] | None = None,
+        out_dir: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Generate preview assets for a STEP file.
@@ -34,18 +34,22 @@ def register_cadsmith_generate_preview(app: FastMCP):
 
         Args:
             step_file_path: Path to the STEP file to preview.
-            project_dir: Absolute path to the project root directory.
             outputs: List of additional preview types to generate. Options:
                 "thumbnail" (PNG), "gif", "ascii". Defaults to all three.
+            out_dir: Optional project root for writing preview assets.
+                Defaults to the current project directory.
         """
         import asyncio
         import subprocess
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        from rocketsmith.cadsmith.preview.progress import PreviewProgress
+        from rocketsmith.cadsmith.assets.progress import PreviewProgress
+        from rocketsmith.mcp.utils import get_project_dir
 
         step_file_path = resolve_path(step_file_path)
-        project_dir = resolve_path(project_dir)
+        project_dir = (
+            resolve_path(out_dir) if out_dir is not None else get_project_dir()
+        )
 
         if not step_file_path.exists():
             return tool_error(
@@ -107,7 +111,7 @@ def register_cadsmith_generate_preview(app: FastMCP):
             return "stl", stl_path
 
         def _run_thumbnail() -> tuple[str, Path]:
-            from rocketsmith.cadsmith.preview.image import render_step_png
+            from rocketsmith.cadsmith.assets.image import render_step_png
 
             progress.update("thumbnail", "in_progress")
             result = render_step_png(step_file_path, png_path)
@@ -117,7 +121,7 @@ def register_cadsmith_generate_preview(app: FastMCP):
             return "thumbnail", result
 
         def _run_gif() -> tuple[str, Path]:
-            from rocketsmith.cadsmith.preview.gif import render_step_gif
+            from rocketsmith.cadsmith.assets.gif import render_step_gif
 
             progress.update("gif", "in_progress")
             result = render_step_gif(step_file_path, gif_path)
@@ -125,7 +129,7 @@ def register_cadsmith_generate_preview(app: FastMCP):
             return "gif", result
 
         def _run_ascii() -> tuple[str, Path]:
-            from rocketsmith.cadsmith.preview.ascii import render_ascii_animation
+            from rocketsmith.cadsmith.assets.ascii import render_ascii_animation
 
             progress.update("ascii", "in_progress")
             result = render_ascii_animation(step_file_path, txt_path)
@@ -172,4 +176,4 @@ def register_cadsmith_generate_preview(app: FastMCP):
 
         return tool_success(output)
 
-    return cadsmith_generate_preview
+    return cadsmith_generate_assets

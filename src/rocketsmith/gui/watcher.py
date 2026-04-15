@@ -84,7 +84,9 @@ IGNORED_FILES: set[str] = {
     "files-tree.json",
     "index.html",
     "main.js",
-    "session.jsonl",
+    # session.jsonl is intentionally NOT ignored — the watcher broadcasts it so
+    # the frontend can refresh the session log in real time.  Loop prevention is
+    # handled in server.py: on_change skips auto-logging for gui/logs/ files.
 }
 
 
@@ -182,7 +184,9 @@ def _scan(root: Path) -> dict[Path, float]:
     """Walk *root* and return {path: mtime} for every file."""
     snapshot: dict[Path, float] = {}
     try:
-        for dirpath, _, filenames in os.walk(root):
+        for dirpath, dirnames, filenames in os.walk(root):
+            # Skip hidden directories (e.g. .git) to avoid spurious events.
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
             for fname in filenames:
                 p = Path(dirpath) / fname
                 try:

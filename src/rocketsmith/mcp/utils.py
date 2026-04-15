@@ -1,7 +1,37 @@
+import atexit
 import os
 from pathlib import Path
 
 from rocketsmith.mcp.types import T, ToolError, ToolSuccess
+
+_ROCKETSMITH_DIR = Path.home() / ".rocketsmith"
+_atexit_registered = False
+
+
+def _pid_file() -> Path:
+    return _ROCKETSMITH_DIR / f"project_{os.getpid()}"
+
+
+def _cleanup_pid_file() -> None:
+    try:
+        _pid_file().unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def set_project_dir(path: Path) -> None:
+    """Persist the project directory for this MCP server process (PID-scoped).
+
+    Written to ``~/.rocketsmith/project_<pid>`` so concurrent sessions each
+    maintain their own project context without clobbering each other.
+    Automatically cleaned up when the process exits.
+    """
+    global _atexit_registered
+    _ROCKETSMITH_DIR.mkdir(parents=True, exist_ok=True)
+    _pid_file().write_text(str(path.resolve()))
+    if not _atexit_registered:
+        atexit.register(_cleanup_pid_file)
+        _atexit_registered = True
 
 
 def get_project_dir() -> Path:
@@ -10,30 +40,34 @@ def get_project_dir() -> Path:
     Resolution order:
 
     1. ``ROCKETSMITH_PROJECT_DIR`` environment variable — set by the extension
-       manifest (e.g. gemini-extension.json) to the user's session cwd. This is
-       the right answer when the MCP subprocess is spawned from a different
-       cwd than the user's project (which is always the case for Gemini CLI
-       extensions spawned via ``uv run --directory ${extensionPath}``).
-    2. ``Path.cwd()`` as a fallback. This is correct for ad-hoc invocations
-       but wrong for extension-based installs, where cwd is the extension
-       directory.
+       manifest (e.g. gemini-extension.json) to the user's session cwd.
+    2. ``~/.rocketsmith/project_<pid>`` — written by ``rocketsmith_setup``
+       when the agent passes ``project_dir`` at session start. PID-scoped so
+       concurrent sessions don't clobber each other.
+    3. ``Path.cwd()`` as a last resort.
 
     Tools that accept a user-supplied path should call ``resolve_path``, which
-    uses this function as the base for any relative path. Tools that need to
-    construct a default path (e.g. ``openrocket_new`` with no ``out_path``)
-    should use this directly and fail loudly rather than writing to an
-    extension directory.
+    uses this function as the base for any relative path.
     """
+    # 1. Env var (Gemini CLI sets this via ${workspacePath} substitution).
     env_dir = os.environ.get("ROCKETSMITH_PROJECT_DIR")
-    # Guard against unresolved client-side substitutions. If the extension
-    # manifest uses a variable like ``${cwd}`` that the client does not
-    # support, the literal string arrives here unchanged — fall back to
-    # ``Path.cwd()`` rather than creating files under a bogus ``${cwd}``
-    # directory.
+    # Guard against unresolved client-side substitutions like ``${cwd}``.
     if env_dir and "${" not in env_dir:
         resolved = Path(env_dir).expanduser().resolve()
         if resolved.exists() and resolved.is_dir():
             return resolved
+
+    # 2. PID-scoped file written by rocketsmith_setup.
+    pid_file = _pid_file()
+    if pid_file.exists():
+        try:
+            p = Path(pid_file.read_text().strip()).resolve()
+            if p.exists() and p.is_dir():
+                return p
+        except Exception:
+            pass
+
+    # 3. CWD fallback.
     return Path.cwd().resolve()
 
 

@@ -33,7 +33,7 @@ This skill is **rocketry-agnostic** — it knows about build123d and parts and a
 
 - `<project_root>/cadsmith/source/<name>.py` — one parametric script per part (base geometry only)
 - `<project_root>/cadsmith/step/<name>.step` — the STEP file exported by each script
-- `<project_root>/gui/assets/png/<name>.png` — 3-panel render of each part for visual verification
+- `<project_root>/gui/assets/png/<name>.png` — isometric PNG thumbnail of each part for visual verification
 
 ## Steps
 
@@ -57,7 +57,7 @@ For each entry in `manifest["parts"]`:
 
 1. **Write the script** with the `Write` tool. Use the script structure below and build only the features in `features` — ignore `modifications` entirely at this stage. For any part with **more than one shape-producing operation** (nose cone with shoulder + ogive, airframe with integrated fins, tube with integral aft shoulder, etc.) follow the iterative per-feature loop in **Build Iteratively — Verify Each Feature** below. Single-feature parts (plain body tube, plain ring) can be written in one shot.
 2. **Execute** via `cadsmith_run_script(script_path=<scripts_dir>/<name>.py, out_dir=<step_dir>)`.
-3. **Render** via `cadsmith_generate_preview(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The tool auto-routes renders of STEPs in `step/` to the sibling `png/` directory — you don't need to pass `out_path` for standard project layouts. For non-standard locations, pass `out_path=<images_dir>/<name>.png` explicitly. The PNG has **three panels — side (eye at −X, low Z on the left → high Z on the right), end (eye at +Z, showing the high-Z face), isometric 45°** — check all three, not just the iso view. Note that panel labels describe the **part-local frame**, not the rocket-logical frame — for a nose cone built per convention, low Z is the shoulder (rocket-aft) and high Z is the tip (rocket-fore). The rocket-frame view only exists in the assembly render.
+3. **Render** via `cadsmith_generate_assets(step_file_path=<step_dir>/<name>.step)` and `Read` the resulting PNG. The PNG is a single isometric view in the part's local print frame (Z=0 is the print-bed face). For a nose cone built shoulder-at-Z=0, the shoulder appears at the bottom and the tip at the top. The rocket-frame orientation is only meaningful in the assembly render.
 4. **Verify** via `cadsmith_extract_part` that the bounding box matches `features["length_mm"]` and `features["od_mm"]`.
 
 Do not proceed if a part fails verification. Fix the script and re-run.
@@ -111,6 +111,7 @@ Key rules:
 - **Parameters are named constants at the top** — match the manifest's feature block exactly.
 - **Imports limited to `build123d`, `bd_warehouse`, `pathlib`, `math`, `typing`** — `cadsmith_run_script` runs in isolated mode.
 - **No hole patterns, no pocket subtractions, no retention features.** Those are Pass 2.
+- **Script filename is always `<name>.py`.** Never add a pass number, suffix, or version tag (`_pass1`, `_pass2`, `_modified`, `_v2`, `_revised`, etc.) to the filename. One canonical file per part — git history provides the audit trail if you need to see what changed.
 
 ## Part Orientation Convention
 
@@ -157,11 +158,8 @@ For each feature in a multi-feature part:
 
 1. **Write** the script containing every feature so far plus the new one. Use `Write` for the first feature, `Edit` to append subsequent features — do not rewrite the whole script when appending one feature.
 2. **Execute**: `cadsmith_run_script(...)`.
-3. **Render + Read**: `cadsmith_generate_preview(...)` then `Read` the PNG.
-4. **Verify visually against the three panels**. The render labels describe the **part-local frame** — not the rocket's fore-aft frame. Reason in terms of "Z=0 is the part's local print-bed face" first, then translate to rocket semantics only when composing the assembly.
-   - **Side panel** — Z is horizontal, low Z on the left, high Z on the right. Is the new feature in the expected local-Z range? Is it fused to the correct face of the existing geometry? For a body tube built fore-at-Z=0, left = rocket-fore. For a nose cone built shoulder-at-Z=0, left = rocket-aft (shoulder) and right = rocket-fore (tip) — the opposite. "Left = fore" is NOT a universal truth; check the per-part-type orientation table above before interpreting the side view.
-   - **End panel** — camera looks down +Z toward −Z, so you see the high-Z face of the part. Symmetry counts (fin count, bolt circle count) and radial placement are obvious here.
-   - **Isometric** — 3D sanity check. Is the feature on the expected side of the body? In this render's iso projection, high Z tends to appear toward the bottom-right of the panel (worth internalizing if you debug orientation issues often).
+3. **Render + Read**: `cadsmith_generate_assets(...)` then `Read` the PNG.
+4. **Verify visually**. The render is a single isometric view in the part-local frame (Z=0 = print-bed face). Check: does the overall shape match the feature block? Is the new feature on the expected face? Is the part inside-out? Is the bore visible? For symmetrical features (fin arrays, bolt circles), count the instances. If anything looks wrong, fix before adding the next feature.
 5. **Verify numerically**: `cadsmith_extract_part` and compare the bbox Z extent against what you expect after this feature. If feature 2 was supposed to grow the part by `SHOULDER_LEN_MM` in +Z, the bbox Z max should have increased by exactly that. If it decreased, the feature extruded the wrong way.
 6. **Ask the user for feedback on complex features.** See the **User Feedback Checkpoints** section below for which features require a pause and what to show the user. Simple features (plain extrudes, basic cylinders) do not need user confirmation — proceed autonomously.
 7. **If wrong (or the user flags an issue), fix before adding the next feature.** Do not stack a new feature onto a broken one — the bug compounds and the diagnosis gets harder with every additional operation.
@@ -241,7 +239,7 @@ When pausing for feedback, present:
 
 - **"Looks good" / approval** — proceed to the next feature.
 - **"Change X"** — update the script (or the manifest if it's a design-level change), re-run, re-render, and ask again.
-- **"I'm not sure"** — offer to render from additional angles (`cadsmith_generate_preview` with `format="ascii"` and different `angle_deg` values) or provide dimensional details from `cadsmith_extract_part`.
+- **"I'm not sure"** — offer to render from additional angles (`cadsmith_generate_assets` with `format="ascii"` and different `angle_deg` values) or provide dimensional details from `cadsmith_extract_part`.
 
 ## Common build123d API Patterns
 
@@ -488,7 +486,7 @@ For feature types or build123d API patterns not covered above, query `rag_refere
 
 After each successful `cadsmith_run_script` call:
 
-1. **`cadsmith_generate_preview(step_file_path, out_path=<images_dir>/<name>.png)`** — writes the PNG into `png/`
+1. **`cadsmith_generate_assets(step_file_path, out_path=<images_dir>/<name>.png)`** — writes the PNG into `png/`
 2. **`Read(file_path=<png_path>)`** — visually inspect:
    - Does the overall shape match the feature block's intent?
    - Are any expected geometric features visible and correctly placed?
@@ -530,7 +528,7 @@ for part in manifest["parts"]:
     for feature in part["features"]:
         write_or_append_script(part, feature)
         cadsmith_run_script(script_path, out_dir)
-        cadsmith_generate_preview(step_file_path, out_path=images_dir/<name>.png)
+        cadsmith_generate_assets(step_file_path, out_path=images_dir/<name>.png)
         Read(png_path)
         cadsmith_extract_part(step_file_path)
         if is_complex_feature(feature):  # fillets, lofts, revolves, arrays, fuses
@@ -542,7 +540,7 @@ for part in manifest["parts"]:
 for asm in manifest["assemblies"]:
     write_assembly_script(asm)
     cadsmith_run_script(...)
-    cadsmith_generate_preview(...) → Read → verify cross-part alignment
+    cadsmith_generate_assets(...) → Read → verify cross-part alignment
     ask_user("Assembly looks like <description>. Do the proportions and joints look right?")
     wait_for_response()
 

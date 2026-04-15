@@ -56,19 +56,19 @@ interface Shape {
 }
 
 const SHAPE_COLORS: Record<string, string> = {
-  NoseCone: "#8ecae6",
-  BodyTube: "#a8dadc",
-  InnerTube: "#457b9d",
-  TrapezoidFinSet: "#e76f51",
-  EllipticalFinSet: "#e76f51",
-  FreeformFinSet: "#e76f51",
-  TubeCoupler: "#2a9d8f",
-  Transition: "#b5838d",
-  Parachute: "#ffb703",
-  ShockCord: "#ffb703",
-  CenteringRing: "#6d6875",
-  MassComponent: "#6d6875",
-  LaunchLug: "#9a8c98",
+  NoseCone: "var(--comp-nose)",
+  BodyTube: "var(--comp-body)",
+  InnerTube: "var(--comp-inner)",
+  TrapezoidFinSet: "var(--comp-fin)",
+  EllipticalFinSet: "var(--comp-fin)",
+  FreeformFinSet: "var(--comp-fin)",
+  TubeCoupler: "var(--comp-coupler)",
+  Transition: "var(--comp-transition)",
+  Parachute: "var(--comp-recovery)",
+  ShockCord: "var(--comp-recovery)",
+  CenteringRing: "var(--comp-ring)",
+  MassComponent: "var(--comp-ring)",
+  LaunchLug: "var(--comp-lug)",
 };
 
 function dimVal(dims: Record<string, unknown>, key: string): number {
@@ -345,17 +345,17 @@ export function RocketProfile({ stages, cgMm = null, cpMm = null, highlightedNam
       {/* CG marker */}
       {cgMm != null && (
         <g transform={`translate(${padding + cgMm * scale}, ${centerY})`}>
-          <circle r={6} fill="none" stroke="#3b82f6" strokeWidth={1.5} />
-          <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="#3b82f6" strokeWidth={1.5} />
-          <line x1={0} y1={-3.5} x2={0} y2={3.5} stroke="#3b82f6" strokeWidth={1.5} />
+          <circle r={6} fill="none" stroke="var(--comp-cg)" strokeWidth={1.5} />
+          <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="var(--comp-cg)" strokeWidth={1.5} />
+          <line x1={0} y1={-3.5} x2={0} y2={3.5} stroke="var(--comp-cg)" strokeWidth={1.5} />
         </g>
       )}
 
       {/* CP marker */}
       {cpMm != null && (
         <g transform={`translate(${padding + cpMm * scale}, ${centerY})`}>
-          <circle r={6} fill="none" stroke="#ef4444" strokeWidth={1.5} />
-          <circle r={2} fill="#ef4444" />
+          <circle r={6} fill="none" stroke="var(--comp-cp)" strokeWidth={1.5} />
+          <circle r={2} fill="var(--comp-cp)" />
         </g>
       )}
 
