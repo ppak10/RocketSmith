@@ -13,6 +13,7 @@ class DependencyStatus(BaseModel):
     ready: bool
     gui_url: str | None = None
     gui_pid: int | None = None
+    gui_error: str | None = None
 
 
 def _check() -> DependencyStatus:
@@ -53,22 +54,27 @@ def _check() -> DependencyStatus:
 _gui_teardown_registered = False
 
 
-def _start_gui(project_dir: Path) -> tuple[str | None, int | None]:
-    """Start the GUI server and register an atexit teardown. Returns (url, pid)."""
+def _start_gui(project_dir: Path) -> tuple[str | None, int | None, str | None]:
+    """Start the GUI server and register an atexit teardown.
+
+    Returns (url, pid, error). On success, error is None. On failure, url and
+    pid are None and error contains a human-readable message.
+    """
     global _gui_teardown_registered
 
     from rocketsmith.gui.lifecycle import start_gui_server, stop_gui_server
 
     result = start_gui_server(project_dir)
 
+    error = result.get("error")
+    if error:
+        return None, None, error
+
     if not _gui_teardown_registered:
         atexit.register(stop_gui_server, project_dir)
         _gui_teardown_registered = True
 
-    if result.get("error"):
-        return None, None
-
-    return result.get("server_url"), result.get("pid")
+    return result.get("server_url"), result.get("pid"), None
 
 
 def register_setup(app: FastMCP):
@@ -96,17 +102,19 @@ def register_setup(app: FastMCP):
         """
         gui_url = None
         gui_pid = None
+        gui_error = None
 
         if project_dir is not None:
             from rocketsmith.mcp.utils import set_project_dir
 
             set_project_dir(project_dir)
-            gui_url, gui_pid = _start_gui(project_dir.resolve())
+            gui_url, gui_pid, gui_error = _start_gui(project_dir.resolve())
 
         if action == "check":
             status = _check()
             status.gui_url = gui_url
             status.gui_pid = gui_pid
+            status.gui_error = gui_error
             return status
 
         # install
@@ -124,6 +132,7 @@ def register_setup(app: FastMCP):
         status = _check()
         status.gui_url = gui_url
         status.gui_pid = gui_pid
+        status.gui_error = gui_error
         return status
 
     return rocketsmith_setup

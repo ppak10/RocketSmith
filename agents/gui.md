@@ -28,11 +28,11 @@ You are the GUI lifecycle agent. Your job is to manage the RocketSmith GUI serve
 
 ## Available MCP Tools
 
-- `gui_server` — Dev-launch or stop the GUI server
+- `gui_server` — Start, stop, or dev-launch the GUI server
+  - `action="start"`: Production mode — copies bundle to project, writes data snapshot, starts backend, opens browser. Called automatically by `rocketsmith_setup`, but can be called explicitly to recover if the GUI did not open.
   - `action="dev"`: Development mode — Vite HMR + Python WebSocket server
   - `action="stop"`: Kill all GUI server processes for the project
   - Pass `project_dir` for all actions
-  - **Note:** `action="start"` is now handled automatically by `rocketsmith_setup`. Do not call `gui_server(action="start")` directly.
 - `gui_navigate` — Navigate the GUI to a specific route path
   - Sends a WebSocket command to all connected browser clients
   - Requires the GUI server to be running
@@ -77,12 +77,15 @@ gui_navigate(path="#/")
 
 ### Starting the GUI (production)
 
-The production GUI server is started automatically by `rocketsmith_setup(action="check", project_dir="<project_dir>")`. It:
+```
+gui_server(action="start", project_dir="<project_dir>")
+```
+
+This is called automatically by `rocketsmith_setup` — you normally don't need to call it directly. Use it explicitly to recover if the GUI didn't open (e.g. the bundle was missing at setup time and the plugin has since updated). It:
 1. Copies `index.html` to the project root, `main.js` to `gui/`
 2. Writes `gui/data.js` (offline data snapshot)
 3. Starts the Python backend on port 24880
 4. Opens `index.html` in the browser
-5. Registers an atexit handler to stop the server when the MCP process exits cleanly
 
 ### Starting the GUI (dev mode)
 
