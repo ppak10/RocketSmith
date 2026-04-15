@@ -4,12 +4,62 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Check for Java
+if command -v java &>/dev/null; then
+    java_path="$(command -v java)"
+    java_status="installed (${java_path})"
+else
+    java_status="NOT FOUND"
+fi
 
-# Run dependency check via CLI; fall back gracefully if uv/rocketsmith not available
-dep_status=$(uv run --directory "${PLUGIN_ROOT}" rocketsmith setup check 2>/dev/null \
-  || echo "# rocketsmith dependency status\nstatus: check failed — run rocketsmith setup check manually")
+# Check for OpenRocket JAR at standard locations
+or_jar=""
+for candidate in \
+    "${HOME}/.local/share/openrocket/OpenRocket.jar" \
+    "${HOME}/AppData/Local/OpenRocket/OpenRocket.jar" \
+    "${OPENROCKET_JAR:-}"; do
+    if [ -n "${candidate}" ] && [ -f "${candidate}" ]; then
+        or_jar="${candidate}"
+        break
+    fi
+done
+if [ -n "${or_jar}" ]; then
+    or_status="installed (${or_jar})"
+else
+    or_status="NOT FOUND"
+fi
+
+# Check for PrusaSlicer
+ps_path=""
+for cmd in prusa-slicer PrusaSlicer prusaslicer; do
+    if command -v "${cmd}" &>/dev/null; then
+        ps_path="$(command -v "${cmd}")"
+        break
+    fi
+done
+if [ -n "${ps_path}" ]; then
+    ps_status="installed (${ps_path})"
+else
+    ps_status="NOT FOUND"
+fi
+
+# Build status summary
+missing=()
+[ "${java_status}" = "NOT FOUND" ] && missing+=("java")
+[ "${or_status}" = "NOT FOUND" ] && missing+=("openrocket")
+[ "${ps_status}" = "NOT FOUND" ] && missing+=("prusaslicer")
+
+if [ ${#missing[@]} -eq 0 ]; then
+    overall="ready — all tools available"
+else
+    overall="NOT READY — missing: $(IFS=', '; echo "${missing[*]}"). Call rocketsmith_setup(action='install') to install."
+fi
+
+dep_status="# rocketsmith dependency status
+java: ${java_status}
+openrocket: ${or_status}
+prusaslicer: ${ps_status}
+status: ${overall}"
 
 # Escape string for JSON embedding
 escape_for_json() {
