@@ -23,8 +23,8 @@ def register_cadsmith_generate_preview(app: FastMCP):
     )
     async def cadsmith_generate_preview(
         step_file_path: Path,
-        project_dir: Path,
         outputs: list[str] | None = None,
+        out_dir: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Generate preview assets for a STEP file.
@@ -34,18 +34,22 @@ def register_cadsmith_generate_preview(app: FastMCP):
 
         Args:
             step_file_path: Path to the STEP file to preview.
-            project_dir: Absolute path to the project root directory.
             outputs: List of additional preview types to generate. Options:
                 "thumbnail" (PNG), "gif", "ascii". Defaults to all three.
+            out_dir: Optional project root for writing preview assets.
+                Defaults to the current project directory.
         """
         import asyncio
         import subprocess
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         from rocketsmith.cadsmith.preview.progress import PreviewProgress
+        from rocketsmith.mcp.utils import get_project_dir
 
         step_file_path = resolve_path(step_file_path)
-        project_dir = resolve_path(project_dir)
+        project_dir = (
+            resolve_path(out_dir) if out_dir is not None else get_project_dir()
+        )
 
         if not step_file_path.exists():
             return tool_error(

@@ -41,8 +41,10 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 
 - If `status: ready`, proceed normally.
 - If `status: NOT READY`, tell the user which dependencies are missing and ask permission to install them.
-- Once the user confirms, call `rocketsmith_setup(action="install")`.
+- Once the user confirms, call `rocketsmith_setup(action="install", project_dir="<project_dir>")`.
 - Do not use `cadsmith_*` tools until all dependencies are ready.
+
+**Always pass `project_dir` when calling `rocketsmith_setup`.** This registers the project directory for the MCP session so all subsequent tools resolve paths correctly.
 
 ## Available MCP Tools
 
@@ -67,7 +69,8 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
 - `openrocket_component` (action="read") — Read the full component tree from an `.ork` design with mm-scaled CAD parameters (`rocket_file_path`, `project_dir`, no `component_name`)
   - Returns `components` (every length already in mm), `derived` (`body_tube_id_mm`, `max_diameter_mm`, motor mount block), and `handoff_notes`
   - You usually don't call this directly — the `design-for-additive-manufacturing` skill calls it when building the manifest. You only need it if you're verifying a feature value against the source design.
-- `rocketsmith_setup` — Check or install dependencies (`action`: check/install)
+- `rocketsmith_setup` — Check or install dependencies (`action`: check/install, `project_dir`: absolute path to the project)
+  - Always pass `project_dir`
 
 ## Skills You Rely On
 
@@ -81,8 +84,8 @@ These skills are loaded into your session at startup via `GEMINI.md`. They conta
 ## Workflow
 
 ```
-1. Verify dependencies (rocketsmith_setup if status uncertain)
-2. Determine project_dir from the orchestrator's mandatory Bash("pwd") step
+1. Determine project_dir from the orchestrator's mandatory Bash("pwd") step
+2. Verify dependencies: rocketsmith_setup(action="check", project_dir="<project_dir>")
 3. Check for <project_dir>/gui/component_tree.json
      - exists and annotated? load it, proceed to step 4
      - missing or unannotated? ask the orchestrator to invoke the

@@ -95,9 +95,14 @@ gui_navigate(path="/")          # return to feed for new activity
 Phase 0 — Interaction Mode (this agent)
   0. Ask the user: "interactive" or "zero-shot"? Record and pass to all subagents.
 
-Phase 0.5 — GUI (this agent, MANDATORY)
-  0.5. Launch gui_server(action="start", project_dir="<project_dir>")
-       The GUI will update as files change throughout all phases.
+Phase 0.5 — Setup (this agent, MANDATORY)
+  0.5a. Establish project_dir via Bash("pwd") (see "Project Directory" section).
+  0.5b. Call rocketsmith_setup(action="check", project_dir="<project_dir>")
+        This registers the project directory for the entire MCP session —
+        all subsequent tools will resolve paths correctly without needing
+        an explicit project_dir argument.
+  0.5c. Launch gui_server(action="start", project_dir="<project_dir>")
+        The GUI will update as files change throughout all phases.
 
 Phase 1 — Flight Design (openrocket subagent)
   1. Check dependencies

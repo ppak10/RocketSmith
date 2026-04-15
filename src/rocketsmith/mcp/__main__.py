@@ -27,28 +27,30 @@ from rocketsmith.cadsmith.mcp import (
     register_cadsmith_run_script,
 )
 from rocketsmith.gui.mcp import register_gui_navigate, register_gui_server
+from rocketsmith.gui.mcp.logging import LoggingApp
 from rocketsmith.manufacturing.mcp import register_manufacturing_annotate_tree
 from rocketsmith.rag.mcp import register_rag_reference
 
 app = FastMCP(name="rocketsmith")
+logged = LoggingApp(app)
 
-_ = register_setup(app)
-_ = register_openrocket_new(app)
-_ = register_openrocket_component(app)
-_ = register_openrocket_database(app)
-_ = register_openrocket_flight(app)
-_ = register_prusaslicer_slice(app)
-_ = register_prusaslicer_config(app)
-_ = register_prusaslicer_database(app)
-_ = register_cadsmith_assembly(app)
-_ = register_cadsmith_bd_warehouse_info(app)
-_ = register_cadsmith_extract_part(app)
-_ = register_cadsmith_generate_preview(app)
-_ = register_cadsmith_run_script(app)
-_ = register_gui_server(app)
-_ = register_gui_navigate(app)
-_ = register_manufacturing_annotate_tree(app)
-_ = register_rag_reference(app)
+_ = register_setup(logged)
+_ = register_openrocket_new(logged)
+_ = register_openrocket_component(logged)
+_ = register_openrocket_database(logged)
+_ = register_openrocket_flight(logged)
+_ = register_prusaslicer_slice(logged)
+_ = register_prusaslicer_config(logged)
+_ = register_prusaslicer_database(logged)
+_ = register_cadsmith_assembly(logged)
+_ = register_cadsmith_bd_warehouse_info(logged)
+_ = register_cadsmith_extract_part(logged)
+_ = register_cadsmith_generate_preview(logged)
+_ = register_cadsmith_run_script(logged)
+_ = register_gui_server(logged)
+_ = register_gui_navigate(logged)
+_ = register_manufacturing_annotate_tree(logged)
+_ = register_rag_reference(logged)
 
 
 def main():

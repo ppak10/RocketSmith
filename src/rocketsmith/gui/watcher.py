@@ -84,7 +84,9 @@ IGNORED_FILES: set[str] = {
     "files-tree.json",
     "index.html",
     "main.js",
-    "session.jsonl",
+    # session.jsonl is intentionally NOT ignored — the watcher broadcasts it so
+    # the frontend can refresh the session log in real time.  Loop prevention is
+    # handled in server.py: on_change skips auto-logging for gui/logs/ files.
 }
 
 

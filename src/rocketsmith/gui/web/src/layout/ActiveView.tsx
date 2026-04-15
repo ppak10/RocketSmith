@@ -400,26 +400,38 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
   const asciiFrame = useRotatingAscii();
   const progressData = useProgressData(treeVersion);
 
-  // Historical logs from file + live logs from events.
+  // Historical logs from file. Re-parsed whenever the watcher broadcasts a
+  // "log" event for session.jsonl (uses the event's inline content so no extra
+  // fetch is needed).
   const [historicalLogs, setHistoricalLogs] = useState<LogEntry[]>([]);
+
+  function parseSessionJsonl(text: string): LogEntry[] {
+    return text
+      .trim()
+      .split("\n")
+      .map((line) => {
+        try { return JSON.parse(line) as LogEntry; }
+        catch { return null; }
+      })
+      .filter(Boolean) as LogEntry[];
+  }
+
   useEffect(() => {
     fetchText("gui/logs/session.jsonl")
-      .then((text) => {
-        if (!text) return;
-        const entries = text
-          .trim()
-          .split("\n")
-          .map((line) => {
-            try { return JSON.parse(line) as LogEntry; }
-            catch { return null; }
-          })
-          .filter(Boolean) as LogEntry[];
-        setHistoricalLogs(entries);
-      })
+      .then((text) => { if (text) setHistoricalLogs(parseSessionJsonl(text)); })
       .catch(() => {});
   }, []);
 
-  const liveLogs = useMemo(() => eventsToLogs(events), [events]);
+  // Re-parse historicalLogs whenever a fresh session.jsonl is broadcast.
+  useEffect(() => {
+    const latest = [...events].reverse().find(
+      (e) => e.type === "log" && e.relative_path === "gui/logs/session.jsonl" && e.content,
+    );
+    if (latest?.content) setHistoricalLogs(parseSessionJsonl(latest.content));
+  }, [events]);
+
+  // Exclude "log" events from liveLogs — they are handled above via historicalLogs.
+  const liveLogs = useMemo(() => eventsToLogs(events.filter((e) => e.type !== "log")), [events]);
   const sessionLogs = useMemo(
     () => [...historicalLogs, ...liveLogs],
     [historicalLogs, liveLogs],
@@ -457,7 +469,7 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
   // Show the component tree card if a live manifest/assembly event arrived
   // OR the component_tree.json already exists in the offline bundle (e.g.
   // generated before the browser connected).
-  const RENDERABLE_TYPES = new Set(["manifest", "assembly"]);
+  const RENDERABLE_TYPES = new Set(["manifest", "assembly", "openrocket"]);
   const renderableNonPart = [...nonPartEvents]
     .reverse()
     .find((e) => RENDERABLE_TYPES.has(e.type)) ?? null;
@@ -558,7 +570,6 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
     if (latest.type === "manifest" || latest.type === "assembly") return "assembly";
     if (latest.type === "flight") return "flight";
     if (latest.type === "preview") return "build-progress";
-    if (latest.type === "log") return "session-log";
     return null;
   }, [events]);
 

@@ -3,6 +3,7 @@ import {
   wsUrl,
   updateOfflineFile,
   updateOfflineFilesTree,
+  updateOfflineProjectInfo,
 } from "@/lib/server";
 
 /** Event pushed by the Python watcher over WebSocket. */
@@ -49,6 +50,13 @@ interface FilesTreeUpdate {
   tree: unknown[];
 }
 
+/** Project info pushed by the server on connect (needed in dev/live mode). */
+interface ProjectInfoEvent {
+  type: "project-info";
+  name: string;
+  path: string;
+}
+
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -67,6 +75,7 @@ export function useWatchSocket() {
   const [navigation, setNavigation] = useState<NavigateCommand | null>(null);
   /** Incremented whenever the server pushes a file tree update. */
   const [treeVersion, setTreeVersion] = useState(0);
+  const [projectInfo, setProjectInfo] = useState<{ name: string; path: string } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const attemptsRef = useRef<number>(0);
@@ -104,6 +113,10 @@ export function useWatchSocket() {
           const update = data as FilesTreeUpdate;
           updateOfflineFilesTree(update.tree);
           setTreeVersion((v) => v + 1);
+        } else if (data.type === "project-info") {
+          const info = data as ProjectInfoEvent;
+          updateOfflineProjectInfo(info.name, info.path);
+          setProjectInfo({ name: info.name, path: info.path });
         } else {
           const event = data as WatchEvent;
           setEvents((prev) => [...prev, event]);
@@ -128,5 +141,5 @@ export function useWatchSocket() {
 
   const clearNavigation = useCallback(() => setNavigation(null), []);
 
-  return { events, connected, offline, navigation, clearNavigation, treeVersion };
+  return { events, connected, offline, navigation, clearNavigation, treeVersion, projectInfo };
 }

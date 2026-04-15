@@ -23,7 +23,7 @@ def register_cadsmith_assembly(app: FastMCP):
     )
     async def cadsmith_assembly(
         action: Literal["generate", "read"],
-        project_dir: Path,
+        out_path: Path | None = None,
     ) -> Union[ToolSuccess[Assembly], ToolError]:
         """
         Generate or read the assembly layout for the 3D viewer.
@@ -35,18 +35,24 @@ def register_cadsmith_assembly(app: FastMCP):
 
         Args:
             action: 'generate' or 'read'.
-            project_dir: Absolute path to the project root directory.
+            out_path: Optional path to write assembly.json. Defaults to
+                      ``<project_dir>/gui/assembly.json``.
         """
         import json
         from datetime import datetime, timezone
 
         from rocketsmith.cadsmith.models import AssemblyPart, UnitVector
         from rocketsmith.manufacturing.models import ComponentTree, Fate, Component
+        from rocketsmith.mcp.utils import get_project_dir
 
-        project_dir = resolve_path(project_dir)
+        project_dir = get_project_dir()
         from rocketsmith.gui.layout import ASSEMBLY_FILE, TREE_FILE, PARTS_DIR
 
-        assembly_path = project_dir / ASSEMBLY_FILE
+        assembly_path = (
+            resolve_path(out_path)
+            if out_path is not None
+            else project_dir / ASSEMBLY_FILE
+        )
 
         if action == "read":
             if not assembly_path.exists():
@@ -161,8 +167,8 @@ def register_cadsmith_assembly(app: FastMCP):
                         else 0.0
                     )
                     # Write part JSON.
-                    out_path = project_dir / part_file
-                    out_path.write_text(
+                    part_json_path = project_dir / part_file
+                    part_json_path.write_text(
                         extracted.model_dump_json(indent=2), encoding="utf-8"
                     )
                 except Exception:

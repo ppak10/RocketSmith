@@ -25,7 +25,7 @@ def register_cadsmith_extract_part(app: FastMCP):
         file_path: Path,
         material_density_kg_m3: float | None = None,
         display_name: str | None = None,
-        project_dir: Path | None = None,
+        out_path: Path | None = None,
     ) -> Union[ToolSuccess[Part], ToolError]:
         """
         Extract geometric properties from a STEP or BREP file.
@@ -38,10 +38,11 @@ def register_cadsmith_extract_part(app: FastMCP):
                 Aluminium ≈ 2700, Carbon fibre ≈ 1600.
             display_name: Optional human-readable name for the part
                 (e.g. "Nose Cone"). Falls back to the filename stem.
-            project_dir: Optional project directory. When provided, saves
-                the part JSON to <project_dir>/gui/parts/<name>.json.
+            out_path: Optional path to save the part JSON. Defaults to
+                ``<project_dir>/gui/parts/<name>.json``.
         """
         from rocketsmith.cadsmith.extract_part import extract_part
+        from rocketsmith.mcp.utils import get_project_dir
 
         file_path = resolve_path(file_path)
         if not file_path.exists():
@@ -66,15 +67,15 @@ def register_cadsmith_extract_part(app: FastMCP):
                 display_name=display_name,
             )
 
-            # Write part JSON to gui/parts/<name>.json if project_dir is given.
-            if project_dir is not None:
-                from rocketsmith.gui.layout import PARTS_DIR
+            # Write part JSON — to explicit out_path or the default project layout.
+            from rocketsmith.gui.layout import PARTS_DIR
 
-                resolved_dir = resolve_path(project_dir)
-                parts_dir = resolved_dir / PARTS_DIR
-                parts_dir.mkdir(parents=True, exist_ok=True)
-                out_path = parts_dir / f"{file_path.stem}.json"
-                out_path.write_text(part.model_dump_json(indent=2), encoding="utf-8")
+            if out_path is not None:
+                resolved_out = resolve_path(out_path)
+            else:
+                resolved_out = get_project_dir() / PARTS_DIR / f"{file_path.stem}.json"
+            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+            resolved_out.write_text(part.model_dump_json(indent=2), encoding="utf-8")
 
             return tool_success(part)
 

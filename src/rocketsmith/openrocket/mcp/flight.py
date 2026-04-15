@@ -32,7 +32,7 @@ def register_openrocket_flight(app: FastMCP):
         launch_altitude_m: float = 0.0,
         launch_temperature_c: float | None = None,
         wind_speed_ms: float = 0.0,
-        project_dir: Path | None = None,
+        out_dir: Path | None = None,
         openrocket_path: Path | None = None,
     ) -> Union[
         ToolSuccess[dict], ToolSuccess[list[OpenRocketFlightSummary]], ToolError
@@ -70,9 +70,8 @@ def register_openrocket_flight(app: FastMCP):
             launch_altitude_m: Launch site altitude in metres ASL (default 0.0).
             launch_temperature_c: Launch temperature in °C. Uses ISA standard if None.
             wind_speed_ms: Average wind speed in m/s (default 0.0).
-            project_dir: Project directory (run only). If omitted, defaults to the
-                         rocket file's grandparent (assuming the file lives at
-                         ``<project_dir>/openrocket/<name>.ork``).
+            out_dir: Optional directory to write flight JSON files. Defaults to
+                     ``<project_dir>/openrocket/flights/``.
             openrocket_path: Optional path to the OpenRocket JAR file.
         """
         from rocketsmith.openrocket.simulation import (
@@ -129,17 +128,13 @@ def register_openrocket_flight(app: FastMCP):
 
             elif action == "run":
                 from orhelper import FlightDataType, FlightEvent
-
-                # Determine project directory and flight data output dir.
-                if project_dir is not None:
-                    proj = resolve_path(project_dir)
-                else:
-                    # Convention: <project_dir>/openrocket/<name>.ork
-                    proj = rocket_file_path.parent.parent
-
+                from rocketsmith.mcp.utils import get_project_dir
                 from rocketsmith.gui.layout import FLIGHTS_DIR
 
-                flight_dir = proj / FLIGHTS_DIR
+                if out_dir is not None:
+                    flight_dir = resolve_path(out_dir)
+                else:
+                    flight_dir = get_project_dir() / FLIGHTS_DIR
                 flight_dir.mkdir(parents=True, exist_ok=True)
 
                 # Config name from the .ork filename (without extension).

@@ -21,8 +21,8 @@ def register_manufacturing_annotate_tree(app: FastMCP):
         structured_output=True,
     )
     async def manufacturing_annotate_tree(
-        project_dir: Path,
         fusion_overrides: dict | None = None,
+        out_path: Path | None = None,
     ) -> Union[ToolSuccess[dict], ToolError]:
         """
         Annotate a component tree with DFAM decisions.
@@ -32,28 +32,32 @@ def register_manufacturing_annotate_tree(app: FastMCP):
         motor mount handling), and writes the annotated tree back.
 
         Args:
-            project_dir: Absolute path to the project root directory.
             fusion_overrides: Optional dict of fusion decision overrides:
                 motor_mount_fate: "fuse" (default) | "separate"
                 coupler_fate: "fuse" (default) | "separate"
                 nose_cone_hollow: true | false
                 fin_thickness_mm: override minimum fin thickness
                 fin_fillet_mm: override fillet radius
+            out_path: Optional path to write the annotated component_tree.json.
+                Defaults to ``<project_dir>/gui/component_tree.json``.
         """
         import json
 
         from rocketsmith.manufacturing.models import ComponentTree
         from rocketsmith.manufacturing.dfam import annotate_dfam
+        from rocketsmith.mcp.utils import get_project_dir
 
-        project_dir = resolve_path(project_dir)
+        project_dir = get_project_dir()
         from rocketsmith.gui.layout import TREE_FILE
 
-        tree_path = project_dir / TREE_FILE
+        tree_path = (
+            resolve_path(out_path) if out_path is not None else project_dir / TREE_FILE
+        )
 
         if not tree_path.exists():
             return tool_error(
                 f"component_tree.json not found at {tree_path}. "
-                "Run openrocket_component with action='read' and project_dir first.",
+                "Run openrocket_component with action='read' first.",
                 "FILE_NOT_FOUND",
                 file_path=str(tree_path),
             )

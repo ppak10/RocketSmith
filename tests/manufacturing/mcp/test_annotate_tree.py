@@ -33,12 +33,12 @@ def test_tool_registered(mcp_app):
 
 
 @pytest.mark.anyio
-async def test_annotate_missing_project_dir_returns_error(mcp_app, tmp_path):
+async def test_annotate_missing_tree_file_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
 
     result = await tool.fn(
-        project_dir=tmp_path / "does_not_exist",
+        out_path=tmp_path / "does_not_exist" / "component_tree.json",
     )
     assert result.success is False
     assert result.error_code == "FILE_NOT_FOUND"
@@ -50,11 +50,11 @@ async def test_annotate_invalid_json_returns_error(mcp_app, tmp_path):
     tool = tools[0]
 
     # Create invalid component_tree.json
-    (tmp_path / "gui").mkdir(parents=True)
-    (tmp_path / "gui" / "component_tree.json").write_text("not valid json {")
+    tree_file = tmp_path / "component_tree.json"
+    tree_file.write_text("not valid json {")
 
     result = await tool.fn(
-        project_dir=tmp_path,
+        out_path=tree_file,
     )
     assert result.success is False
     assert result.error_code == "PARSE_ERROR"
@@ -106,7 +106,7 @@ async def test_annotate_writes_back_to_file(
 
     # 2. Annotate via tool
     result = await tool.fn(
-        project_dir=tmp_path,
+        out_path=tree_path,
     )
     assert result.success is True
 

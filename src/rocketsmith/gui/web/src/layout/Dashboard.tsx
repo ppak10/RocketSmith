@@ -39,6 +39,7 @@ interface DashboardProps {
   navigation: NavigateCommand | null;
   clearNavigation: () => void;
   treeVersion: number;
+  projectInfo: { name: string; path: string } | null;
 }
 
 const NAV_ITEMS = [
@@ -93,10 +94,12 @@ export function Dashboard({
   navigation,
   clearNavigation,
   treeVersion,
+  projectInfo,
 }: DashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const project = useProjectInfo();
+  const projectName = projectInfo?.name || project.name;
   const fileTree = useFileTree(treeVersion);
 
   // Find part JSON files under parts/ and fetch display names.
@@ -163,7 +166,7 @@ export function Dashboard({
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>
-              {project.name}
+              {projectName}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>

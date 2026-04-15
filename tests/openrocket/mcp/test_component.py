@@ -57,25 +57,6 @@ async def test_create_missing_component_type_returns_error(mcp_app, tmp_path):
 
 
 @pytest.mark.anyio
-async def test_read_missing_component_name_returns_error(mcp_app, tmp_path):
-    tools = mcp_app._tool_manager.list_tools()
-    tool = tools[0]
-
-    p = tmp_path / "test.ork"
-    p.touch()
-
-    result = await tool.fn(
-        action="read",
-        rocket_file_path=p,
-        openrocket_path=tmp_path / "fake.jar",
-        # component_name intentionally omitted
-    )
-
-    assert result.success is False
-    assert result.error_code == "MISSING_ARGUMENT"
-
-
-@pytest.mark.anyio
 async def test_update_missing_component_name_returns_error(mcp_app, tmp_path):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]
