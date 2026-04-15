@@ -14,7 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -219,10 +218,10 @@ node_modules/
 # GUI server PID file
 .gui.pid
 
-# Compiled gui in development here.
-index.css
-index.html
-main.js
+# Compiled gui outputs in the web source directory (built artifacts, not committed there).
+src/rocketsmith/gui/web/dist/
+# Allow the packaged bundle in data/gui/ — these ARE committed and shipped with the package.
+# !src/rocketsmith/data/gui/ is implicitly allowed (no rule ignores data/ paths).
 
 # Runtime project data (gui_server output when run against the repo itself)
 /gui/

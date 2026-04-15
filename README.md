@@ -11,7 +11,19 @@ RocketSmith is an end-to-end model-rocket toolchain exposed as an MCP extension.
 
 ## Install
 
-RocketSmith integrates with AI coding tools through their native plugin/extension interfaces for MCP. A `uv` package is also available for CLI usage and direct API access.
+### Claude Code (plugin)
+
+```bash
+claude plugin install ppak10/RocketSmith
+```
+
+Registers the MCP server, agents, and skills automatically. Start a session in your project directory:
+
+```
+Use rocketsmith to design and build a stable rocket for a D12 motor
+```
+
+The agent calls `rocketsmith_setup` automatically, which starts the GUI server and opens the dashboard in your browser.
 
 ### Gemini CLI (extension)
 
@@ -19,52 +31,46 @@ RocketSmith integrates with AI coding tools through their native plugin/extensio
 gemini extensions install https://github.com/ppak10/RocketSmith
 ```
 
-The extension registers the MCP server, orchestrator agent, domain subagents (`openrocket`, `manufacturing`, `cadsmith`, `prusaslicer`), and action skills automatically.
-
-### Claude Code (plugin)
-
-Register the RocketSmith marketplace and install the plugin:
-
-```bash
-/plugin marketplace add ppak10/RocketSmith
-/plugin install rocketsmith@rocketsmith
-```
-
-This installs the full plugin — MCP server, orchestrator agent, domain subagents (`openrocket`, `manufacturing`, `cadsmith`, `prusaslicer`), action skills, and session hooks. Update with `/plugin update rocketsmith`.
-
-### CLI / API
-
-```bash
-uv tool install rocketsmith
-```
-
-This installs the `rocketsmith` CLI for direct command-line usage and makes the Python API available for scripting. The CLI is independent of any AI coding tool — use it for automation, CI, or standalone workflows.
-
-### First run
+Then in a session:
 
 ```
 @rocketsmith design and build a stable rocket for a D12 motor
 ```
 
-The orchestrator will walk through simulation → CAD → slicing → mass calibration, pausing for user feedback during the interactive CAD phase.
+## Requirements
+
+- **Java runtime** — required by OpenRocket
+- **OpenRocket 23.09** — uses [orhelper](https://github.com/SilentSys/orhelper), which targets the `net.sf.openrocket` package in OpenRocket 23.09 and earlier. OpenRocket 24+ is not supported.
+- **PrusaSlicer** (optional — needed for the full CAD → print → mass calibration loop)
+
+See [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) for platform-specific setup and troubleshooting.
 
 ## Documentation
 
-Full documentation lives in the [wiki](https://github.com/ppak10/RocketSmith/wiki):
-
-- [Home](https://github.com/ppak10/RocketSmith/wiki/Home) — pipeline overview, domain agents, and MCP tool list
-- [OpenRocket](https://github.com/ppak10/RocketSmith/wiki/OpenRocket) — component tree generation, stability calculations, dimension models
-- [Manufacturing](https://github.com/ppak10/RocketSmith/wiki/Manufacturing) — DFAM rules, component tree annotations, fusion overrides
+- [Home](https://github.com/ppak10/RocketSmith/wiki/Home) — pipeline overview, domain agents, MCP tool list
+- [GUI](https://github.com/ppak10/RocketSmith/wiki/GUI) — dashboard, offline mode, navigation, Agent Feed
+- [OpenRocket](https://github.com/ppak10/RocketSmith/wiki/OpenRocket) — component tree, stability, dimension models
+- [Manufacturing](https://github.com/ppak10/RocketSmith/wiki/Manufacturing) — DFAM rules, component tree annotations
 - [CADSmith](https://github.com/ppak10/RocketSmith/wiki/CADSmith) — script execution, part extraction, preview pipeline, assembly
 - [Skills](https://github.com/ppak10/RocketSmith/wiki/Skills) — stability analysis, motor selection, print preparation, mass calibration
-- [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) — plugin/extension setup and dependency troubleshooting
-- [Hooks](https://github.com/ppak10/RocketSmith/wiki/Hooks) — session-start dependency checks and other hooks
+- [Installation](https://github.com/ppak10/RocketSmith/wiki/Installation) — setup and dependency troubleshooting
+- [Hooks](https://github.com/ppak10/RocketSmith/wiki/Hooks) — Gemini CLI session hooks
 
 ## Development
 
-### Local Installation
+### Local setup
 
-To test changes from a local clone, you can install the extension or plugin directly from the source directory.
+```bash
+git clone https://github.com/ppak10/RocketSmith
+cd RocketSmith
+uv sync
+```
+
+#### Claude Code
+
+```bash
+claude --plugin-dir .
+```
 
 #### Gemini CLI
 
@@ -72,33 +78,15 @@ To test changes from a local clone, you can install the extension or plugin dire
 gemini extensions install .
 ```
 
-#### Claude Code
-
-To run Claude Code with the local plugin active:
-
-```bash
-claude --plugin-dir .
-```
-
-Use `/reload-plugins` within a session to pick up changes without restarting.
-
 ### Building the GUI
 
-The GUI frontend (React/TypeScript) must be compiled before changes are reflected in production mode. The built files live in `src/rocketsmith/data/gui/` and are committed to the repo so users don't need to build them.
+The React/TypeScript frontend must be built before changes are reflected in production mode. The built files (`src/rocketsmith/data/gui/`) are committed to the repo so end users don't need to build them.
 
 ```bash
 cd src/rocketsmith/gui/web
 npm install
 npm run build
 ```
-
-A pre-commit hook automatically rebuilds the GUI when frontend source files change.
-
-## Requirements
-
-- **Java runtime** — required by OpenRocket
-- **OpenRocket 23.09** — RocketSmith uses [orhelper](https://github.com/SilentSys/orhelper), which targets the `net.sf.openrocket` package present in OpenRocket 23.09 and earlier. OpenRocket 24+ is not currently supported.
-- **PrusaSlicer** (optional, only needed for the CAD → print → calibration loop)
 
 ## License
 

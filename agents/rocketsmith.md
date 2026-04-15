@@ -38,12 +38,12 @@ Record the user's choice and pass it to every subagent invocation as part of the
 |--------|------------|-----------|
 | OpenRocket design | Ask about motor preferences, stability targets, component choices | Use sensible defaults, iterate autonomously |
 | Manufacturing method | Always ask (same as today) | Always ask (same as today) |
-| GUI | Launch before Phase 1 | Launch before Phase 1 |
+| GUI | Auto-launched by rocketsmith_setup | Auto-launched by rocketsmith_setup |
 | CAD feedback checkpoints | Pause after every part and the assembly | Pause only on errors or ambiguous geometry |
 | Print strategy | Ask "how should we print this?" for each part before slicing | Use defaults from print-preparation skill |
 | Mass calibration | Show results, ask if adjustments are needed | Run automatically, report results |
 
-**Both modes always launch `gui_server`** before Phase 1 so the user can watch the entire pipeline — flight results, CAD generation, and slicing — in real time.
+**Both modes automatically launch the GUI** via `rocketsmith_setup` so the user can watch the entire pipeline — flight results, CAD generation, and slicing — in real time.
 
 ## ASCII Art Display Rule (MANDATORY — both modes)
 
@@ -100,9 +100,8 @@ Phase 0.5 — Setup (this agent, MANDATORY)
   0.5b. Call rocketsmith_setup(action="check", project_dir="<project_dir>")
         This registers the project directory for the entire MCP session —
         all subsequent tools will resolve paths correctly without needing
-        an explicit project_dir argument.
-  0.5c. Launch gui_server(action="start", project_dir="<project_dir>")
-        The GUI will update as files change throughout all phases.
+        an explicit project_dir argument. It also starts the GUI server
+        automatically and opens the browser — no separate gui_server call needed.
 
 Phase 1 — Flight Design (openrocket subagent)
   1. Check dependencies

@@ -1,12 +1,5 @@
 """Tests for the gui_server MCP tool."""
 
-import os
-import signal
-import subprocess
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock
-
 import pytest
 from mcp.server.fastmcp import FastMCP
 
@@ -51,123 +44,15 @@ async def test_invalid_action(tool):
     assert result.error_code == "INVALID_ACTION"
 
 
-# ── Start: error cases ──────────────────────────────────────────────────────
+# ── Start: deprecated ────────────────────────────────────────────────────────
 
 
 @pytest.mark.anyio
-async def test_start_missing_project_dir(tool):
+async def test_start_returns_deprecated(tool):
+    """action='start' is no longer supported; rocketsmith_setup handles it."""
     result = await tool.fn(action="start")
     assert result.success is False
-    assert result.error_code == "MISSING_PARAMETER"
-
-
-@pytest.mark.anyio
-async def test_start_nonexistent_dir(tool, tmp_path):
-    result = await tool.fn(action="start", project_dir=str(tmp_path / "nope"))
-    assert result.success is False
-    assert result.error_code == "DIR_NOT_FOUND"
-
-
-@pytest.mark.anyio
-async def test_start_path_is_file(tool, tmp_path):
-    f = tmp_path / "not_a_dir.txt"
-    f.write_text("hello")
-    result = await tool.fn(action="start", project_dir=str(f))
-    assert result.success is False
-    assert result.error_code == "NOT_A_DIRECTORY"
-
-
-# ── Start: success ──────────────────────────────────────────────────────────
-
-
-@pytest.mark.anyio
-async def test_start_launches_server(tool, tmp_path, monkeypatch):
-    opened = []
-    monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url))
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server._is_port_in_use",
-        lambda port, host="127.0.0.1": False,
-    )
-    gui_build_dir = tmp_path / "src" / "rocketsmith" / "data" / "gui"
-    gui_build_dir.mkdir(parents=True)
-    (gui_build_dir / "index.html").write_text("<html></html>")
-    (gui_build_dir / "main.js").write_text("console.log('ok')")
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.resolve",
-        lambda p: (
-            tmp_path / "src" / "rocketsmith" / "gui" / "mcp" / "server.py"
-            if str(p).endswith("server.py")
-            else Path(p).absolute()
-        ),
-    )
-    # Mock file operations
-    monkeypatch.setattr("shutil.copy2", lambda src, dst: None)
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.mkdir", lambda p, **kwargs: None
-    )
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.write_text", lambda p, text, **kwargs: None
-    )
-    monkeypatch.setattr(
-        "rocketsmith.gui.server.write_files_tree_snapshot", lambda p: None
-    )
-    monkeypatch.setattr("rocketsmith.gui.server.write_offline_data", lambda p: None)
-
-    mock_proc = MagicMock()
-    mock_proc.pid = 12345
-    monkeypatch.setattr("subprocess.Popen", lambda *args, **kwargs: mock_proc)
-
-    result = await tool.fn(action="start", project_dir=str(tmp_path), port=0)
-
-    assert result.success is True
-    assert result.data["pid"] == 12345
-    assert result.data["server_url"].startswith("http://127.0.0.1:")
-    assert result.data["project_dir"] == str(tmp_path)
-    assert len(opened) == 1
-
-
-@pytest.mark.anyio
-async def test_start_uses_default_port(tool, tmp_path, monkeypatch):
-    monkeypatch.setattr("webbrowser.open", lambda url: None)
-    # Mock port free
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server._is_port_in_use",
-        lambda port, host="127.0.0.1": False,
-    )
-    gui_build_dir = tmp_path / "src" / "rocketsmith" / "data" / "gui"
-    gui_build_dir.mkdir(parents=True)
-    (gui_build_dir / "index.html").write_text("<html></html>")
-    (gui_build_dir / "main.js").write_text("console.log('ok')")
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.resolve",
-        lambda p: (
-            tmp_path / "src" / "rocketsmith" / "gui" / "mcp" / "server.py"
-            if str(p).endswith("server.py")
-            else Path(p).absolute()
-        ),
-    )
-    # Mock file operations
-    monkeypatch.setattr("shutil.copy2", lambda src, dst: None)
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.mkdir", lambda p, **kwargs: None
-    )
-    monkeypatch.setattr(
-        "rocketsmith.gui.mcp.server.Path.write_text", lambda p, text, **kwargs: None
-    )
-    monkeypatch.setattr(
-        "rocketsmith.gui.server.write_files_tree_snapshot", lambda p: None
-    )
-    monkeypatch.setattr("rocketsmith.gui.server.write_offline_data", lambda p: None)
-
-    mock_proc = MagicMock()
-    mock_proc.pid = 12346
-    monkeypatch.setattr("subprocess.Popen", lambda *args, **kwargs: mock_proc)
-
-    result = await tool.fn(action="start", project_dir=str(tmp_path))
-
-    assert result.success is True
-    assert result.data["server_url"] == "http://127.0.0.1:24880"
-    assert result.data["pid"] == 12346
+    assert result.error_code == "DEPRECATED"
 
 
 # ── Stop: error cases ───────────────────────────────────────────────────────
