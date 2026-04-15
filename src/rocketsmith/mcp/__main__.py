@@ -23,7 +23,7 @@ from rocketsmith.cadsmith.mcp import (
     register_cadsmith_assembly,
     register_cadsmith_bd_warehouse_info,
     register_cadsmith_extract_part,
-    register_cadsmith_generate_preview,
+    register_cadsmith_generate_assets,
     register_cadsmith_run_script,
 )
 from rocketsmith.gui.mcp import register_gui_navigate, register_gui_server
@@ -45,7 +45,7 @@ _ = register_prusaslicer_database(logged)
 _ = register_cadsmith_assembly(logged)
 _ = register_cadsmith_bd_warehouse_info(logged)
 _ = register_cadsmith_extract_part(logged)
-_ = register_cadsmith_generate_preview(logged)
+_ = register_cadsmith_generate_assets(logged)
 _ = register_cadsmith_run_script(logged)
 _ = register_gui_server(logged)
 _ = register_gui_navigate(logged)

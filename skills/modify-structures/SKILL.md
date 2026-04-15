@@ -62,7 +62,7 @@ If the list is empty, skip the rest of this skill.
 1. **Verify the base STEP exists** at `<project_root>/<step_path>`. If missing, run `generate-structures` first — do not fabricate a base here.
 2. **Write the modification script** to `<project_root>/cadsmith/source/<name>_modified.py`. The script imports the base STEP, applies each modification in order, and exports back to the same `step_path` (overwriting).
 3. **Execute** via `cadsmith_run_script`. The tool runs the script in isolated mode and returns the path of the overwritten STEP.
-4. **Re-render** via `cadsmith_generate_preview(step_file_path=<step_path>, out_path=<images_dir>/<name>.png)` and `Read` to visually verify the modifications are in the right place.
+4. **Re-render** via `cadsmith_generate_assets(step_file_path=<step_path>, out_path=<images_dir>/<name>.png)` and `Read` to visually verify the modifications are in the right place.
 5. **Re-extract** via `cadsmith_extract_part` to confirm the bounding box hasn't changed unexpectedly (modifications typically only remove material, so bounding box should match).
 6. **Pause for user feedback.** Modifications are detail features that interact with the base geometry in ways that are hard to verify autonomously — hole placement relative to shoulders, pocket depth vs. wall thickness, angular alignment of through-holes with mating parts. Show the user the re-rendered PNG, describe what was modified (e.g., "Added 4× M4 heat-set holes at Z=25mm on the upper airframe shoulder"), and ask whether the placement looks correct. See **User Feedback on Modifications** below.
 
@@ -198,7 +198,7 @@ For any `kind` not in the recipe reference, query `rag_reference(action="search"
 
 After each part is modified:
 
-1. **Re-render**: `cadsmith_generate_preview(step_file_path=<step_path>)`. The tool auto-routes to `png/<name>.png`, overwriting the Pass 1 render — the modified version is the current truth.
+1. **Re-render**: `cadsmith_generate_assets(step_file_path=<step_path>)`. The tool auto-routes to `png/<name>.png`, overwriting the Pass 1 render — the modified version is the current truth.
 2. **Visual check**: does the render show the modifications in the expected positions? Heat-set holes should appear as small dark circles around the shoulder mid-length. Through-holes should appear at matching angles on the mating tube.
 3. **Dimensional check**: `cadsmith_extract_part` — the bounding box should be unchanged (all current modifications are subtractive). If the volume dropped by more than ~5% of the base, flag it — you may have subtracted too much.
 4. **User feedback**: pause and ask the user to confirm the modifications. See below.
@@ -249,7 +249,7 @@ for part in manifest["parts"]:
     verify_base_step_exists(part["step_path"])
     write_modification_script(part)
     cadsmith_run_script(script_path, out_dir)
-    cadsmith_generate_preview(step_file_path, out_path=images_dir/<name>.png)
+    cadsmith_generate_assets(step_file_path, out_path=images_dir/<name>.png)
     Read(png_path)
     cadsmith_extract_part(step_file_path)
     if check_failed: fix_and_retry()

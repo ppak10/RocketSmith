@@ -16,10 +16,3 @@ VIEW_DIR: np.ndarray = _VIEW / np.linalg.norm(_VIEW)
 # Terminal character aspect ratio (width / height)
 # Typical terminals: chars are roughly 2× taller than wide
 CHAR_ASPECT: float = 0.5
-
-# Default animation parameters
-DEFAULT_FPS: float = 12.0
-DEFAULT_DEGREES_PER_SECOND: float = 36.0
-
-# Default tessellation tolerance (mm) — coarse enough for ASCII, fast to compute
-DEFAULT_TOLERANCE: float = 1.0

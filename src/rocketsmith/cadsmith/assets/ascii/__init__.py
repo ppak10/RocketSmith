@@ -98,131 +98,6 @@ def render_step_ascii(
     return "\n".join(rows)
 
 
-def render_storyboard(
-    step_path: Path,
-    angles: list[float] | None = None,
-    total_width: int | None = None,
-    total_height: int | None = None,
-    columns: int = 2,
-    wireframe: bool = False,
-    tolerance: float = 1.0,
-) -> str:
-    """Render a STEP file as a multi-angle storyboard.
-
-    Tessellates the mesh once and renders it at several Y-axis rotation angles,
-    arranged in a grid. Suitable for returning from an MCP tool where live
-    animation is not possible.
-
-    The frame height is derived automatically from the width-constrained scale
-    and the projected Y span, so the mesh fills the available horizontal space.
-    Pass ``total_height`` to cap the per-row height (useful to limit total output
-    length when the shape is very tall relative to its width).
-
-    Args:
-        step_path: Path to the STEP file.
-        angles: List of Y-axis rotation angles in degrees.
-                Defaults to [0, 90, 180, 270].
-        total_width: Total output width in characters. Defaults to terminal width.
-        total_height: Optional height budget for the whole storyboard in rows.
-                      When given, each grid row is capped so the grid fits within
-                      this budget.
-        columns: Number of frames per row (1–4). Defaults to 2.
-        wireframe: Render edges only if True; shaded faces by default.
-        tolerance: Mesh tessellation tolerance in mm.
-
-    Returns:
-        Multi-line ASCII string with all frames arranged in a grid.
-    """
-    from .project import compute_projected_spans, compute_scale
-
-    if angles is None:
-        angles = [0.0, 90.0, 180.0, 270.0]
-
-    columns = max(1, min(columns, len(angles)))
-
-    if total_width is None:
-        total_width = shutil.get_terminal_size(fallback=(80, 24)).columns
-
-    # Each frame gets an equal share of the total width minus 1-char gaps
-    frame_width = (total_width - (columns - 1)) // columns
-
-    verts, tris, normals = _load_centered_mesh(step_path, tolerance)
-    if len(verts) == 0:
-        return "(empty mesh — no geometry found in STEP file)"
-
-    # Compute the width-constrained scale, then derive frame_height from the
-    # actual projected Y span so the mesh fills the frame rather than leaving
-    # blank rows (especially important for wide/flat shapes like airframe tubes).
-    margin = 2
-    max_sx_span, max_sy_span = compute_projected_spans(verts)
-    if max_sx_span < 1e-10:
-        scale = 1.0
-    else:
-        scale = (frame_width - 2 * margin) / max_sx_span
-
-    # Natural frame height: how tall the mesh actually renders at this scale
-    natural_frame_height = max(10, int(max_sy_span * scale) + 2 * margin)
-
-    # If caller provided a total height budget, cap each row accordingly
-    if total_height is not None:
-        grid_rows = max(1, (len(angles) + columns - 1) // columns)
-        # Account for header (2 lines) + label row per grid row (1 line) + blank (1 line)
-        overhead = 2 + grid_rows * 2
-        budget_per_row = max(10, (total_height - overhead) // grid_rows)
-        frame_height = min(natural_frame_height, budget_per_row)
-    else:
-        frame_height = natural_frame_height
-
-    # Re-compute scale constrained by both width and the (possibly capped) frame_height
-    scale = compute_scale(verts, frame_width, frame_height)
-
-    # Render every frame and trim blank rows so the grid stays compact
-    frames: list[list[str]] = []
-    for angle in angles:
-        rows = _render_mesh_frame(
-            verts, tris, normals, scale, angle, frame_width, frame_height, wireframe
-        )
-        # Strip leading and trailing all-whitespace rows
-        while rows and not rows[0].strip():
-            rows.pop(0)
-        while rows and not rows[-1].strip():
-            rows.pop()
-        frames.append(rows)
-
-    # Assemble into a grid: label row + frame rows, repeated for each row of columns
-    col_sep = " "
-    output_lines: list[str] = []
-    step_name = step_path.name
-
-    # Header
-    output_lines.append(f"  {step_name}  ({'wireframe' if wireframe else 'shaded'})")
-    output_lines.append("")
-
-    for row_start in range(0, len(frames), columns):
-        row_frames = frames[row_start : row_start + columns]
-        row_angles = angles[row_start : row_start + columns]
-
-        # Angle label row
-        label_parts = []
-        for angle in row_angles:
-            label = f" {angle:.0f}°"
-            label_parts.append(label.ljust(frame_width))
-        output_lines.append(col_sep.join(label_parts).rstrip())
-
-        # Frame rows — pad shorter frames to the same height with blank lines
-        max_rows = max(len(f) for f in row_frames)
-        for i in range(max_rows):
-            parts = []
-            for frame in row_frames:
-                line = frame[i] if i < len(frame) else " " * frame_width
-                parts.append(line)
-            output_lines.append(col_sep.join(parts).rstrip())
-
-        output_lines.append("")
-
-    return "\n".join(output_lines).rstrip()
-
-
 def animate_step_ascii(
     step_path: Path,
     width: int | None = None,
@@ -308,7 +183,7 @@ def animate_step_ascii(
 def render_ascii_animation(
     step_path: Path,
     output_path: Path,
-    frames: int = 36,
+    frames: int = 360,
     width: int = 80,
     height: int = 40,
     wireframe: bool = False,
@@ -322,7 +197,7 @@ def render_ascii_animation(
     Args:
         step_path:   Path to the STEP file.
         output_path: Where to save the .txt file.
-        frames:      Number of rotation frames (default 36 = 10° per frame).
+        frames:      Number of rotation frames (default 360 = 1° per frame).
         width:       Canvas width in characters.
         height:      Canvas height in rows.
         wireframe:   Render edges only if True; shaded faces by default.

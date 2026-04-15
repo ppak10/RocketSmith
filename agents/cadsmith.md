@@ -14,7 +14,7 @@ description: >
   Context: User wants to inspect an existing STEP file visually.
   user: 'Show me the nose cone geometry'
   assistant: 'I'll use the cadsmith agent to render the STEP file and verify the shape.'
-  <commentary>Visual inspection uses cadsmith_generate_preview (format="image" or format="ascii"). No design decisions required.</commentary>
+  <commentary>Visual inspection uses cadsmith_generate_assets (outputs=["thumbnail"] for the isometric PNG, or outputs=["ascii"] for the text animation). No design decisions required.</commentary>
   </example>
   <example>
   Context: User changed the OpenRocket design and wants the CAD regenerated.
@@ -58,9 +58,12 @@ The orchestrator passes `interaction_mode` (`"interactive"` or `"zero-shot"`) wh
   - Returns a Part model (bounding box, volume, source, generator metadata) plus an `attributes` dict with fastener-specific values (e.g. `clearance_drill_sizes`, `nut_data`, `screw_data`, `head_diameter`, `thread_diameter`)
   - Optionally exports a STEP file and Part JSON when `project_dir` is provided
   - Example: `cadsmith_bd_warehouse_info(generator_class="HexNut", generator_params={"size": "M4-0.7", "fastener_type": "iso4032"})`
-- `cadsmith_generate_preview` — Generate preview assets for a STEP file (`step_file_path`, `project_dir`, `outputs`)
+- `cadsmith_generate_assets` — Generate visualization assets for a STEP file (`step_file_path`, `project_dir`, `outputs`)
   - Always generates an STL mesh to `gui/assets/stl/` for the 3D viewer.
-  - `outputs=["thumbnail", "gif", "ascii"]` (default: all three). Generates PNG thumbnails, rotating GIFs, and ASCII animations.
+  - `outputs=["thumbnail", "gif", "ascii"]` (default: all three). All three read from the STEP directly and run in parallel with STL generation.
+    - `thumbnail` — single isometric PNG
+    - `gif` — 360° rotating isometric GIF (rasterized, 36 frames at 10°/frame)
+    - `ascii` — 360-frame text animation (1°/frame), used as a loading icon
   - Outputs written to `gui/assets/png/`, `gui/assets/gif/`, `gui/assets/txt/` under the project directory.
   - Progress tracked per-part in `gui/progress/<part_name>.json` for the GUI.
 - `gui_navigate` — Navigate the GUI to a route path (e.g. `/parts/nose_cone`)

@@ -50,7 +50,7 @@ The GUI uses a HashRouter. URLs look like `http://host:port/#/path`.
 | `/flights` | Flight Viewer | `openrocket_flight(action="run")` |
 | `/component-tree` | Component Tree | `openrocket_component` (action="read") or `manufacturing_annotate_tree` |
 | `/assembly` | Assembly Viewer | `cadsmith_assembly(action="generate")` |
-| `/parts/<name>` | Part Detail | `cadsmith_generate_preview` for a part |
+| `/parts/<name>` | Part Detail | `cadsmith_generate_assets` for a part |
 
 **Part paths use `/parts/<name>`** — no `.json` extension, no `gui/` prefix. The route is just a key — the frontend looks up `gui/parts/<name>.json` in the in-memory offline data bundle. No files are fetched directly by the browser.
 

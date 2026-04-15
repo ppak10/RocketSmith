@@ -34,42 +34,6 @@ def rotate_y(points: np.ndarray, angle_deg: float) -> np.ndarray:
         return points @ rot.T
 
 
-def compute_projected_spans(
-    vertices: np.ndarray,
-    char_aspect: float = CHAR_ASPECT,
-    sample_angles: int = 8,
-) -> tuple[float, float]:
-    """Compute max projected X and Y spans over all sampled rotation angles.
-
-    Args:
-        vertices: (N, 3) centered vertex positions.
-        char_aspect: Terminal character width/height ratio.
-        sample_angles: Number of rotation angles to sample.
-
-    Returns:
-        (max_sx_span, max_sy_span) in projected units (before scaling).
-    """
-    if len(vertices) == 0:
-        return 1.0, 1.0
-
-    cos30 = math.cos(math.radians(30))
-    sin30 = math.sin(math.radians(30))
-
-    max_sx_span = 0.0
-    max_sy_span = 0.0
-
-    for i in range(sample_angles):
-        angle_deg = 360.0 * i / sample_angles
-        rotated = rotate_y(vertices, angle_deg)
-        x, y, z = rotated[:, 0], rotated[:, 1], rotated[:, 2]
-        sx = (x - z) * cos30 / char_aspect
-        sy = -y + (x + z) * sin30
-        max_sx_span = max(max_sx_span, float(sx.max() - sx.min()))
-        max_sy_span = max(max_sy_span, float(sy.max() - sy.min()))
-
-    return max_sx_span, max_sy_span
-
-
 def compute_scale(
     vertices: np.ndarray,
     width: int,
@@ -80,17 +44,13 @@ def compute_scale(
 ) -> float:
     """Compute a rotation-stable scale factor by sampling projected extents.
 
-    Projects the mesh at ``sample_angles`` evenly-spaced Y-axis rotation angles
-    and uses the maximum projected bounding box so the shape stays fully on-screen
-    throughout the animation without changing size.
-
     Args:
         vertices: (N, 3) centered vertex positions.
         width: Canvas width in characters.
         height: Canvas height in characters.
         margin: Padding on each side in characters.
         char_aspect: Terminal character width/height ratio.
-        sample_angles: Number of rotation angles to sample (more = safer).
+        sample_angles: Number of rotation angles to sample.
 
     Returns:
         Scale factor (world mm → canvas characters).
@@ -98,16 +58,23 @@ def compute_scale(
     if len(vertices) == 0:
         return 1.0
 
-    max_sx_span, max_sy_span = compute_projected_spans(
-        vertices, char_aspect, sample_angles
-    )
+    cos30 = math.cos(math.radians(30))
+    sin30 = math.sin(math.radians(30))
+    max_sx_span = 0.0
+    max_sy_span = 0.0
+
+    for i in range(sample_angles):
+        rotated = rotate_y(vertices, 360.0 * i / sample_angles)
+        x, y, z = rotated[:, 0], rotated[:, 1], rotated[:, 2]
+        sx = (x - z) * cos30 / char_aspect
+        sy = -y + (x + z) * sin30
+        max_sx_span = max(max_sx_span, float(sx.max() - sx.min()))
+        max_sy_span = max(max_sy_span, float(sy.max() - sy.min()))
 
     if max_sx_span < 1e-10 or max_sy_span < 1e-10:
         return 1.0
 
-    scale_x = (width - 2 * margin) / max_sx_span
-    scale_y = (height - 2 * margin) / max_sy_span
-    return min(scale_x, scale_y)
+    return min((width - 2 * margin) / max_sx_span, (height - 2 * margin) / max_sy_span)
 
 
 def project(
