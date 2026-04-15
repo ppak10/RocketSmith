@@ -52,6 +52,7 @@ def register_gui_navigate(app: FastMCP):
         normalized_path = path.lstrip("#") or "/"
         payload = json.dumps({"path": normalized_path}).encode("utf-8")
 
+        reached = []
         for port in [DEFAULT_PORT, WS_PORT]:
             url = f"http://{DEFAULT_HOST}:{port}/api/navigate"
             try:
@@ -63,14 +64,17 @@ def register_gui_navigate(app: FastMCP):
                 )
                 with urllib.request.urlopen(req, timeout=2) as resp:
                     if resp.status == 200:
-                        return tool_success(
-                            {
-                                "path": normalized_path,
-                                "message": f"Navigated to {normalized_path}",
-                            }
-                        )
+                        reached.append(port)
             except (urllib.error.URLError, OSError):
                 continue
+
+        if reached:
+            return tool_success(
+                {
+                    "path": normalized_path,
+                    "message": f"Navigated to {normalized_path}",
+                }
+            )
 
         return tool_error(
             "GUI server is not running. Start it with gui_server(action='start').",
