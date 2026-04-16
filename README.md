@@ -13,28 +13,24 @@ RocketSmith is an end-to-end model-rocket toolchain exposed as an MCP extension.
 
 ### Claude Code (plugin)
 
-```bash
-claude plugin install ppak10/RocketSmith
-```
+**Prerequisites:** Create a GitHub SSH key and add it to your account before proceeding — see [Generating a new SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent).
 
-Registers the MCP server, agents, and skills automatically. Start a session in your project directory:
+Inside a Claude Code session, add the marketplace and install the plugin:
 
 ```
-Use rocketsmith to design and build a stable rocket for a D12 motor
+/plugin marketplace add ppak10/RocketSmith
 ```
 
-The agent calls `rocketsmith_setup` automatically, which starts the GUI server and opens the dashboard in your browser.
+```
+/plugin install rocketsmith@rocketsmith
+```
 
-### Gemini CLI (extension)
+After installing, reload plugins and verify the MCP server is connected with `/reload-plugins` and `/mcp`
+
+### [Gemini CLI (extension)](https://geminicli.com/extensions/?name=ppak10RocketSmith)
 
 ```bash
 gemini extensions install https://github.com/ppak10/RocketSmith
-```
-
-Then in a session:
-
-```
-@rocketsmith design and build a stable rocket for a D12 motor
 ```
 
 ## Requirements
@@ -76,16 +72,6 @@ claude --plugin-dir .
 
 ```bash
 gemini extensions install .
-```
-
-### Building the GUI
-
-The React/TypeScript frontend must be built before changes are reflected in production mode. The built files (`src/rocketsmith/data/gui/`) are committed to the repo so end users don't need to build them.
-
-```bash
-cd src/rocketsmith/gui/web
-npm install
-npm run build
 ```
 
 ## License
