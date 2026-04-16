@@ -79,19 +79,18 @@ export async function fetchJson<T = unknown>(path: string): Promise<T | null> {
   if (value !== undefined) return value as T;
 
   // Fallback: fetch from the API server (works in dev mode and when
-  // the WebSocket server is running).
-  if (!isFileProtocol()) {
-    try {
-      const base = `${window.location.protocol}//${window.location.host}`;
-      const resp = await fetch(`${base}/api/files/${path}`);
-      if (!resp.ok) return null;
-      return (await resp.json()) as T;
-    } catch {
-      return null;
-    }
+  // the WebSocket server is running, including file:// where the backend
+  // runs at DEFAULT_SERVER).
+  const base = isFileProtocol()
+    ? `http://${DEFAULT_SERVER}`
+    : `${window.location.protocol}//${window.location.host}`;
+  try {
+    const resp = await fetch(`${base}/api/files/${path}`);
+    if (!resp.ok) return null;
+    return (await resp.json()) as T;
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 /**
