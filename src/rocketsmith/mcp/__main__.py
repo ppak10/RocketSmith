@@ -55,7 +55,18 @@ _ = register_rag_reference(logged)
 
 def main():
     """Entry point for the direct execution server."""
-    app.run()
+    try:
+        app.run()
+    except (BrokenPipeError, EOFError):
+        # stdio transport closed by the client (normal shutdown or tool rejection).
+        # Exit cleanly so the process does not appear to have crashed.
+        sys.exit(0)
+    except Exception as e:
+        print(
+            f"rocketsmith MCP server error: {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":
