@@ -22,6 +22,7 @@ from rocketsmith.openrocket.models import (
     TubeDimensions,
     NoseConeDimensions,
     FinSetDimensions,
+    RingDimensions,
 )
 
 
@@ -123,6 +124,198 @@ class TestAnnotationLogic:
         assert fin.agent.fused_into == "upper_airframe"
         # Thickness should be bumped to minimum 12.7 mm
         assert fin.agent.dfam_thickness_mm == 12.7
+
+
+class TestCadsmithPath:
+    """Verify cadsmith_path is set correctly after annotate_dfam."""
+
+    def _make_tree(self, tmp_path, components, fusion_overrides=None):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=components,
+                )
+            ],
+        )
+        return annotate_dfam(tree, fusion_overrides=fusion_overrides)
+
+    def test_nose_cone_gets_cadsmith_path(self, tmp_path):
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="NoseCone",
+                    name="Nose Cone",
+                    category="structural",
+                    dimensions=NoseConeDimensions(
+                        shape="ogive",
+                        length=120.0,
+                        base_od=64.0,
+                    ),
+                )
+            ],
+        )
+        nc = tree.stages[0].components[0]
+        assert nc.cadsmith_path == "nose_cone.py"
+
+    def test_body_tube_gets_cadsmith_path(self, tmp_path):
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="BodyTube",
+                    name="Body Tube",
+                    category="structural",
+                    dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                )
+            ],
+        )
+        bt = tree.stages[0].components[0]
+        assert bt.cadsmith_path == "body_tube.py"
+
+    def test_fused_fin_set_has_no_cadsmith_path(self, tmp_path):
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="BodyTube",
+                    name="Body Tube",
+                    category="structural",
+                    dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                    children=[
+                        Component(
+                            type="TrapezoidFinSet",
+                            name="Fins",
+                            category="structural",
+                            dimensions=FinSetDimensions(
+                                root_chord=80.0,
+                                tip_chord=40.0,
+                                span=60.0,
+                                thickness=3.0,
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+        bt = tree.stages[0].components[0]
+        fin = bt.children[0]
+        assert fin.cadsmith_path is None
+
+    def test_separate_motor_mount_gets_cadsmith_path(self, tmp_path):
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="BodyTube",
+                    name="Body Tube",
+                    category="structural",
+                    dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                    children=[
+                        Component(
+                            type="InnerTube",
+                            name="Motor Mount",
+                            category="structural",
+                            dimensions=TubeDimensions(
+                                length=100.0,
+                                od=29.0,
+                                id=27.0,
+                                motor_mount=True,
+                            ),
+                        )
+                    ],
+                )
+            ],
+            fusion_overrides={"motor_mount_fate": "separate"},
+        )
+        bt = tree.stages[0].components[0]
+        mm = bt.children[0]
+        assert mm.cadsmith_path == "motor_mount.py"
+
+    def test_separate_coupler_gets_cadsmith_path(self, tmp_path):
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="BodyTube",
+                    name="Body Tube",
+                    category="structural",
+                    dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                    children=[
+                        Component(
+                            type="TubeCoupler",
+                            name="Tube Coupler",
+                            category="structural",
+                            dimensions=TubeDimensions(length=60.0, od=60.0, id=56.0),
+                        )
+                    ],
+                )
+            ],
+            fusion_overrides={"coupler_fate": "separate"},
+        )
+        bt = tree.stages[0].components[0]
+        coupler = bt.children[0]
+        assert coupler.cadsmith_path == "tube_coupler.py"
+
+    def test_separate_centering_ring_gets_cadsmith_path(self, tmp_path):
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="BodyTube",
+                    name="Body Tube",
+                    category="structural",
+                    dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                    children=[
+                        Component(
+                            type="CenteringRing",
+                            name="Centering Ring",
+                            category="structural",
+                            dimensions=RingDimensions(od=62.0, id=29.5, thickness=5.0),
+                        )
+                    ],
+                )
+            ],
+            fusion_overrides={"motor_mount_fate": "separate"},
+        )
+        bt = tree.stages[0].components[0]
+        cr = bt.children[0]
+        assert cr.cadsmith_path == "centering_ring.py"
+
+    def test_fused_motor_mount_has_none_cadsmith_path(self, tmp_path):
+        """Motor mount with default fuse fate should have cadsmith_path=None."""
+        tree = self._make_tree(
+            tmp_path,
+            [
+                Component(
+                    type="BodyTube",
+                    name="Body Tube",
+                    category="structural",
+                    dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                    children=[
+                        Component(
+                            type="InnerTube",
+                            name="Motor Mount",
+                            category="structural",
+                            dimensions=TubeDimensions(
+                                length=100.0,
+                                od=29.0,
+                                id=27.0,
+                                motor_mount=True,
+                            ),
+                        )
+                    ],
+                )
+            ],
+            # motor_mount_fate defaults to "fuse"
+        )
+        bt = tree.stages[0].components[0]
+        mm = bt.children[0]
+        assert mm.cadsmith_path is None
 
 
 # ── Integration tests (require OpenRocket JAR) ────────────────────────────────

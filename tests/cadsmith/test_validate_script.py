@@ -222,3 +222,15 @@ def test_nested_component_cadsmith_path_recognised(script_dir, tmp_path):
     p = script_dir / "nose_cone.py"
     p.write_text(VALID_SCRIPT)
     assert validate_script(p, manifest_path=manifest) == []
+
+
+def test_corrupt_manifest_skips_name_check(script_dir, tmp_path):
+    """Unreadable/corrupt manifest falls back gracefully — no crash, no errors."""
+    gui = tmp_path / "gui"
+    gui.mkdir()
+    manifest = gui / "component_tree.json"
+    manifest.write_text("{ not valid json !!!", encoding="utf-8")
+
+    p = script_dir / "anything.py"
+    p.write_text(VALID_SCRIPT)
+    assert validate_script(p, manifest_path=manifest) == []
