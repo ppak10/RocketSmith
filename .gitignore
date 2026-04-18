@@ -225,3 +225,6 @@ src/rocketsmith/gui/web/dist/
 
 # Runtime project data (gui_server output when run against the repo itself)
 /gui/
+
+openrocket/
+prusaslicer/

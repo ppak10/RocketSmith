@@ -12,7 +12,14 @@ COMPONENT_TYPES = {
     "tube-coupler": "TubeCoupler",
     "fin-set": "TrapezoidFinSet",
     "parachute": "Parachute",
+    "streamer": "Streamer",
+    "shock-cord": "ShockCord",
     "mass": "MassComponent",
+    "rail-button": "RailButton",
+    "launch-lug": "LaunchLug",
+    "centering-ring": "CenteringRing",
+    "bulkhead": "BulkHead",
+    "engine-block": "EngineBlock",
 }
 
 
@@ -351,6 +358,91 @@ def _extract_properties(comp) -> dict:
         except:
             pass
 
+    elif type_name == "Streamer":
+        try:
+            props["length_m"] = round(float(comp.getLength()), 4)
+        except:
+            pass
+        try:
+            props["width_m"] = round(float(comp.getWidth()), 4)
+        except:
+            pass
+        try:
+            props["thickness_m"] = round(float(comp.getThickness()), 4)
+        except:
+            pass
+        try:
+            props["cd"] = round(float(comp.getCD()), 2)
+        except:
+            pass
+
+    elif type_name == "ShockCord":
+        try:
+            props["length_m"] = round(float(comp.getCordLength()), 4)
+        except:
+            try:
+                props["length_m"] = round(float(comp.getLength()), 4)
+            except:
+                pass
+
+    elif type_name in ("CenteringRing", "EngineBlock"):
+        try:
+            props["outer_diameter_m"] = round(float(comp.getOuterRadius()) * 2, 4)
+        except:
+            pass
+        try:
+            props["inner_diameter_m"] = round(float(comp.getInnerRadius()) * 2, 4)
+        except:
+            pass
+        try:
+            props["length_m"] = round(float(comp.getLength()), 4)
+        except:
+            pass
+
+    elif type_name == "BulkHead":
+        try:
+            props["outer_diameter_m"] = round(float(comp.getOuterRadius()) * 2, 4)
+        except:
+            pass
+        try:
+            props["length_m"] = round(float(comp.getLength()), 4)
+        except:
+            pass
+
+    elif type_name == "LaunchLug":
+        try:
+            props["outer_diameter_m"] = round(float(comp.getOuterRadius()) * 2, 4)
+        except:
+            pass
+        try:
+            props["inner_diameter_m"] = round(float(comp.getInnerRadius()) * 2, 4)
+        except:
+            pass
+        try:
+            props["length_m"] = round(float(comp.getLength()), 4)
+        except:
+            pass
+
+    elif type_name == "RailButton":
+        try:
+            props["outer_diameter_m"] = round(float(comp.getOuterDiameter()), 4)
+        except:
+            pass
+        try:
+            props["inner_diameter_m"] = round(float(comp.getInnerDiameter()), 4)
+        except:
+            pass
+        try:
+            props["height_m"] = round(
+                float(comp.getBaseHeight()) + float(comp.getFlangeHeight()), 4
+            )
+        except:
+            pass
+        try:
+            props["instance_count"] = int(comp.getInstanceCount())
+        except:
+            pass
+
     try:
         preset = comp.getComponentPreset()
         if preset is not None:
@@ -529,11 +621,70 @@ def _apply_properties(comp, **kwargs):
         if kwargs.get("cd") is not None:
             comp.setCD(float(kwargs["cd"]))
 
+    elif java_type_name == "Streamer":
+        if kwargs.get("length") is not None:
+            comp.setLength(float(kwargs["length"]))
+        if kwargs.get("width") is not None:
+            comp.setWidth(float(kwargs["width"]))
+        if kwargs.get("thickness") is not None:
+            try:
+                comp.setThickness(float(kwargs["thickness"]))
+            except Exception:
+                pass
+        if kwargs.get("cd") is not None:
+            comp.setCD(float(kwargs["cd"]))
+
+    elif java_type_name == "ShockCord":
+        if kwargs.get("length") is not None:
+            if hasattr(comp, "setCordLength"):
+                comp.setCordLength(float(kwargs["length"]))
+            else:
+                comp.setLength(float(kwargs["length"]))
+
+    elif java_type_name in ("CenteringRing", "BulkHead", "EngineBlock"):
+        d = kwargs.get("diameter") or kwargs.get("outer_diameter")
+        if d is not None:
+            comp.setOuterRadius(float(d) / 2)
+        id_ = kwargs.get("inner_diameter")
+        if id_ is not None and java_type_name != "BulkHead":
+            comp.setInnerRadius(float(id_) / 2)
+        if kwargs.get("length") is not None:
+            comp.setLength(float(kwargs["length"]))
+        if kwargs.get("thickness") is not None:
+            comp.setLength(float(kwargs["thickness"]))
+
+    elif java_type_name == "LaunchLug":
+        d = kwargs.get("diameter") or kwargs.get("outer_diameter")
+        if d is not None:
+            try:
+                comp.setOuterRadius(float(d) / 2)
+            except Exception:
+                comp.setRadius(float(d) / 2)
+        id_ = kwargs.get("inner_diameter")
+        if id_ is not None:
+            comp.setInnerRadius(float(id_) / 2)
+        if kwargs.get("length") is not None:
+            comp.setLength(float(kwargs["length"]))
+
+    elif java_type_name == "RailButton":
+        d = kwargs.get("diameter") or kwargs.get("outer_diameter")
+        if d is not None:
+            comp.setOuterDiameter(float(d))
+        id_ = kwargs.get("inner_diameter")
+        if id_ is not None:
+            comp.setInnerDiameter(float(id_))
+        count = kwargs.get("instance_count") or kwargs.get("count")
+        if count is not None:
+            comp.setInstanceCount(int(count))
+
     mat_name = kwargs.get("material_name") or kwargs.get("material")
     if mat_name is not None:
         mat = lookup_material(mat_name, kwargs.get("material_type"))
         if mat:
-            comp.setMaterial(mat)
+            try:
+                comp.setMaterial(mat)
+            except Exception:
+                pass
 
     # Mass override: let the user pin a component's mass to a measured value
     # (e.g. the filament weight reported by prusaslicer_slice). Setting
@@ -544,32 +695,44 @@ def _apply_properties(comp, **kwargs):
     override_mass_kg = kwargs.get("override_mass_kg")
     override_mass_enabled = kwargs.get("override_mass_enabled")
     if override_mass_kg is not None:
-        comp.setOverrideMass(float(override_mass_kg))
-        if override_mass_enabled is None:
-            comp.setMassOverridden(True)
+        try:
+            comp.setOverrideMass(float(override_mass_kg))
+            if override_mass_enabled is None:
+                comp.setMassOverridden(True)
+        except Exception:
+            pass
     if override_mass_enabled is not None:
-        comp.setMassOverridden(bool(override_mass_enabled))
+        try:
+            comp.setMassOverridden(bool(override_mass_enabled))
+        except Exception:
+            pass
 
     # Set method BEFORE offset — OR interprets the offset value using the current method.
+    # Guarded: some component types (e.g. RailButton) use different positioning APIs
+    # and an unhandled JVM exception here would crash the entire MCP server process.
     if kwargs.get("axial_offset_method") is not None:
         method_str = kwargs["axial_offset_method"].upper()
         try:
-            # OR 23.09+ uses AxialMethod
             AxialMethod = jpype.JClass(
                 "net.sf.openrocket.rocketcomponent.position.AxialMethod"
             )
             method = AxialMethod.valueOf(method_str)
         except Exception:
-            # Older OR versions use RocketComponent$Position
-            Position = jpype.JClass(
-                "net.sf.openrocket.rocketcomponent.RocketComponent$Position"
-            )
-            method = Position.valueOf(method_str)
-        # OR 23.09 uses setAxialMethod; older versions used setAxialOffsetMethod
-        if hasattr(comp, "setAxialMethod"):
-            comp.setAxialMethod(method)
-        else:
-            comp.setAxialOffsetMethod(method)
+            try:
+                Position = jpype.JClass(
+                    "net.sf.openrocket.rocketcomponent.RocketComponent$Position"
+                )
+                method = Position.valueOf(method_str)
+            except Exception:
+                method = None
+        if method is not None:
+            try:
+                if hasattr(comp, "setAxialMethod"):
+                    comp.setAxialMethod(method)
+                else:
+                    comp.setAxialOffsetMethod(method)
+            except Exception:
+                pass
 
     if (
         kwargs.get("axial_offset") is not None
@@ -580,7 +743,10 @@ def _apply_properties(comp, **kwargs):
             if kwargs.get("axial_offset_m") is not None
             else kwargs.get("axial_offset")
         )
-        comp.setAxialOffset(float(offset))
+        try:
+            comp.setAxialOffset(float(offset))
+        except Exception:
+            pass
 
 
 def create_component(
@@ -640,6 +806,22 @@ def create_component(
                     if cname in ("BodyTube", "Transition", "InnerTube", "NoseCone"):
                         parent_comp = c
                         return True
+                elif component_type in ("rail-button", "launch-lug"):
+                    if cname in ("BodyTube", "Transition"):
+                        parent_comp = c
+                        return True
+                elif component_type in ("centering-ring", "engine-block"):
+                    if cname in ("BodyTube", "InnerTube", "Transition"):
+                        parent_comp = c
+                        return True
+                elif component_type == "bulkhead":
+                    if cname in ("BodyTube", "NoseCone", "Transition", "InnerTube"):
+                        parent_comp = c
+                        return True
+                elif component_type in ("streamer", "shock-cord"):
+                    if cname in ("BodyTube", "NoseCone", "Transition"):
+                        parent_comp = c
+                        return True
 
             for i in range(c.getChildCount()):
                 if _find_suitable(c.getChild(i)):
@@ -652,14 +834,23 @@ def create_component(
             if target:
                 raise ValueError(f"Parent '{target}' not found.")
             else:
+                _parent_hints = {
+                    "fin-set": "BodyTube, Transition, or InnerTube",
+                    "parachute": "BodyTube, Transition, or InnerTube",
+                    "inner-tube": "BodyTube, Transition, or InnerTube",
+                    "tube-coupler": "BodyTube",
+                    "rail-button": "BodyTube or Transition",
+                    "launch-lug": "BodyTube or Transition",
+                    "centering-ring": "BodyTube, InnerTube, or Transition",
+                    "engine-block": "BodyTube, InnerTube, or Transition",
+                    "bulkhead": "BodyTube, NoseCone, Transition, or InnerTube",
+                    "streamer": "BodyTube, NoseCone, or Transition",
+                    "shock-cord": "BodyTube, NoseCone, or Transition",
+                }
+                hint = _parent_hints.get(component_type)
                 msg = f"No suitable parent found for {component_type}."
-                if component_type in (
-                    "fin-set",
-                    "parachute",
-                    "inner-tube",
-                    "tube-coupler",
-                ):
-                    msg += " (expected BodyTube, Transition, or InnerTube)"
+                if hint:
+                    msg += f" (expected {hint})"
                 raise ValueError(msg)
 
         JClass = jpype.JClass(f"net.sf.openrocket.rocketcomponent.{java_class_name}")
@@ -682,6 +873,13 @@ def create_component(
                     "parachute": "BodyTube, NoseCone, Transition",
                     "tube-coupler": "BodyTube",
                     "mass": "BodyTube, NoseCone, Transition, InnerTube",
+                    "rail-button": "BodyTube, Transition",
+                    "launch-lug": "BodyTube, Transition",
+                    "centering-ring": "BodyTube, InnerTube, Transition",
+                    "engine-block": "BodyTube, InnerTube, Transition",
+                    "bulkhead": "BodyTube, NoseCone, Transition, InnerTube",
+                    "streamer": "BodyTube, NoseCone, Transition",
+                    "shock-cord": "BodyTube, NoseCone, Transition",
                 }.get(component_type, "see OpenRocket docs")
                 + f". Original error: {e}"
             ) from e

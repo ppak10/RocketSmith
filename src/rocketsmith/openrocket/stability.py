@@ -42,7 +42,10 @@ def compute_cg(rocket) -> tuple[float, float]:
     max_d = 0.0
 
     for c in orhelper.JIterator(rocket):
-        m = float(c.getMass())
+        try:
+            m = float(c.getMass())
+        except Exception:
+            m = 0.0
         if m > 0:
             total_mass += m
             abs_x = 0.0
@@ -58,7 +61,14 @@ def compute_cg(rocket) -> tuple[float, float]:
                     pass
                 curr = curr.getParent()
 
-            total_moment += m * (abs_x + float(c.getCG().x))
+            try:
+                cg_local = c.getCG()
+                if cg_local is not None:
+                    total_moment += m * (abs_x + float(cg_local.x))
+                else:
+                    total_moment += m * abs_x
+            except Exception:
+                total_moment += m * abs_x
 
         try:
             d = float(c.getOuterRadius()) * 2
