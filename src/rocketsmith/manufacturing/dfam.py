@@ -243,6 +243,7 @@ def _annotate_component(
 
     if comp.type == "NoseCone":
         _annotate_nose_cone(comp, body_tube_id_mm, overrides)
+        comp.cadsmith_path = name + ".py"
 
     elif comp.type == "BodyTube":
         # Collect any modifications targeted at this body tube.
@@ -256,6 +257,7 @@ def _annotate_component(
             reason="Body tube is always a standalone printed part for AM",
             **extra_kw,
         )
+        comp.cadsmith_path = name + ".py"
         # Annotate children with this tube as parent
         for child in comp.children:
             _annotate_component(
@@ -275,6 +277,7 @@ def _annotate_component(
             _annotate(
                 comp, fate=Fate.PRINT, reason="Orphaned fin set — no parent body tube"
             )
+            comp.cadsmith_path = name + ".py"
 
     elif comp.type == "InnerTube":
         if (
@@ -291,10 +294,12 @@ def _annotate_component(
                     fate=Fate.PRINT,
                     reason="Motor mount as separate printed part (override)",
                 )
+                comp.cadsmith_path = name + ".py"
         else:
             _annotate(
                 comp, fate=Fate.PRINT, reason="Inner tube as standalone printed part"
             )
+            comp.cadsmith_path = name + ".py"
 
     elif comp.type == "TubeCoupler":
         if coupler_fate == "fuse" and parent_name:
@@ -306,6 +311,7 @@ def _annotate_component(
                 fate=Fate.PRINT,
                 reason="Coupler as separate printed part (override)",
             )
+            comp.cadsmith_path = name + ".py"
 
     elif comp.type == "CenteringRing":
         if motor_mount_fate == "fuse" and parent_name:
@@ -318,6 +324,7 @@ def _annotate_component(
             _annotate(
                 comp, fate=Fate.PRINT, reason="Centering ring as separate printed part"
             )
+            comp.cadsmith_path = name + ".py"
 
     elif comp.type in _NON_PHYSICAL_TYPES:
         _annotate(

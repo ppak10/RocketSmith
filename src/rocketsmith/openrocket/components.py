@@ -18,7 +18,7 @@ COMPONENT_TYPES = {
     "rail-button": "RailButton",
     "launch-lug": "LaunchLug",
     "centering-ring": "CenteringRing",
-    "bulkhead": "BulkHead",
+    "bulkhead": "Bulkhead",
     "engine-block": "EngineBlock",
 }
 
@@ -399,7 +399,7 @@ def _extract_properties(comp) -> dict:
         except:
             pass
 
-    elif type_name == "BulkHead":
+    elif type_name == "Bulkhead":
         try:
             props["outer_diameter_m"] = round(float(comp.getOuterRadius()) * 2, 4)
         except:
@@ -625,7 +625,7 @@ def _apply_properties(comp, **kwargs):
         if kwargs.get("length") is not None:
             comp.setLength(float(kwargs["length"]))
         if kwargs.get("width") is not None:
-            comp.setWidth(float(kwargs["width"]))
+            comp.setStripWidth(float(kwargs["width"]))
         if kwargs.get("thickness") is not None:
             try:
                 comp.setThickness(float(kwargs["thickness"]))
@@ -641,12 +641,12 @@ def _apply_properties(comp, **kwargs):
             else:
                 comp.setLength(float(kwargs["length"]))
 
-    elif java_type_name in ("CenteringRing", "BulkHead", "EngineBlock"):
+    elif java_type_name in ("CenteringRing", "Bulkhead", "EngineBlock"):
         d = kwargs.get("diameter") or kwargs.get("outer_diameter")
         if d is not None:
             comp.setOuterRadius(float(d) / 2)
         id_ = kwargs.get("inner_diameter")
-        if id_ is not None and java_type_name != "BulkHead":
+        if id_ is not None and java_type_name != "Bulkhead":
             comp.setInnerRadius(float(id_) / 2)
         if kwargs.get("length") is not None:
             comp.setLength(float(kwargs["length"]))

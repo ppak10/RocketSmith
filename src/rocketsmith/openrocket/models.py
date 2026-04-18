@@ -159,7 +159,7 @@ _TYPE_TO_DIMENSION_KIND: dict[str, str] = {
     "EllipticalFinSet": "fin_set",
     "FreeformFinSet": "fin_set",
     "CenteringRing": "ring",
-    "BulkHead": "ring",
+    "Bulkhead": "ring",
     "EngineBlock": "ring",
     "Parachute": "recovery",
     "Streamer": "recovery",

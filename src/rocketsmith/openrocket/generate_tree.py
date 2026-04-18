@@ -110,7 +110,7 @@ def _build_dimensions(comp: dict[str, Any]) -> Any:
             thickness=_to_mm(comp.get("thickness_m", 0)),
         )
 
-    if comp_type in ("CenteringRing", "BulkHead"):
+    if comp_type in ("CenteringRing", "Bulkhead"):
         return RingDimensions(
             od=_to_mm(comp.get("outer_diameter_m", 0)),
             id=_to_mm(comp.get("inner_diameter_m", 0)),

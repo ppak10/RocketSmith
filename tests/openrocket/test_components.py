@@ -213,7 +213,7 @@ def test_create_bulkhead(tmp_ork, openrocket_jar):
         diameter=0.1,
         length=0.005,
     )
-    assert info["type"] == "BulkHead"
+    assert info["type"] == "Bulkhead"
 
 
 def test_create_launch_lug(tmp_ork, openrocket_jar):

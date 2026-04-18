@@ -51,12 +51,43 @@ def _collect_imported_modules(tree: ast.Module) -> set[str]:
     return modules
 
 
-def validate_script(script_path: Path) -> list[str]:
+def _collect_cadsmith_paths(manifest_path: Path) -> set[str]:
+    """Return the set of expected script stems from component_tree.json.
+
+    Walks stages[].components[] recursively and collects the stem (filename
+    without extension) of every non-null cadsmith_path.  Returns an empty
+    set if the manifest cannot be read or has no annotated parts yet.
+    """
+    import json
+
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+
+    stems: set[str] = set()
+
+    def _walk(components: list) -> None:
+        for comp in components:
+            cp = comp.get("cadsmith_path")
+            if cp:
+                stems.add(Path(cp).stem)
+            _walk(comp.get("children", []))
+
+    for stage in data.get("stages", []):
+        _walk(stage.get("components", []))
+
+    return stems
+
+
+def validate_script(script_path: Path, manifest_path: Path | None = None) -> list[str]:
     """Validate a build123d script before execution.
 
     Checks:
-    1. The script contains a call to ``export_step``.
-    2. All imports come from an allowed set (build123d, pathlib, math, typing).
+    1. The script filename matches a cadsmith_path in component_tree.json
+       (only enforced when the manifest exists and has annotated parts).
+    2. The script contains a call to ``export_step``.
+    3. All imports come from an allowed set (build123d, pathlib, math, typing).
 
     Returns:
         A list of human-readable error strings. An empty list means the
@@ -70,6 +101,18 @@ def validate_script(script_path: Path) -> list[str]:
         return [f"Syntax error at line {e.lineno}: {e.msg}"]
 
     errors: list[str] = []
+
+    # ── Manifest part-name check ───────────────────────────────────────
+    if manifest_path is not None and manifest_path.exists():
+        valid_stems = _collect_cadsmith_paths(manifest_path)
+        if valid_stems and script_path.stem not in valid_stems:
+            errors.append(
+                f"Script '{script_path.name}' does not match any part in "
+                f"component_tree.json. Valid names: "
+                f"{', '.join(sorted(s + '.py' for s in valid_stems))}. "
+                "Edit the existing part script instead of creating a new one, "
+                "or add the part to the manifest first via manufacturing_annotate_tree."
+            )
 
     # ── Export checks ──────────────────────────────────────────────────
     call_names = _collect_call_names(tree)
