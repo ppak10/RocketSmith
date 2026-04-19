@@ -231,7 +231,9 @@ The user launched Gemini CLI from the directory they want the rocket artefacts i
 
 The `gui/component_tree.json` is the single source of truth for which parts exist and how they're derived from OpenRocket components. The manufacturing agent annotates it with DFAM decisions; the `generate-structures` skill reads it for Pass 1 (base geometry) and the `modify-structures` skill reads it for Pass 2 (detail features); the `mass-calibration` skill uses it during the calibration phase.
 
-**Never edit `component_tree.json` directly.** It is a derived artifact. All design changes must flow through `openrocket_component` (to modify the `.ork` file) and `manufacturing_annotate_tree` (to re-annotate the tree). Direct edits are fragile — they get overwritten on the next tree regeneration and skip validation. If a feature isn't expressible through these tools (e.g., detail modifications like mounting holes or vent holes), that's a tool gap to be addressed, not a reason to hand-edit the JSON.
+**Never directly write or edit any project file.** All project data must flow through the appropriate MCP tools — `openrocket_component`, `manufacturing_annotate_tree`, `cadsmith_run_script`, `cadsmith_assembly`, `prusaslicer_config`, `prusaslicer_slice`, etc. Direct file edits bypass schema validation, get silently overwritten on the next tool run, and skip the pipeline's audit trail. The sole exception to this rule is the CADSmith build123d Python scripts (`cadsmith/source/*.py`), which the cadsmith subagent writes as source artifacts. Everything else — `.ork` designs, `component_tree.json`, `assembly.json`, `gui/parts/*.json`, config `.ini` files, gcode — must be written exclusively through tools.
+
+`component_tree.json` in particular must **never** be hand-edited. It is a derived artifact. All design changes must flow through `openrocket_component` (to modify the `.ork` file) and `manufacturing_annotate_tree` (to re-annotate the tree). If a feature isn't expressible through these tools, that's a tool gap to be addressed, not a reason to hand-edit the JSON.
 
 **Absolute path discipline (required for every tool call):**
 

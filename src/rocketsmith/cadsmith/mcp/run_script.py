@@ -56,7 +56,13 @@ def register_cadsmith_run_script(app: FastMCP):
             )
 
         # ── Pre-run validation ─────────────────────────────────────────
-        errors = validate_script(script_path)
+        # Scripts live at <project_dir>/cadsmith/source/<name>.py;
+        # walk up three levels to find the manifest.
+        inferred_manifest = (
+            script_path.parent.parent.parent / "gui" / "component_tree.json"
+        )
+        manifest_path = inferred_manifest if inferred_manifest.exists() else None
+        errors = validate_script(script_path, manifest_path=manifest_path)
         if errors:
             return tool_error(
                 "Script failed pre-execution validation",

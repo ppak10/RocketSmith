@@ -25,7 +25,14 @@ def test_component_types_keys():
         "tube-coupler",
         "fin-set",
         "parachute",
+        "streamer",
+        "shock-cord",
         "mass",
+        "rail-button",
+        "launch-lug",
+        "centering-ring",
+        "bulkhead",
+        "engine-block",
     }
 
 
@@ -155,6 +162,113 @@ def test_create_parachute(tmp_ork, openrocket_jar):
     )
     assert info["type"] == "Parachute"
     assert abs(info["diameter_m"] - 0.5) < 1e-4
+
+
+def test_create_streamer(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    info = create_component(
+        tmp_ork,
+        "streamer",
+        openrocket_jar,
+        parent="BT",
+        length=0.5,
+        width=0.05,
+    )
+    assert info["type"] == "Streamer"
+
+
+def test_create_shock_cord(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    info = create_component(
+        tmp_ork,
+        "shock-cord",
+        openrocket_jar,
+        parent="BT",
+        length=1.5,
+    )
+    assert info["type"] == "ShockCord"
+
+
+def test_create_centering_ring(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT", diameter=0.1)
+    info = create_component(
+        tmp_ork,
+        "centering-ring",
+        openrocket_jar,
+        parent="BT",
+        diameter=0.1,
+        inner_diameter=0.03,
+        length=0.005,
+    )
+    assert info["type"] == "CenteringRing"
+
+
+def test_create_bulkhead(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT", diameter=0.1)
+    info = create_component(
+        tmp_ork,
+        "bulkhead",
+        openrocket_jar,
+        parent="BT",
+        diameter=0.1,
+        length=0.005,
+    )
+    assert info["type"] == "Bulkhead"
+
+
+def test_create_launch_lug(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    info = create_component(
+        tmp_ork,
+        "launch-lug",
+        openrocket_jar,
+        parent="BT",
+        diameter=0.012,
+        inner_diameter=0.01,
+        length=0.05,
+    )
+    assert info["type"] == "LaunchLug"
+
+
+def test_create_rail_button(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    info = create_component(
+        tmp_ork,
+        "rail-button",
+        openrocket_jar,
+        parent="BT",
+    )
+    assert info["type"] == "RailButton"
+
+
+def test_create_engine_block(tmp_ork, openrocket_jar):
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT", diameter=0.1)
+    create_component(
+        tmp_ork,
+        "inner-tube",
+        openrocket_jar,
+        name="MM",
+        parent="BT",
+        diameter=0.03,
+        length=0.12,
+        motor_mount=True,
+    )
+    info = create_component(
+        tmp_ork,
+        "engine-block",
+        openrocket_jar,
+        parent="MM",
+        diameter=0.03,
+        inner_diameter=0.02,
+        length=0.005,
+    )
+    assert info["type"] == "EngineBlock"
+
+
+def test_rail_button_requires_body_tube(tmp_ork, openrocket_jar):
+    """Creating a rail button without a body tube raises ValueError."""
+    with pytest.raises(ValueError, match="expected BodyTube"):
+        create_component(tmp_ork, "rail-button", openrocket_jar)
 
 
 def test_create_component_with_explicit_parent(tmp_ork, openrocket_jar):

@@ -65,10 +65,14 @@ const SHAPE_COLORS: Record<string, string> = {
   TubeCoupler: "var(--comp-coupler)",
   Transition: "var(--comp-transition)",
   Parachute: "var(--comp-recovery)",
+  Streamer: "var(--comp-recovery)",
   ShockCord: "var(--comp-recovery)",
   CenteringRing: "var(--comp-ring)",
+  BulkHead: "var(--comp-ring)",
+  EngineBlock: "var(--comp-ring)",
   MassComponent: "var(--comp-ring)",
   LaunchLug: "var(--comp-lug)",
+  RailButton: "var(--comp-lug)",
 };
 
 function dimVal(dims: Record<string, unknown>, key: string): number {
@@ -160,11 +164,35 @@ function buildShapes(stages: Stage[]): Shape[] {
         ringIndex++;
         shapes.push({ type: "CenteringRing", name: comp.name, x, length: ringThickness, radius: parentRadius, innerRadius: mountRadius, color: SHAPE_COLORS.CenteringRing });
       } else if (comp.type === "LaunchLug" || (comp.type === "MassComponent" && comp.name.toLowerCase().includes("launch lug"))) {
-        // Launch lug: small tube on the outside of the body, at the midpoint.
+        // Launch lug: small tube on the outside of the body.
         const lugLength = dimVal(dims, "length") || parentLength * 0.08;
         const lugHeight = parentRadius * 0.25;
-        const x = parentX + (parentLength - lugLength) / 2;
+        const axialOffset = dimVal(dims, "axial_offset");
+        const x = axialOffset > 0 ? axialOffset : parentX + (parentLength - lugLength) / 2;
         shapes.push({ type: "LaunchLug", name: comp.name, x, length: lugLength, radius: parentRadius + lugHeight, innerRadius: parentRadius, color: SHAPE_COLORS.LaunchLug });
+      } else if (comp.type === "RailButton") {
+        // Rail button: small protrusion on the body surface, positioned at its actual axial location.
+        const btnHeight = dimVal(dims, "height") || parentRadius * 0.2;
+        const btnLength = dimVal(dims, "outer_diameter") || parentRadius * 0.15;
+        const axialOffset = dimVal(dims, "axial_offset");
+        const x = axialOffset > 0 ? axialOffset : parentX + (parentLength - btnLength) / 2;
+        shapes.push({ type: "RailButton", name: comp.name, x, length: btnLength, radius: parentRadius + btnHeight, innerRadius: parentRadius, color: SHAPE_COLORS.RailButton });
+      } else if (comp.type === "BulkHead") {
+        // Bulkhead: thin solid disc spanning the inner diameter.
+        const thickness = 3;
+        const x = parentX + parentLength * 0.5;
+        shapes.push({ type: "BulkHead", name: comp.name, x, length: thickness, radius: parentRadius, innerRadius: 0, color: SHAPE_COLORS.BulkHead });
+      } else if (comp.type === "EngineBlock") {
+        // Engine block: thin ring at the aft end of a motor mount.
+        const thickness = 3;
+        const x = parentX + parentLength - thickness;
+        const innerR = mountRadius * 0.7;
+        shapes.push({ type: "EngineBlock", name: comp.name, x, length: thickness, radius: parentRadius, innerRadius: innerR, color: SHAPE_COLORS.EngineBlock });
+      } else if (comp.type === "Streamer") {
+        // Streamer: small dashed rectangle inside the body, like a packed parachute.
+        const iconLen = parentLength * 0.12;
+        const x = parentX + parentLength * 0.4;
+        shapes.push({ type: "Streamer", name: comp.name, x, length: iconLen, radius: parentRadius * 0.4, color: SHAPE_COLORS.Streamer });
       }
 
       // Recurse into children for any component type not already handled above.
@@ -334,6 +362,72 @@ export function RocketProfile({ stages, cgMm = null, cpMm = null, highlightedNam
                 stroke={highlightStroke}
                 strokeWidth={isHit ? highlightStrokeWidth : 1}
                 rx={1}
+              />
+            </g>
+          );
+        }
+
+        if (shape.type === "RailButton") {
+          // Small circle protruding from the body tube (top side only).
+          const ir = (shape.innerRadius ?? 0) * scale;
+          const btnH = sr - ir;
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect
+                x={sx}
+                y={centerY - sr}
+                width={sl}
+                height={btnH}
+                fill={shape.color}
+                stroke={highlightStroke}
+                strokeWidth={isHit ? highlightStrokeWidth : 1}
+                rx={Math.min(sl, btnH) / 2}
+              />
+            </g>
+          );
+        }
+
+        if (shape.type === "BulkHead") {
+          // Thin filled disc spanning the tube bore.
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect
+                x={sx}
+                y={centerY - sr}
+                width={sl}
+                height={sr * 2}
+                fill={shape.color}
+                fillOpacity={isHit ? 1 : 0.85}
+                stroke={highlightStroke}
+                strokeWidth={isHit ? highlightStrokeWidth : 0.75}
+              />
+            </g>
+          );
+        }
+
+        if (shape.type === "EngineBlock") {
+          const ir = (shape.innerRadius ?? 0) * scale;
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect x={sx} y={centerY - sr} width={sl} height={sr - ir} fill={shape.color} fillOpacity={isHit ? 1 : 0.8} stroke={highlightStroke} strokeWidth={isHit ? highlightStrokeWidth : 0.75} />
+              <rect x={sx} y={centerY + ir} width={sl} height={sr - ir} fill={shape.color} fillOpacity={isHit ? 1 : 0.8} stroke={highlightStroke} strokeWidth={isHit ? highlightStrokeWidth : 0.75} />
+            </g>
+          );
+        }
+
+        if (shape.type === "Streamer") {
+          return (
+            <g key={i} opacity={dimOpacity} className="transition-opacity">
+              <rect
+                x={sx}
+                y={centerY - sr}
+                width={sl}
+                height={sr * 2}
+                fill={shape.color}
+                fillOpacity={isHit ? 0.3 : 0.1}
+                stroke={isHit ? highlightStroke : shape.color}
+                strokeWidth={highlightStrokeWidth}
+                strokeDasharray={isHit ? undefined : "3 2"}
               />
             </g>
           );

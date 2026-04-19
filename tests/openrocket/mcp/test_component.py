@@ -311,6 +311,150 @@ async def test_delete_persists(mcp_app, tmp_ork, openrocket_jar):
 
 
 @pytest.mark.anyio
+async def test_create_centering_ring(mcp_app, tmp_ork, openrocket_jar):
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="centering-ring",
+        parent="BT",
+        diameter=0.1,
+        inner_diameter=0.03,
+        length=0.005,
+    )
+
+    assert result.success is True
+    assert result.data["type"] == "CenteringRing"
+
+
+@pytest.mark.anyio
+async def test_create_rail_button(mcp_app, tmp_ork, openrocket_jar):
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="rail-button",
+        parent="BT",
+    )
+
+    assert result.success is True
+    assert result.data["type"] == "RailButton"
+
+
+@pytest.mark.anyio
+async def test_create_launch_lug(mcp_app, tmp_ork, openrocket_jar):
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="launch-lug",
+        parent="BT",
+        diameter=0.012,
+        inner_diameter=0.01,
+        length=0.05,
+    )
+
+    assert result.success is True
+    assert result.data["type"] == "LaunchLug"
+
+
+@pytest.mark.anyio
+async def test_create_streamer(mcp_app, tmp_ork, openrocket_jar):
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="streamer",
+        parent="BT",
+        length=0.5,
+        width=0.05,
+    )
+
+    assert result.success is True
+    assert result.data["type"] == "Streamer"
+
+
+@pytest.mark.anyio
+async def test_create_shock_cord(mcp_app, tmp_ork, openrocket_jar):
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="shock-cord",
+        parent="BT",
+        length=1.5,
+    )
+
+    assert result.success is True
+    assert result.data["type"] == "ShockCord"
+
+
+@pytest.mark.anyio
 async def test_create_fin_set_with_explicit_parent(mcp_app, tmp_ork, openrocket_jar):
     tools = mcp_app._tool_manager.list_tools()
     tool = tools[0]

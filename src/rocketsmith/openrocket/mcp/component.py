@@ -13,11 +13,13 @@ def register_openrocket_component(app: FastMCP):
         description=(
             "Create, read, update, or delete a component in an OpenRocket .ork or RockSim .rkt file. "
             "Use 'action' to specify the operation. "
-            "Valid component types for create: nose-cone, body-tube, inner-tube, transition, fin-set, parachute, mass. "
+            "Valid component types for create: nose-cone, body-tube, inner-tube, transition, tube-coupler, "
+            "fin-set, parachute, streamer, shock-cord, mass, rail-button, launch-lug, centering-ring, "
+            "bulkhead, engine-block. "
             "inner-tube serves two purposes: motor mount (set motor_mount=true, sized to motor diameter) "
             "and coupler (short tube joining two body sections, OD = body tube ID, no motor_mount flag). "
             "Use axial_offset_m and axial_offset_method to position components precisely within their parent. "
-            "After create, update, or delete, the full component tree is regenerated automatically "
+            "After create, update, or delete, the full component tree is regenerated automatically. "
             "A read with no component_name returns the full hierarchical "
             "component tree (dimensions in mm, stability, ASCII profile) — use this instead of "
             "generating the tree separately."
@@ -37,9 +39,11 @@ def register_openrocket_component(app: FastMCP):
         material_type: str | None = None,
         length: float | None = None,
         diameter: float | None = None,
+        inner_diameter: float | None = None,
         fore_diameter: float | None = None,
         aft_diameter: float | None = None,
         thickness: float | None = None,
+        width: float | None = None,
         shape: str | None = None,
         count: int | None = None,
         root_chord: float | None = None,
@@ -94,8 +98,16 @@ def register_openrocket_component(app: FastMCP):
                 → fin-set
             diameter, cd
                 → parachute
+            length, width
+                → streamer
+            length
+                → shock-cord (cord length)
             mass
                 → mass component
+            diameter, inner_diameter, length
+                → centering-ring, bulkhead, engine-block, launch-lug
+            diameter, inner_diameter, count
+                → rail-button (count = number of button instances)
 
         Axial positioning (all component types):
             axial_offset_m: Offset in metres along the parent's axis.
@@ -208,9 +220,11 @@ def register_openrocket_component(app: FastMCP):
                     name=name,
                     length=length,
                     diameter=diameter,
+                    inner_diameter=inner_diameter,
                     fore_diameter=fore_diameter,
                     aft_diameter=aft_diameter,
                     thickness=thickness,
+                    width=width,
                     shape=shape,
                     count=count,
                     root_chord=root_chord,

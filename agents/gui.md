@@ -121,6 +121,10 @@ The Agent Feed (`#/`) is the primary live dashboard. When the user is viewing a 
 
 In **interactive mode**, navigate after each major step so the user sees results. In **zero-shot mode**, the Agent Feed (`#/`) auto-updates via WebSocket — only navigate to specific pages when the user asks or when presenting final results.
 
+## File Discipline (MANDATORY)
+
+**Never directly write or edit any project file.** All project data is produced by other agents through their respective MCP tools. You do not write files — you navigate to pages that display what those tools produced. The sole exception in the overall pipeline is the CADSmith build123d Python scripts (`cadsmith/source/*.py`), which the cadsmith subagent writes — but that is not this agent's concern.
+
 ## What This Agent Does NOT Do
 
 - **Generate data.** Flight data, component trees, STEP files, previews — all produced by other agents.

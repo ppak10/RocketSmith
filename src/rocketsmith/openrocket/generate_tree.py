@@ -27,6 +27,8 @@ from rocketsmith.openrocket.models import (
     FinSetDimensions,
     RingDimensions,
     RecoveryDimensions,
+    RailButtonDimensions,
+    LugDimensions,
     GenericDimensions,
 )
 
@@ -45,6 +47,8 @@ _METRE_FIELDS = {
     "span_m",
     "sweep_m",
     "diameter_m",
+    "width_m",
+    "height_m",
     "axial_offset_m",
     "position_x_m",
 }
@@ -106,7 +110,7 @@ def _build_dimensions(comp: dict[str, Any]) -> Any:
             thickness=_to_mm(comp.get("thickness_m", 0)),
         )
 
-    if comp_type in ("CenteringRing", "BulkHead"):
+    if comp_type in ("CenteringRing", "Bulkhead"):
         return RingDimensions(
             od=_to_mm(comp.get("outer_diameter_m", 0)),
             id=_to_mm(comp.get("inner_diameter_m", 0)),
@@ -125,6 +129,26 @@ def _build_dimensions(comp: dict[str, Any]) -> Any:
                 if comp.get("length_m")
                 else None
             ),
+            width=(
+                Quantity(_to_mm(comp["width_m"]), "mm") if comp.get("width_m") else None
+            ),
+        )
+
+    if comp_type == "RailButton":
+        return RailButtonDimensions(
+            outer_diameter=_to_mm(comp.get("outer_diameter_m", 0)),
+            inner_diameter=_to_mm(comp.get("inner_diameter_m", 0)),
+            height=_to_mm(comp.get("height_m", 0)),
+            instance_count=int(comp.get("instance_count", 1)),
+            axial_offset=_to_mm(comp.get("position_x_m", 0)),
+        )
+
+    if comp_type == "LaunchLug":
+        return LugDimensions(
+            outer_diameter=_to_mm(comp.get("outer_diameter_m", 0)),
+            inner_diameter=_to_mm(comp.get("inner_diameter_m", 0)),
+            length=_to_mm(comp.get("length_m", 0)),
+            axial_offset=_to_mm(comp.get("position_x_m", 0)),
         )
 
     # Fallback

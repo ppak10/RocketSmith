@@ -92,13 +92,35 @@ class RingDimensions(QuantityModel):
 
 
 class RecoveryDimensions(QuantityModel):
-    """Reference dimensions for recovery devices (parachutes, streamers)."""
+    """Reference dimensions for recovery devices (parachutes, streamers, shock cords)."""
 
     kind: Literal["recovery"] = "recovery"
     diameter: QuantityField | None = None
     length: QuantityField | None = None
+    width: QuantityField | None = None
     packed_length: QuantityField | None = None
     packed_diameter: QuantityField | None = None
+
+
+class RailButtonDimensions(QuantityModel):
+    """Reference dimensions for a rail button."""
+
+    kind: Literal["rail_button"] = "rail_button"
+    outer_diameter: QuantityField = (0.0, "mm")
+    inner_diameter: QuantityField = (0.0, "mm")
+    height: QuantityField = (0.0, "mm")
+    instance_count: int = 1
+    axial_offset: QuantityField = (0.0, "mm")
+
+
+class LugDimensions(QuantityModel):
+    """Reference dimensions for a launch lug."""
+
+    kind: Literal["lug"] = "lug"
+    outer_diameter: QuantityField = (0.0, "mm")
+    inner_diameter: QuantityField = (0.0, "mm")
+    length: QuantityField = (0.0, "mm")
+    axial_offset: QuantityField = (0.0, "mm")
 
 
 class GenericDimensions(QuantityModel):
@@ -119,6 +141,8 @@ Dimensions = Annotated[
         FinSetDimensions,
         RingDimensions,
         RecoveryDimensions,
+        RailButtonDimensions,
+        LugDimensions,
         GenericDimensions,
     ],
     Field(discriminator="kind"),
@@ -135,10 +159,13 @@ _TYPE_TO_DIMENSION_KIND: dict[str, str] = {
     "EllipticalFinSet": "fin_set",
     "FreeformFinSet": "fin_set",
     "CenteringRing": "ring",
-    "BulkHead": "ring",
+    "Bulkhead": "ring",
+    "EngineBlock": "ring",
     "Parachute": "recovery",
     "Streamer": "recovery",
     "ShockCord": "recovery",
+    "RailButton": "rail_button",
+    "LaunchLug": "lug",
 }
 
 

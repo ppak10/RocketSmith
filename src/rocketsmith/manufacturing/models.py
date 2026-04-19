@@ -60,7 +60,7 @@ _TYPE_TO_CATEGORY: dict[str, ComponentCategory] = {
     "InnerTube": ComponentCategory.STRUCTURAL,
     "TubeCoupler": ComponentCategory.STRUCTURAL,
     "CenteringRing": ComponentCategory.STRUCTURAL,
-    "BulkHead": ComponentCategory.STRUCTURAL,
+    "Bulkhead": ComponentCategory.STRUCTURAL,
     "Transition": ComponentCategory.STRUCTURAL,
     "LaunchLug": ComponentCategory.HARDWARE,
     "RailButton": ComponentCategory.HARDWARE,
@@ -166,6 +166,7 @@ class Component(QuantityModel):
     agent: AgentAnnotation | None = None
     cost: float | None = None
     step_path: str | None = None
+    cadsmith_path: str | None = None
     children: list[Component] = Field(default_factory=list)
 
 

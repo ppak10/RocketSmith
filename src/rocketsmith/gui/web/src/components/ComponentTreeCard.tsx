@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from "react";
-import { Network, CircleDot, CirclePlus } from "lucide-react";
+import { Network, CircleDot, CirclePlus, Box, Umbrella, Wrench, Flame, Cpu } from "lucide-react";
 import { fetchJson, getOfflineFilesTree } from "@/lib/server";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,11 +27,68 @@ const FATE_VARIANT: Record<string, "default" | "neutral"> = {
   skip: "neutral",
 };
 
+// Category → icon + color
+const CATEGORY_ICON: Record<string, React.ReactNode> = {
+  structural:  <Box      className="size-3 shrink-0 text-blue-400"   />,
+  recovery:    <Umbrella className="size-3 shrink-0 text-green-400"  />,
+  hardware:    <Wrench   className="size-3 shrink-0 text-orange-400" />,
+  propulsion:  <Flame    className="size-3 shrink-0 text-red-400"    />,
+  electronics: <Cpu      className="size-3 shrink-0 text-purple-400" />,
+};
+
 function fmtMass(q: Qty | null): string {
   if (!q) return "";
   const [val, unit] = q;
   if (unit.includes("kilogram")) return `${(val * 1000).toFixed(1)} g`;
   return `${val.toFixed(1)} g`;
+}
+
+/** Extract the most useful dimension summary for a component type. */
+function fmtDims(type: string, dims: Record<string, unknown>): string {
+  function mm(key: string): number {
+    const v = dims[key];
+    if (Array.isArray(v)) return v[0] as number;
+    if (typeof v === "number") return v;
+    return 0;
+  }
+  function str(n: number): string { return n > 0 ? n.toFixed(0) : "?"; }
+
+  switch (type) {
+    case "RailButton": {
+      const od = mm("outer_diameter"); const n = (dims.instance_count as number) ?? 1;
+      return `×${n} ⌀${str(od)} mm`;
+    }
+    case "LaunchLug": {
+      const od = mm("outer_diameter"); const len = mm("length");
+      return `⌀${str(od)} × ${str(len)} mm`;
+    }
+    case "CenteringRing":
+    case "BulkHead":
+    case "EngineBlock": {
+      const od = mm("od"); const t = mm("thickness");
+      return `⌀${str(od)} t${str(t)} mm`;
+    }
+    case "Parachute": {
+      const d = mm("diameter");
+      return d > 0 ? `⌀${str(d)} mm` : "";
+    }
+    case "Streamer": {
+      const len = mm("length"); const w = mm("width");
+      return len > 0 ? `${str(len)} × ${str(w)} mm` : "";
+    }
+    case "ShockCord": {
+      const len = mm("length");
+      return len > 0 ? `${str(len)} mm` : "";
+    }
+    case "TrapezoidFinSet":
+    case "EllipticalFinSet":
+    case "FreeformFinSet": {
+      const n = (dims.count as number) ?? 0; const span = mm("span");
+      return n > 0 ? `×${n}  ${str(span)} mm span` : "";
+    }
+    default:
+      return "";
+  }
 }
 
 function countComponents(nodes: ComponentNode[]): number {
@@ -87,6 +144,7 @@ function ComponentRow({
             {isLast ? "└─" : "├─"}
           </span>
         )}
+        {CATEGORY_ICON[node.category] ?? null}
         <Badge
           variant={FATE_VARIANT[fate] ?? "neutral"}
           className="text-[9px] px-1.5 py-0 uppercase shrink-0"
@@ -95,11 +153,17 @@ function ComponentRow({
         </Badge>
         <span className="font-heading truncate">{node.name}</span>
         <span className="text-xs text-foreground/40 shrink-0">{node.type}</span>
-        {node.mass && (
-          <span className="ml-auto text-xs text-foreground/50 shrink-0">
-            {fmtMass(node.mass)}
-          </span>
-        )}
+        <span className="ml-auto flex items-center gap-2 shrink-0">
+          {(() => {
+            const dimStr = fmtDims(node.type, node.dimensions as Record<string, unknown>);
+            return dimStr ? (
+              <span className="text-xs text-foreground/35 font-mono">{dimStr}</span>
+            ) : null;
+          })()}
+          {node.mass && (
+            <span className="text-xs text-foreground/50">{fmtMass(node.mass)}</span>
+          )}
+        </span>
       </li>
       {node.children.map((child, i) => (
         <ComponentRow

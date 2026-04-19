@@ -1,7 +1,7 @@
 {
   "name": "rocketsmith",
   "description": "Use agents to design and build high powered rockets",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "rocketsmith": {
