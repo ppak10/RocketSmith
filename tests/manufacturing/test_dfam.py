@@ -10,6 +10,7 @@ from pathlib import Path
 
 from rocketsmith.manufacturing.dfam import (
     _sanitize_name,
+    _dim,
     annotate_dfam,
 )
 from rocketsmith.manufacturing.models import (
@@ -23,6 +24,8 @@ from rocketsmith.openrocket.models import (
     NoseConeDimensions,
     FinSetDimensions,
     RingDimensions,
+    RecoveryDimensions,
+    GenericDimensions,
 )
 
 
@@ -316,6 +319,476 @@ class TestCadsmithPath:
         bt = tree.stages[0].components[0]
         mm = bt.children[0]
         assert mm.cadsmith_path is None
+
+
+# ── _dim helper tests ─────────────────────────────────────────────────────────
+
+
+class TestDimHelper:
+    """Tests for the _dim() helper function."""
+
+    def _make_component_with_dims(self, dims):
+        return Component(
+            type="NoseCone",
+            name="Test",
+            category="structural",
+            dimensions=dims,
+        )
+
+    def test_dim_returns_zero_for_missing_field(self):
+        """Line 61: _dim returns 0.0 when the field doesn't exist on dimensions."""
+        comp = self._make_component_with_dims(
+            NoseConeDimensions(shape="ogive", length=100.0, base_od=64.0)
+        )
+        result = _dim(comp, "nonexistent_field")
+        assert result == 0.0
+
+    def test_dim_returns_float_for_plain_number(self):
+        """Line 64: _dim returns float(val) when val has no .magnitude attribute.
+
+        TubeDimensions.motor_mount is a plain bool — no .magnitude.
+        """
+        comp = self._make_component_with_dims(
+            TubeDimensions(length=400.0, od=64.0, id=60.0, motor_mount=True)
+        )
+        # motor_mount is a bool (no .magnitude), so _dim should call float(val)
+        result = _dim(comp, "motor_mount")
+        assert result == 1.0  # float(True) == 1.0
+
+
+# ── Fin override tests ────────────────────────────────────────────────────────
+
+
+class TestFinOverrides:
+    """Tests for fin_thickness_mm and fin_fillet_mm overrides (lines 119, 129)."""
+
+    def _make_tree_with_fins(self, tmp_path, fusion_overrides=None):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                            children=[
+                                Component(
+                                    type="TrapezoidFinSet",
+                                    name="Fins",
+                                    category="structural",
+                                    dimensions=FinSetDimensions(
+                                        root_chord=80.0,
+                                        tip_chord=40.0,
+                                        span=60.0,
+                                        thickness=3.0,
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        return annotate_dfam(tree, fusion_overrides=fusion_overrides)
+
+    def test_fin_thickness_override(self, tmp_path):
+        """Line 119: fusion_overrides fin_thickness_mm overrides default."""
+        tree = self._make_tree_with_fins(
+            tmp_path, fusion_overrides={"fin_thickness_mm": 15.0}
+        )
+        fin = tree.stages[0].components[0].children[0]
+        assert fin.agent.dfam_thickness_mm == 15.0
+
+    def test_fin_fillet_override(self, tmp_path):
+        """Line 129: fusion_overrides fin_fillet_mm overrides default fillet."""
+        tree = self._make_tree_with_fins(
+            tmp_path, fusion_overrides={"fin_fillet_mm": 2.0}
+        )
+        fin = tree.stages[0].components[0].children[0]
+        # fillet_ceiling = min(12.7/2, 3.0) = min(6.35, 3.0) = 3.0
+        # fin_fillet_mm=2.0 < 3.0 ceiling, so fillet == 2.0
+        assert fin.agent.dfam_fillet_mm == pytest.approx(2.0)
+
+
+# ── Motor mount fused (line 164) ──────────────────────────────────────────────
+
+
+class TestMotorMountFused:
+    """Line 164: motor mount with default fate=fuse gets Fate.FUSE and no cadsmith_path."""
+
+    def test_motor_mount_fuse_fate_and_no_cadsmith_path(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                            children=[
+                                Component(
+                                    type="InnerTube",
+                                    name="Motor Mount",
+                                    category="structural",
+                                    dimensions=TubeDimensions(
+                                        length=100.0,
+                                        od=29.0,
+                                        id=27.0,
+                                        motor_mount=True,
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)  # default motor_mount_fate="fuse"
+        mm = annotated.stages[0].components[0].children[0]
+        assert mm.agent.fate == Fate.FUSE
+        assert mm.cadsmith_path is None
+
+
+# ── Modifications override (line 253) ────────────────────────────────────────
+
+
+class TestModificationsOverride:
+    """Line 253: modifications in fusion_overrides ends up on body tube's dfam_modifications."""
+
+    def test_modifications_set_on_body_tube(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                        )
+                    ],
+                )
+            ],
+        )
+        mods = [{"kind": "radial_through_holes"}]
+        annotated = annotate_dfam(tree, fusion_overrides={"modifications": mods})
+        bt = annotated.stages[0].components[0]
+        assert bt.agent.dfam_modifications == mods
+
+
+# ── Orphaned fin set (lines 277-280) ──────────────────────────────────────────
+
+
+class TestOrphanedFinSet:
+    """Lines 277-280: top-level TrapezoidFinSet (no parent) gets PRINT + cadsmith_path."""
+
+    def test_orphaned_fin_set_gets_print(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="TrapezoidFinSet",
+                            name="Orphan Fins",
+                            category="structural",
+                            dimensions=FinSetDimensions(
+                                root_chord=80.0,
+                                tip_chord=40.0,
+                                span=60.0,
+                                thickness=3.0,
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)
+        fin = annotated.stages[0].components[0]
+        assert fin.agent.fate == Fate.PRINT
+        assert fin.cadsmith_path == "orphan_fins.py"
+
+
+# ── Non-motor-mount InnerTube (lines 299-302) ─────────────────────────────────
+
+
+class TestNonMotorMountInnerTube:
+    """Lines 299-302: InnerTube with motor_mount=False gets PRINT + cadsmith_path."""
+
+    def test_inner_tube_no_motor_mount_gets_print(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                            children=[
+                                Component(
+                                    type="InnerTube",
+                                    name="Payload Bay",
+                                    category="structural",
+                                    dimensions=TubeDimensions(
+                                        length=150.0,
+                                        od=50.0,
+                                        id=48.0,
+                                        motor_mount=False,
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)
+        inner = annotated.stages[0].components[0].children[0]
+        assert inner.agent.fate == Fate.PRINT
+        assert inner.cadsmith_path == "payload_bay.py"
+
+
+# ── TubeCoupler fused default (lines 306-307) ────────────────────────────────
+
+
+class TestTubeCouplerFusedDefault:
+    """Lines 306-307: TubeCoupler with default coupler_fate=fuse gets FUSE + no cadsmith_path."""
+
+    def test_tube_coupler_fuse_fate(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                            children=[
+                                Component(
+                                    type="TubeCoupler",
+                                    name="Tube Coupler",
+                                    category="structural",
+                                    dimensions=TubeDimensions(
+                                        length=60.0, od=60.0, id=56.0
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)  # default coupler_fate="fuse"
+        coupler = annotated.stages[0].components[0].children[0]
+        assert coupler.agent.fate == Fate.FUSE
+        assert coupler.cadsmith_path is None
+
+
+# ── CenteringRing skipped (line 318) ─────────────────────────────────────────
+
+
+class TestCenteringRingSkipped:
+    """Line 318: CenteringRing with default motor_mount_fate=fuse gets SKIP + no cadsmith_path."""
+
+    def test_centering_ring_skip_when_motor_mount_fused(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                            children=[
+                                Component(
+                                    type="CenteringRing",
+                                    name="Centering Ring",
+                                    category="structural",
+                                    dimensions=RingDimensions(
+                                        od=62.0, id=29.5, thickness=5.0
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)  # default motor_mount_fate="fuse"
+        cr = annotated.stages[0].components[0].children[0]
+        assert cr.agent.fate == Fate.SKIP
+        assert cr.cadsmith_path is None
+
+
+# ── Non-physical types (lines 329-334) ───────────────────────────────────────
+
+
+class TestNonPhysicalTypes:
+    """Lines 329-334: Parachute gets Fate.PURCHASE."""
+
+    def test_parachute_gets_purchase(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="Parachute",
+                            name="Main Chute",
+                            category="recovery",
+                            dimensions=RecoveryDimensions(diameter=300.0),
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)
+        chute = annotated.stages[0].components[0]
+        assert chute.agent.fate == Fate.PURCHASE
+
+
+# ── Unknown type (lines 341-342) ─────────────────────────────────────────────
+
+
+class TestUnknownType:
+    """Lines 341-342: Unknown component type gets Fate.SKIP."""
+
+    def test_unknown_widget_gets_skip(self, tmp_path):
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="UnknownWidget",
+                            name="Mystery Part",
+                            category="structural",
+                            dimensions=RecoveryDimensions(),
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)
+        widget = annotated.stages[0].components[0]
+        assert widget.agent.fate == Fate.SKIP
+
+    def test_axial_stage_gets_skip(self, tmp_path):
+        """Line 337: AxialStage in _STRUCTURAL_WRAPPERS → Fate.SKIP."""
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="AxialStage",
+                            name="Booster Stage",
+                            category="structural",
+                            dimensions=GenericDimensions(),
+                        )
+                    ],
+                )
+            ],
+        )
+        annotated = annotate_dfam(tree)
+        stage_comp = annotated.stages[0].components[0]
+        assert stage_comp.agent.fate == Fate.SKIP
+
+
+# ── Children recursion (line 346) ────────────────────────────────────────────
+
+
+class TestChildrenRecursion:
+    """Line 346: children of non-BodyTube components are recursed into."""
+
+    def test_tube_coupler_child_gets_annotated(self, tmp_path):
+        """TubeCoupler (separate fate) with a child — the child gets annotated."""
+        tree = ComponentTree(
+            source_ork="test.ork",
+            project_root=str(tmp_path),
+            rocket_name="TestRocket",
+            stages=[
+                Stage(
+                    name="Sustainer",
+                    components=[
+                        Component(
+                            type="BodyTube",
+                            name="Body Tube",
+                            category="structural",
+                            dimensions=TubeDimensions(length=400.0, od=64.0, id=60.0),
+                            children=[
+                                Component(
+                                    type="TubeCoupler",
+                                    name="Coupler",
+                                    category="structural",
+                                    dimensions=TubeDimensions(
+                                        length=60.0, od=60.0, id=56.0
+                                    ),
+                                    children=[
+                                        Component(
+                                            type="Parachute",
+                                            name="Drogue Chute",
+                                            category="recovery",
+                                            dimensions=RecoveryDimensions(
+                                                diameter=200.0
+                                            ),
+                                        )
+                                    ],
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        # Use separate coupler fate so coupler is annotated as non-fused
+        annotated = annotate_dfam(tree, fusion_overrides={"coupler_fate": "separate"})
+        coupler = annotated.stages[0].components[0].children[0]
+        drogue = coupler.children[0]
+        # The child parachute must have been recursed into and annotated
+        assert drogue.agent is not None
+        assert drogue.agent.fate == Fate.PURCHASE
 
 
 # ── Integration tests (require OpenRocket JAR) ────────────────────────────────
