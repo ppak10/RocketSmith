@@ -19,6 +19,21 @@ def _cleanup_pid_file() -> None:
         pass
 
 
+def safe_resolve(path: Path) -> Path:
+    """Resolve a path to absolute form without raising on Windows.
+
+    ``Path.resolve()`` on Windows calls ``GetFinalPathNameByHandle``, which can
+    raise ``OSError: [WinError 87] The parameter is incorrect`` for certain path
+    types (long paths, paths with trailing characters, non-existent roots).
+    ``os.path.abspath`` performs the same ``..``-collapse and absolutisation
+    without that API call and is safe on all platforms.
+    """
+    try:
+        return path.resolve()
+    except OSError:
+        return Path(os.path.abspath(path))
+
+
 def set_project_dir(path: Path) -> None:
     """Persist the project directory for this MCP server process (PID-scoped).
 
@@ -28,7 +43,7 @@ def set_project_dir(path: Path) -> None:
     """
     global _atexit_registered
     _ROCKETSMITH_DIR.mkdir(parents=True, exist_ok=True)
-    _pid_file().write_text(str(path.resolve()))
+    _pid_file().write_text(str(safe_resolve(path)))
     if not _atexit_registered:
         atexit.register(_cleanup_pid_file)
         _atexit_registered = True

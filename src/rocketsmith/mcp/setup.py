@@ -105,10 +105,10 @@ def register_setup(app: FastMCP):
         gui_error = None
 
         if project_dir is not None:
-            from rocketsmith.mcp.utils import set_project_dir
+            from rocketsmith.mcp.utils import safe_resolve, set_project_dir
 
             set_project_dir(project_dir)
-            gui_url, gui_pid, gui_error = _start_gui(project_dir.resolve())
+            gui_url, gui_pid, gui_error = _start_gui(safe_resolve(project_dir))
 
         if action == "check":
             status = _check()
