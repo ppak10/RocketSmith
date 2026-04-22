@@ -257,6 +257,23 @@ def read_component(
         return _extract_properties(comp)
 
 
+def _extract_deployment_config(comp, props: dict) -> None:
+    """Extract deployment configuration from a RecoveryDevice into props dict."""
+    try:
+        configs = comp.getDeploymentConfigurations()
+        deploy_config = configs.getDefault()
+        deploy_event = deploy_config.getDeployEvent()
+        event = str(deploy_event.name())
+        props["deployment_event"] = event
+        props["deployment_delay_s"] = round(float(deploy_config.getDeployDelay()), 2)
+        if event == "ALTITUDE":
+            props["deployment_altitude_m"] = round(
+                float(deploy_config.getDeployAltitude()), 1
+            )
+    except Exception:
+        pass
+
+
 def _extract_properties(comp) -> dict:
     """Extract dict of serializable properties from an OpenRocket component."""
     props = {
@@ -357,6 +374,7 @@ def _extract_properties(comp) -> dict:
             props["cd"] = round(float(comp.getCD()), 2)
         except:
             pass
+        _extract_deployment_config(comp, props)
 
     elif type_name == "Streamer":
         try:
@@ -375,6 +393,7 @@ def _extract_properties(comp) -> dict:
             props["cd"] = round(float(comp.getCD()), 2)
         except:
             pass
+        _extract_deployment_config(comp, props)
 
     elif type_name == "ShockCord":
         try:
@@ -532,6 +551,51 @@ def update_component(
         return _extract_properties(comp)
 
 
+_DEPLOY_EVENTS = {
+    "APOGEE",
+    "EJECTION",
+    "ALTITUDE",
+    "LAUNCH",
+    "LOWER_STAGE_SEPARATION",
+    "NEVER",
+}
+
+
+def _apply_deployment_config(comp, kwargs: dict) -> None:
+    """Apply deployment configuration kwargs to a RecoveryDevice component."""
+    event_str = kwargs.get("deployment_event")
+    delay = kwargs.get("deployment_delay")
+    altitude = kwargs.get("deployment_altitude")
+
+    if event_str is None and delay is None and altitude is None:
+        return
+
+    import jpype
+
+    DeploymentConfiguration = jpype.JClass(
+        "net.sf.openrocket.rocketcomponent.DeploymentConfiguration"
+    )
+    DeployEvent = DeploymentConfiguration.DeployEvent
+
+    configs = comp.getDeploymentConfigurations()
+    deploy_config = configs.getDefault()
+
+    if event_str is not None:
+        event_upper = event_str.upper()
+        if event_upper not in _DEPLOY_EVENTS:
+            raise ValueError(
+                f"Invalid deployment_event '{event_str}'. "
+                f"Must be one of: {', '.join(sorted(_DEPLOY_EVENTS))}"
+            )
+        deploy_config.setDeployEvent(DeployEvent.valueOf(event_upper))
+
+    if delay is not None:
+        deploy_config.setDeployDelay(float(delay))
+
+    if altitude is not None:
+        deploy_config.setDeployAltitude(float(altitude))
+
+
 def _apply_properties(comp, **kwargs):
     """Apply dict of properties to an OpenRocket component."""
     import jpype
@@ -620,6 +684,7 @@ def _apply_properties(comp, **kwargs):
             comp.setDiameter(float(kwargs["diameter"]))
         if kwargs.get("cd") is not None:
             comp.setCD(float(kwargs["cd"]))
+        _apply_deployment_config(comp, kwargs)
 
     elif java_type_name == "Streamer":
         if kwargs.get("length") is not None:
@@ -633,6 +698,7 @@ def _apply_properties(comp, **kwargs):
                 pass
         if kwargs.get("cd") is not None:
             comp.setCD(float(kwargs["cd"]))
+        _apply_deployment_config(comp, kwargs)
 
     elif java_type_name == "ShockCord":
         if kwargs.get("length") is not None:

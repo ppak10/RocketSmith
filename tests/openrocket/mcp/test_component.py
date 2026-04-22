@@ -649,3 +649,149 @@ async def test_mass_override_toggle_off(mcp_app, tmp_ork, openrocket_jar):
     )
     assert result.success is True
     assert result.data["override_mass_enabled"] is False
+
+
+# ── Deployment configuration ─────────────────────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_create_parachute_with_deployment(mcp_app, tmp_ork, openrocket_jar):
+    """Deployment params can be set at creation time."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="parachute",
+        parent="BT",
+        name="Main",
+        diameter=0.6,
+        deployment_event="EJECTION",
+        deployment_delay=2.0,
+    )
+
+    assert result.success is True
+    assert result.data["deployment_event"] == "EJECTION"
+    assert abs(result.data["deployment_delay_s"] - 2.0) < 0.01
+
+
+@pytest.mark.anyio
+async def test_update_deployment_event(mcp_app, tmp_ork, openrocket_jar):
+    """Deployment event can be changed via update action."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="parachute",
+        parent="BT",
+        name="Chute",
+        diameter=0.5,
+    )
+
+    result = await tool.fn(
+        action="update",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Chute",
+        deployment_event="ALTITUDE",
+        deployment_altitude=200.0,
+    )
+
+    assert result.success is True
+    assert result.data["deployment_event"] == "ALTITUDE"
+    assert abs(result.data["deployment_altitude_m"] - 200.0) < 0.1
+
+
+@pytest.mark.anyio
+async def test_deployment_persists_across_reload(mcp_app, tmp_ork, openrocket_jar):
+    """Deployment config survives save + reload via the MCP tool."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="parachute",
+        parent="BT",
+        name="Main",
+        diameter=0.6,
+        deployment_event="EJECTION",
+        deployment_delay=3.0,
+    )
+
+    result = await tool.fn(
+        action="read",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_name="Main",
+    )
+
+    assert result.success is True
+    assert result.data["deployment_event"] == "EJECTION"
+    assert abs(result.data["deployment_delay_s"] - 3.0) < 0.01
+
+
+@pytest.mark.anyio
+async def test_streamer_deployment(mcp_app, tmp_ork, openrocket_jar):
+    """Deployment config works for streamers too."""
+    tools = mcp_app._tool_manager.list_tools()
+    tool = tools[0]
+
+    await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="body-tube",
+        name="BT",
+        diameter=0.1,
+        length=0.4,
+    )
+
+    result = await tool.fn(
+        action="create",
+        rocket_file_path=tmp_ork,
+        openrocket_path=openrocket_jar,
+        component_type="streamer",
+        parent="BT",
+        name="Str",
+        length=0.5,
+        width=0.05,
+        deployment_event="NEVER",
+    )
+
+    assert result.success is True
+    assert result.data["deployment_event"] == "NEVER"

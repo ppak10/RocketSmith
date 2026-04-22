@@ -59,6 +59,7 @@ _EXT_MAP: dict[str, str] = {
 # Extensions whose content we snapshot for diff support.
 _TEXT_EXTENSIONS: set[str] = {
     ".json",
+    ".jsonl",
     ".md",
     ".py",
     ".csv",

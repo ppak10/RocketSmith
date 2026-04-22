@@ -55,6 +55,9 @@ def register_openrocket_component(app: FastMCP):
         motor_mount: bool | None = None,
         axial_offset_m: float | None = None,
         axial_offset_method: str | None = None,
+        deployment_event: str | None = None,
+        deployment_delay: float | None = None,
+        deployment_altitude: float | None = None,
         override_mass_kg: float | None = None,
         override_mass_enabled: bool | None = None,
         openrocket_path: Path | None = None,
@@ -96,9 +99,9 @@ def register_openrocket_component(app: FastMCP):
                 → nose-cone, body-tube, transition
             count, root_chord, tip_chord, span, sweep, thickness
                 → fin-set
-            diameter, cd
+            diameter, cd, deployment_event, deployment_delay, deployment_altitude
                 → parachute
-            length, width
+            length, width, deployment_event, deployment_delay, deployment_altitude
                 → streamer
             length
                 → shock-cord (cord length)
@@ -108,6 +111,12 @@ def register_openrocket_component(app: FastMCP):
                 → centering-ring, bulkhead, engine-block, launch-lug
             diameter, inner_diameter, count
                 → rail-button (count = number of button instances)
+
+        Deployment configuration (parachute and streamer only):
+            deployment_event: One of APOGEE, EJECTION, ALTITUDE, LAUNCH,
+                LOWER_STAGE_SEPARATION, NEVER.
+            deployment_delay: Delay in seconds after the trigger event.
+            deployment_altitude: Altitude in metres (used with ALTITUDE event).
 
         Axial positioning (all component types):
             axial_offset_m: Offset in metres along the parent's axis.
@@ -236,6 +245,9 @@ def register_openrocket_component(app: FastMCP):
                     motor_mount=motor_mount,
                     axial_offset_m=axial_offset_m,
                     axial_offset_method=axial_offset_method,
+                    deployment_event=deployment_event,
+                    deployment_delay=deployment_delay,
+                    deployment_altitude=deployment_altitude,
                     override_mass_kg=override_mass_kg,
                     override_mass_enabled=override_mass_enabled,
                 ).items()

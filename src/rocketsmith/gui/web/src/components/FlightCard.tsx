@@ -78,11 +78,15 @@ const CHARTS = [
 interface FlightCardProps {
   className?: string;
   treeVersion?: number;
+  /** Flight JSON paths extracted from WS events (available before the
+   *  debounced file-tree update arrives). */
+  eventPaths?: string[];
 }
 
 export const FlightCard = memo(function FlightCard({
   className,
   treeVersion = 0,
+  eventPaths = [],
 }: FlightCardProps) {
   const fileTree = useFileTree(treeVersion);
   const [simulations, setSimulations] = useState<FlightData[]>([]);
@@ -90,14 +94,17 @@ export const FlightCard = memo(function FlightCard({
   const [activeChart, setActiveChart] = useState("altitude");
 
   useEffect(() => {
-    const simFiles = findFlightFiles(fileTree);
-    if (simFiles.length === 0) {
+    // Merge paths discovered from the file tree with paths from WS events
+    // so new files are found immediately, before the debounced tree refresh.
+    const treePaths = findFlightFiles(fileTree);
+    const merged = [...new Set([...treePaths, ...eventPaths])].sort();
+    if (merged.length === 0) {
       setSimulations([]);
       return;
     }
 
     Promise.all(
-      simFiles.map((path) => fetchJson<Record<string, unknown>>(path)),
+      merged.map((path) => fetchJson<Record<string, unknown>>(path)),
     ).then((results) => {
       const valid = (results.filter(Boolean) as Record<string, unknown>[]).map(
         normalizeFlightData,
@@ -107,7 +114,7 @@ export const FlightCard = memo(function FlightCard({
         setActiveSim(valid[0].flight_name);
       }
     });
-  }, [fileTree, treeVersion]);
+  }, [fileTree, treeVersion, eventPaths]);
 
   const currentSim = simulations.find((s) => s.flight_name === activeSim);
 

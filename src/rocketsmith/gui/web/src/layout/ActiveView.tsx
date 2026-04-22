@@ -191,10 +191,10 @@ function AgentFeedGrid({
 
   // Viewport cell count — only used for auto-placement bounds and background cells.
   const [viewCols, setViewCols] = useState(() =>
-    Math.max(MIN_PACK, Math.floor(window.innerWidth / CELL_W)),
+    Math.max(MIN_PACK, Math.ceil(window.innerWidth / CELL_W)),
   );
   const [viewRows, setViewRows] = useState(() =>
-    Math.max(MIN_PACK, Math.floor(window.innerHeight / CELL_H)),
+    Math.max(MIN_PACK, Math.ceil(window.innerHeight / CELL_H)),
   );
 
   useEffect(() => {
@@ -203,8 +203,8 @@ function AgentFeedGrid({
     const observer = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
       const h = entry.contentRect.height;
-      setViewCols(Math.max(MIN_PACK, Math.floor(w / CELL_W)));
-      setViewRows(Math.max(MIN_PACK, Math.floor(h / CELL_H)));
+      setViewCols(Math.max(MIN_PACK, Math.ceil(w / CELL_W)));
+      setViewRows(Math.max(MIN_PACK, Math.ceil(h / CELL_H)));
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -284,8 +284,8 @@ function AgentFeedGrid({
     contentCols = Math.max(contentCols, layout.col + layout.colSpan - 1);
     contentRows = Math.max(contentRows, layout.row + layout.rowSpan - 1);
   }
-  const displayCols = Math.max(viewCols, contentCols + 1, MIN_DISPLAY);
-  const displayRows = Math.max(viewRows, contentRows + 1, MIN_DISPLAY);
+  const displayCols = Math.max(viewCols, contentCols + 2, MIN_DISPLAY);
+  const displayRows = Math.max(viewRows, contentRows + 2, MIN_DISPLAY);
 
   // Track active drag and hover for multi-cell highlighting.
   const [dragId, setDragId] = useState<string | null>(null);
@@ -551,8 +551,26 @@ export function ActiveView({ events, offline, treeVersion }: ActiveViewProps) {
     () => events.filter((e) => e.type === "flight").length + treeVersion,
     [events, treeVersion],
   );
+  // Collect flight file paths from WS events so FlightCard doesn't have to
+  // wait for the debounced file-tree update to discover new files.
+  const flightEventPaths = useMemo(
+    () => [
+      ...new Set(
+        events
+          .filter((e) => e.type === "flight" && e.relative_path.endsWith(".json"))
+          .map((e) => e.relative_path),
+      ),
+    ],
+    [events],
+  );
   if (hasFlightEvent) {
-    visibleCards["flight"] = <FlightCard className="h-full" treeVersion={flightVersion} />;
+    visibleCards["flight"] = (
+      <FlightCard
+        className="h-full"
+        treeVersion={flightVersion}
+        eventPaths={flightEventPaths}
+      />
+    );
   }
 
   if (sessionLogs.length > 0) {

@@ -366,3 +366,110 @@ def test_delete_component_persists(tmp_ork, openrocket_jar):
     result = inspect_ork(tmp_ork, openrocket_jar)
     names = [c["name"] for c in result["components"]]
     assert "Temp" not in names
+
+
+# ── deployment configuration ─────────────────────────────────────────────────
+
+
+def test_parachute_default_deployment_event(tmp_ork, openrocket_jar):
+    """A freshly created parachute exposes a deployment_event in its properties."""
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    info = create_component(
+        tmp_ork,
+        "parachute",
+        openrocket_jar,
+        parent="BT",
+        diameter=0.5,
+    )
+    assert "deployment_event" in info
+    assert "deployment_delay_s" in info
+
+
+def test_update_parachute_deployment_event(tmp_ork, openrocket_jar):
+    """Deployment event can be changed via update_component."""
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    create_component(
+        tmp_ork,
+        "parachute",
+        openrocket_jar,
+        parent="BT",
+        name="Main",
+        diameter=0.6,
+    )
+    info = update_component(
+        tmp_ork,
+        "Main",
+        openrocket_jar,
+        deployment_event="EJECTION",
+        deployment_delay=2.0,
+    )
+    assert info["deployment_event"] == "EJECTION"
+    assert abs(info["deployment_delay_s"] - 2.0) < 0.01
+
+
+def test_update_parachute_deployment_altitude(tmp_ork, openrocket_jar):
+    """Setting deployment to ALTITUDE exposes deployment_altitude_m."""
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    create_component(
+        tmp_ork,
+        "parachute",
+        openrocket_jar,
+        parent="BT",
+        name="Drogue",
+        diameter=0.3,
+    )
+    info = update_component(
+        tmp_ork,
+        "Drogue",
+        openrocket_jar,
+        deployment_event="ALTITUDE",
+        deployment_altitude=200.0,
+    )
+    assert info["deployment_event"] == "ALTITUDE"
+    assert abs(info["deployment_altitude_m"] - 200.0) < 0.1
+
+
+def test_update_streamer_deployment_event(tmp_ork, openrocket_jar):
+    """Deployment config also works for streamers."""
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    create_component(
+        tmp_ork,
+        "streamer",
+        openrocket_jar,
+        parent="BT",
+        name="Str",
+        length=0.5,
+        width=0.05,
+    )
+    info = update_component(
+        tmp_ork,
+        "Str",
+        openrocket_jar,
+        deployment_event="APOGEE",
+        deployment_delay=1.5,
+    )
+    assert info["deployment_event"] == "APOGEE"
+    assert abs(info["deployment_delay_s"] - 1.5) < 0.01
+
+
+def test_deployment_persists_after_reload(tmp_ork, openrocket_jar):
+    """Deployment config survives save/reload cycle."""
+    create_component(tmp_ork, "body-tube", openrocket_jar, name="BT")
+    create_component(
+        tmp_ork,
+        "parachute",
+        openrocket_jar,
+        parent="BT",
+        name="Chute",
+        diameter=0.5,
+    )
+    update_component(
+        tmp_ork,
+        "Chute",
+        openrocket_jar,
+        deployment_event="EJECTION",
+        deployment_delay=3.0,
+    )
+    info = read_component(tmp_ork, "Chute", openrocket_jar)
+    assert info["deployment_event"] == "EJECTION"
+    assert abs(info["deployment_delay_s"] - 3.0) < 0.01

@@ -52,6 +52,7 @@ interface Shape {
   finSweep?: number;
   finTipChord?: number;
   finCount?: number;
+  noseShape?: string;
   color: string;
 }
 
@@ -112,7 +113,8 @@ function buildShapes(stages: Stage[]): Shape[] {
       if (comp.type === "NoseCone") {
         const length = dimVal(dims, "length");
         const radius = dimVal(dims, "base_od") / 2;
-        shapes.push({ type: "NoseCone", name: comp.name, x: cursor, length, radius, tipRadius: 0, color: SHAPE_COLORS.NoseCone });
+        const noseShape = typeof dims.shape === "string" ? dims.shape : "ogive";
+        shapes.push({ type: "NoseCone", name: comp.name, x: cursor, length, radius, tipRadius: 0, noseShape, color: SHAPE_COLORS.NoseCone });
         cursor += length;
         walkComponents(comp.children, cursor - length, length, radius);
       } else if (comp.type === "BodyTube") {
@@ -208,6 +210,55 @@ function buildShapes(stages: Stage[]): Shape[] {
   return shapes;
 }
 
+// ── Nose cone profile generators ──────────────────────────────────────────
+// Each function returns an array of [x, y] points from tip (0,0) to base (1,1)
+// where x is fraction of length and y is fraction of radius.
+
+function noseProfile(shape: string, n = 64): [number, number][] {
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    // Cosine spacing: denser near tip (t=0) where curvature is highest.
+    const t = 0.5 * (1 - Math.cos((Math.PI * i) / n));
+    let y: number;
+    switch (shape) {
+      case "conical":
+        y = t;
+        break;
+      case "ellipsoid": {
+        y = Math.sqrt(1 - (1 - t) * (1 - t));
+        break;
+      }
+      case "power": {
+        // Power series with exponent 0.5 (square root — blunted shape)
+        y = Math.sqrt(t);
+        break;
+      }
+      case "parabolic": {
+        // Parabolic series with k=0.5
+        const k = 0.5;
+        y = (2 * t - k * t * t) / (2 - k);
+        break;
+      }
+      case "haack": {
+        // LD-Haack (Von Kármán) series, C = 0
+        const theta = Math.acos(1 - 2 * t);
+        y = Math.sqrt((theta - Math.sin(2 * theta) / 2) / Math.PI);
+        break;
+      }
+      default:
+        // "ogive" — tangent ogive (default)
+        // rho = (R^2 + L^2) / (2*R), using normalized coords (R=1, L=1)
+        {
+          const rho = (1 + 1) / (2 * 1); // = 1
+          y = Math.sqrt(rho * rho - (1 - t) * (1 - t)) - (rho - 1);
+        }
+        break;
+    }
+    pts.push([t, Math.max(0, Math.min(1, y))]);
+  }
+  return pts;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 interface RocketProfileProps {
@@ -259,13 +310,23 @@ export function RocketProfile({ stages, cgMm = null, cpMm = null, highlightedNam
         const highlightStrokeWidth = isHit ? 2.5 : 1.5;
 
         if (shape.type === "NoseCone") {
-          const tipX = sx;
-          const baseX = sx + sl;
-          const upper = `M ${tipX} ${centerY} Q ${tipX + sl * 0.3} ${centerY - sr} ${baseX} ${centerY - sr}`;
+          const pts = noseProfile(shape.noseShape ?? "ogive");
+          // Upper outline: tip to base
+          const upper = pts.map(([t, r], idx) => {
+            const px = sx + t * sl;
+            const py = centerY - r * sr;
+            return idx === 0 ? `M ${px} ${py}` : `L ${px} ${py}`;
+          }).join(" ");
+          // Lower outline: base back to tip (reversed)
+          const lower = [...pts].reverse().map(([t, r]) => {
+            const px = sx + t * sl;
+            const py = centerY + r * sr;
+            return `L ${px} ${py}`;
+          }).join(" ");
           return (
             <g key={i} opacity={dimOpacity} className="transition-opacity">
               <path
-                d={`${upper} L ${baseX} ${centerY + sr} Q ${tipX + sl * 0.3} ${centerY + sr} ${tipX} ${centerY} Z`}
+                d={`${upper} ${lower} Z`}
                 fill={shape.color}
                 stroke={highlightStroke}
                 strokeWidth={highlightStrokeWidth}

@@ -35,11 +35,11 @@ export const CARD_REGISTRY: CardDefinition[] = [
     label: "Session Log",
     defaultOrder: 3,
     colSpan: 2,
-    rowSpan: 1,
+    rowSpan: 4,
     minColSpan: 2,
     maxColSpan: 2,
     minRowSpan: 1,
-    maxRowSpan: 5
+    maxRowSpan: 8
   },
 ];
 
